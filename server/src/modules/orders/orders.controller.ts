@@ -1,0 +1,35 @@
+import { Request, Response } from 'express';
+import { ordersService } from './orders.service';
+import { createOrderSchema, updateOrderStatusSchema, orderQuerySchema } from './orders.schema';
+import { sendSuccess, sendCreated, buildPaginationMeta } from '../../core/utils/responseHandler';
+
+export const ordersController = {
+  async createOrder(req: Request, res: Response) {
+    const input = createOrderSchema.parse(req.body);
+    const result = await ordersService.createOrder(req.user!.id, input);
+    sendCreated(res, result, 'Order created. Proceed with payment.');
+  },
+
+  async getMyOrders(req: Request, res: Response) {
+    const query = orderQuerySchema.parse(req.query);
+    const { data, meta } = await ordersService.getMyOrders(req.user!.id, query);
+    sendSuccess(res, data, 'Orders fetched.', 200, meta);
+  },
+
+  async getMyOrderById(req: Request, res: Response) {
+    const order = await ordersService.getMyOrderById(req.user!.id, (req.params.id as string));
+    sendSuccess(res, order);
+  },
+
+  async getAllOrders(req: Request, res: Response) {
+    const query = orderQuerySchema.parse(req.query);
+    const { data, meta } = await ordersService.getAllOrders(query);
+    sendSuccess(res, data, 'All orders fetched.', 200, meta);
+  },
+
+  async updateStatus(req: Request, res: Response) {
+    const input = updateOrderStatusSchema.parse(req.body);
+    const order = await ordersService.updateStatus((req.params.id as string), input);
+    sendSuccess(res, order, 'Order status updated.');
+  },
+};

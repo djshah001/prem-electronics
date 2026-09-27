@@ -1,0 +1,102 @@
+# ==========================================
+# 1. Dependencies (Root, Client, and Server)
+# ==========================================
+node_modules/
+*/node_modules/
+.pnp/
+.pnp.js
+
+# ==========================================
+# 2. Production Builds & Bundler Outputs
+# ==========================================
+# Vite client build output
+client/dist/
+dist/
+build/
+out/
+.next/
+*.bundle.js
+
+# ==========================================
+# 3. Environment Variables & Secrets
+# ==========================================
+# Never commit credentials (DB URLs, Razorpay keys, JWT secrets)
+.env
+.env.*
+*.env
+# Ensure template files are tracked
+!.env.example
+!client/.env.example
+!server/.env.example
+
+# ==========================================
+# 4. Logs & Diagnostics
+# ==========================================
+*.log
+logs/
+server/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# 5. Database Backups & Local Data
+# ==========================================
+# Ignore local SQLite test files or database dumps
+*.sqlite
+*.sqlite3
+*.db
+# Ignore raw SQL dumps created locally (preserve Drizzle migrations below)
+*.dump.sql
+*.bak
+
+# IMPORTANT: Keep Drizzle migrations tracked
+!server/src/infrastructure/database/migrations/**
+!server/src/infrastructure/database/migrations/meta/**
+
+# ==========================================
+# 6. File Uploads & Temp Media Storage
+# ==========================================
+# Local upload folders for products/blogs if stored on the server filesystem
+server/uploads/
+uploads/
+temp/
+tmp/
+
+# ==========================================
+# 7. Caches & Diagnostic Tools
+# ==========================================
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+.cache/
+client/.vite/
+.turbo/
+coverage/
+.nyc_output/
+
+# ==========================================
+# 8. Operating System & Editor Metadata
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
