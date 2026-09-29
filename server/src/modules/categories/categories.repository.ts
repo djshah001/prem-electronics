@@ -1,4 +1,4 @@
-import { eq, isNull } from 'drizzle-orm';
+import { eq, isNull, sql, inArray, or, ilike, and, desc, asc } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db';
 import {
   categories,
@@ -59,5 +59,30 @@ export const categoriesRepository = {
 
   async delete(id: string): Promise<void> {
     await db.delete(categories).where(eq(categories.id, id));
+  },
+
+  async findAllAdmin(page: number, limit: number, search?: string, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc'): Promise<{ data: Category[]; total: number }> {
+    const offset = (page - 1) * limit;
+    const conditions = search
+      ? [ilike(categories.name, `%${search}%`)]
+      : [];
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    let orderCol = categories.createdAt;
+    if (sortBy === 'name') orderCol = categories.name as any;
+    if (sortBy === 'isActive') orderCol = categories.isActive as any;
+    
+    const orderClause = sortOrder === 'asc' ? asc(orderCol) : desc(orderCol);
+
+    const [data, countResult] = await Promise.all([
+      db.select().from(categories).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(categories).where(whereClause),
+    ]);
+    return { data, total: Number(countResult[0].count) };
+  },
+
+  async bulkDelete(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    await db.delete(categories).where(inArray(categories.id, ids));
   },
 };

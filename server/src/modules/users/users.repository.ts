@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql, inArray, ilike, or, desc, asc } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db';
 import {
   users,
@@ -68,5 +68,31 @@ export const usersRepository = {
       .update(addresses)
       .set({ isDefault: false })
       .where(eq(addresses.userId, userId));
+  },
+
+  async findAllAdmin(page: number, limit: number, search?: string, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc'): Promise<{ data: User[]; total: number }> {
+    const offset = (page - 1) * limit;
+    const conditions = search
+      ? [or(ilike(users.name, `%${search}%`), ilike(users.email, `%${search}%`))!]
+      : [];
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    let orderCol = users.createdAt;
+    if (sortBy === 'name') orderCol = users.name as any;
+    if (sortBy === 'email') orderCol = users.email as any;
+    if (sortBy === 'role') orderCol = users.role as any;
+    
+    const orderClause = sortOrder === 'asc' ? asc(orderCol) : desc(orderCol);
+
+    const [data, countResult] = await Promise.all([
+      db.select().from(users).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(users).where(whereClause),
+    ]);
+    return { data, total: Number(countResult[0].count) };
+  },
+
+  async bulkDelete(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    await db.delete(users).where(inArray(users.id, ids));
   },
 };

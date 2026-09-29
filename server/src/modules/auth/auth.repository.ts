@@ -18,6 +18,15 @@ export const authRepository = {
     return result[0];
   },
 
+  async updateUser(userId: string, data: Partial<NewUser>): Promise<User> {
+    const result = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return result[0];
+  },
+
   async updateOTP(userId: string, otp: string, expiry: Date): Promise<void> {
     await db
       .update(users)

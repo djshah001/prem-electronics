@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, ilike, or, sql, desc, asc } from 'drizzle-orm';
+import { eq, and, gte, lte, ilike, or, sql, desc, asc, inArray } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db';
 import {
   products,
@@ -135,14 +135,30 @@ export const productsRepository = {
     return result[0];
   },
 
-  async findAllAdmin(page: number, limit: number, search?: string): Promise<{ data: Product[]; total: number }> {
+  async findAllAdmin(page: number, limit: number, search?: string, sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc', isActive?: boolean, categoryId?: string): Promise<{ data: Product[]; total: number }> {
     const offset = (page - 1) * limit;
-    const conditions = search
-      ? [or(ilike(products.title, `%${search}%`), ilike(products.sku, `%${search}%`))!]
-      : [];
+    const conditions = [];
+    if (search) {
+      conditions.push(or(ilike(products.title, `%${search}%`), ilike(products.sku, `%${search}%`))!);
+    }
+    if (isActive !== undefined) {
+      conditions.push(eq(products.isActive, isActive));
+    }
+    if (categoryId) {
+      conditions.push(eq(products.categoryId, categoryId));
+    }
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    let orderCol = products.createdAt;
+    if (sortBy === 'title') orderCol = products.title as any;
+    if (sortBy === 'price') orderCol = products.price as any;
+    if (sortBy === 'stock') orderCol = products.stock as any;
+    if (sortBy === 'isActive') orderCol = products.isActive as any;
+    
+    const orderClause = sortOrder === 'asc' ? asc(orderCol) : desc(orderCol);
+
     const [data, countResult] = await Promise.all([
-      db.select().from(products).where(whereClause).orderBy(desc(products.createdAt)).limit(limit).offset(offset),
+      db.select().from(products).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(products).where(whereClause),
     ]);
     return { data, total: Number(countResult[0].count) };
@@ -159,5 +175,10 @@ export const productsRepository = {
     return db.select().from(products)
       .where(and(lte(products.stock, threshold), eq(products.isActive, true)))
       .orderBy(asc(products.stock));
+  },
+
+  async bulkDelete(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    await db.update(products).set({ isActive: false, updatedAt: new Date() }).where(inArray(products.id, ids));
   },
 };

@@ -51,6 +51,14 @@ export const api = {
 
   delete: <T>(url: string) =>
     axiosClient.delete<ApiResponse<T>>(url).then((r) => r.data),
+
+  patch: <T>(url: string, data?: unknown) =>
+    axiosClient.patch<ApiResponse<T>>(url, data).then((r) => r.data),
+
+  postForm: <T>(url: string, formData: FormData) =>
+    axiosClient.post<ApiResponse<T>>(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data),
 };
 
 export default axiosClient;

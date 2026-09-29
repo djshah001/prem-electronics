@@ -1,5 +1,6 @@
 import { usersRepository } from './users.repository';
 import { NotFoundError } from '../../core/errors/appError';
+import { buildPaginationMeta } from '../../core/utils/responseHandler';
 import type { UpdateProfileInput, CreateAddressInput, UpdateAddressInput } from './users.schema';
 
 const sanitizeUser = (user: { passwordHash?: string; otpToken?: string | null; otpExpiry?: Date | null; resetToken?: string | null; resetTokenExpiry?: Date | null; [key: string]: unknown }) => {
@@ -43,5 +44,17 @@ export const usersService = {
     const existing = await usersRepository.getAddressById(addressId, userId);
     if (!existing) throw new NotFoundError('Address not found.');
     await usersRepository.deleteAddress(addressId, userId);
+  },
+
+  async getUsersAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {
+    const { data, total } = await usersRepository.findAllAdmin(query.page, query.limit, query.search, query.sortBy, query.sortOrder as 'asc' | 'desc');
+    const meta = buildPaginationMeta(query.page, query.limit, total);
+    // Remove password hashes before returning
+    const safeData = data.map(sanitizeUser);
+    return { data: safeData, meta };
+  },
+
+  async bulkDelete(ids: string[]) {
+    return usersRepository.bulkDelete(ids);
   },
 };

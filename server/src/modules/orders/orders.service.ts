@@ -3,6 +3,8 @@ import { cartService } from '../cart/cart.service';
 import { usersRepository } from '../users/users.repository';
 import { couponsRepository } from '../coupons/coupons.repository';
 import { razorpay } from '../../infrastructure/payment/razorpay';
+import { env } from '../../config/env';
+import logger from '../../core/logger/logger';
 import { NotFoundError, ForbiddenError, AppError } from '../../core/errors/appError';
 import { buildPaginationMeta } from '../../core/utils/responseHandler';
 import type { CreateOrderInput, UpdateOrderStatusInput, OrderQuery } from './orders.schema';
@@ -37,11 +39,27 @@ export const ordersService = {
     const amountInPaise = Math.round(cart.total * 100);
     const orderNumber = await ordersRepository.generateOrderNumber();
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: orderNumber,
-    });
+    let razorpayOrderId = `order_${Date.now()}`;
+    const hasLiveKeys = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_ID !== 'rzp_test_example';
+
+    if (hasLiveKeys) {
+      try {
+        const razorpayOrder = await razorpay.orders.create({
+          amount: amountInPaise,
+          currency: 'INR',
+          receipt: orderNumber,
+        });
+        razorpayOrderId = razorpayOrder.id;
+      } catch (err: any) {
+        logger.error(`Razorpay order creation failed: ${err?.error?.description || err?.message || err}`);
+        if (env.NODE_ENV === 'production') {
+          throw new AppError('Payment gateway communication error. Please try again.', 502);
+        }
+        logger.info(`[DEV PAYMENT FALLBACK] Using mock razorpayOrderId: ${razorpayOrderId}`);
+      }
+    } else {
+      logger.info(`[DEV PAYMENT MODE] Using mock razorpayOrderId: ${razorpayOrderId}`);
+    }
 
     // 4. Persist order in DB
     const order = await ordersRepository.create({
@@ -54,7 +72,7 @@ export const ordersService = {
       total: String(cart.total),
       couponId: cart.coupon?.id,
       couponCode: cart.coupon?.code,
-      razorpayOrderId: razorpayOrder.id,
+      razorpayOrderId,
       shippingAddress,
       notes: input.notes,
     });
@@ -73,7 +91,7 @@ export const ordersService = {
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
-      razorpayOrderId: razorpayOrder.id,
+      razorpayOrderId,
       amount: amountInPaise,
       currency: 'INR',
       cart,
@@ -104,5 +122,15 @@ export const ordersService = {
     const order = await ordersRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found.');
     return ordersRepository.updateStatus(orderId, input.status);
+  },
+
+  async getOrdersAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {
+    const { data, total } = await ordersRepository.findAllAdmin(query.page, query.limit, query.search, query.sortBy, query.sortOrder as 'asc' | 'desc');
+    const meta = buildPaginationMeta(query.page, query.limit, total);
+    return { data, meta };
+  },
+
+  async bulkDelete(ids: string[]) {
+    return ordersRepository.bulkDelete(ids);
   },
 };

@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { adminService } from './admin.service';
 import { sendSuccess, sendNoContent, buildPaginationMeta } from '../../core/utils/responseHandler';
+import { z } from 'zod';
+
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().uuid()).min(1) });
 
 export const adminController = {
   async getDashboard(req: Request, res: Response) {
@@ -57,5 +60,56 @@ export const adminController = {
   async rejectReview(req: Request, res: Response) {
     await adminService.rejectReview((req.params.reviewId as string));
     sendNoContent(res);
+  },
+
+  // ─── Bulk Delete ─────────────────────────────────────────────────────────────
+
+  async bulkDeleteProducts(req: Request, res: Response) {
+    const { ids } = bulkDeleteSchema.parse(req.body);
+    const result = await adminService.bulkDeleteProducts(ids);
+    sendSuccess(res, result, `${result.deleted} products archived.`);
+  },
+
+  async bulkDeleteCategories(req: Request, res: Response) {
+    const { ids } = bulkDeleteSchema.parse(req.body);
+    const result = await adminService.bulkDeleteCategories(ids);
+    sendSuccess(res, result, `${result.deleted} categories deleted.`);
+  },
+
+  async bulkDeleteUsers(req: Request, res: Response) {
+    const { ids } = bulkDeleteSchema.parse(req.body);
+    const result = await adminService.bulkDeleteUsers(ids);
+    sendSuccess(res, result, `${result.deleted} users deleted.`);
+  },
+
+  async bulkDeleteOrders(req: Request, res: Response) {
+    const { ids } = bulkDeleteSchema.parse(req.body);
+    const result = await adminService.bulkDeleteOrders(ids);
+    sendSuccess(res, result, `${result.deleted} orders deleted.`);
+  },
+
+  // ─── Admin Categories ─────────────────────────────────────────────────────
+
+  async getCategoriesAdmin(req: Request, res: Response) {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const search = req.query.search as string | undefined;
+    const { data, total } = await adminService.getCategoriesAdmin(page, limit, search);
+    const meta = buildPaginationMeta(page, limit, total);
+    sendSuccess(res, data, 'Categories fetched.', 200, meta);
+  },
+
+  // ─── Admin Orders (with filters) ─────────────────────────────────────────
+
+  async getOrdersAdmin(req: Request, res: Response) {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+    const sortBy = (req.query.sortBy as string) || 'createdAt';
+    const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
+    const { data, total } = await adminService.getOrdersAdmin(page, limit, search, status, sortBy, sortOrder);
+    const meta = buildPaginationMeta(page, limit, total);
+    sendSuccess(res, data, 'Orders fetched.', 200, meta);
   },
 };
