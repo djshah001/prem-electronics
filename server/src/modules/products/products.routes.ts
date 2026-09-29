@@ -13,6 +13,7 @@ router.get('/:slug', asyncHandler(productsController.getBySlug));
 
 // Admin only
 router.get('/admin/all', ...adminOnly, asyncHandler(productsController.getProductsAdmin));
+router.post('/bulk-delete', ...adminOnly, asyncHandler(productsController.bulkDelete));
 router.post('/', ...adminOnly, asyncHandler(productsController.create));
 router.put('/:id', ...adminOnly, asyncHandler(productsController.update));
 router.delete('/:id', ...adminOnly, asyncHandler(productsController.softDelete));

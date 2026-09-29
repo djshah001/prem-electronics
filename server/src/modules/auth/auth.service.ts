@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { env } from '../../config/env';
+import logger from '../../core/logger/logger';
 import { authRepository } from './auth.repository';
 import { sendOTPEmail, sendPasswordResetEmail } from '../../infrastructure/mail/mailer';
 import {
@@ -42,7 +43,31 @@ const sanitizeUser = (user: User) => {
 export const authService = {
   async register(input: RegisterInput) {
     const existing = await authRepository.findByEmail(input.email);
-    if (existing) throw new ConflictError('An account with this email already exists.');
+    if (existing) {
+      if (existing.isVerified) {
+        throw new ConflictError('An account with this email already exists.');
+      }
+      // If user exists but is unverified (previous registration had email error), update and resend
+      const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+      const otp = generateOTP();
+      const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+      const updated = await authRepository.updateUser(existing.id, {
+        name: input.name,
+        passwordHash,
+        otpToken: otp,
+        otpExpiry,
+      });
+
+      try {
+        await sendOTPEmail(updated.email, updated.name, otp);
+      } catch (err: any) {
+        logger.error(`Failed to send OTP email to ${updated.email}: ${err?.message || err}`);
+        logger.info(`[DEV OTP]: Verification code for ${updated.email} is ${otp}`);
+      }
+
+      return sanitizeUser(updated);
+    }
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
     const otp = generateOTP();
@@ -56,7 +81,12 @@ export const authService = {
       otpExpiry,
     });
 
-    await sendOTPEmail(user.email, user.name, otp);
+    try {
+      await sendOTPEmail(user.email, user.name, otp);
+    } catch (err: any) {
+      logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
+      logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+    }
 
     return sanitizeUser(user);
   },
@@ -73,7 +103,12 @@ export const authService = {
       const otp = generateOTP();
       const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
       await authRepository.updateOTP(user.id, otp, otpExpiry);
-      await sendOTPEmail(user.email, user.name, otp);
+      try {
+        await sendOTPEmail(user.email, user.name, otp);
+      } catch (err: any) {
+        logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
+        logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+      }
       throw new AppError(
         'Email not verified. A new OTP has been sent to your email.',
         403
@@ -114,7 +149,12 @@ export const authService = {
     await authRepository.setResetToken(user.id, hashedToken, expiry);
 
     const resetLink = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    await sendPasswordResetEmail(user.email, user.name, resetLink);
+    try {
+      await sendPasswordResetEmail(user.email, user.name, resetLink);
+    } catch (err: any) {
+      logger.error(`Failed to send password reset email to ${user.email}: ${err?.message || err}`);
+      logger.info(`[DEV RESET LINK]: Reset link for ${user.email} is ${resetLink}`);
+    }
   },
 
   async resetPassword(input: ResetPasswordInput) {
@@ -144,6 +184,11 @@ export const authService = {
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     await authRepository.updateOTP(user.id, otp, otpExpiry);
-    await sendOTPEmail(user.email, user.name, otp);
+    try {
+      await sendOTPEmail(user.email, user.name, otp);
+    } catch (err: any) {
+      logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
+      logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+    }
   },
 };

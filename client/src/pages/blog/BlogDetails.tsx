@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, User, Twitter, Facebook, Linkedin, Link2 } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Link2 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import type { Blog } from '../../types';
 import { toast } from 'sonner';
@@ -89,9 +89,9 @@ export default function BlogDetails() {
             <p className="text-sm font-semibold text-muted-foreground mb-4">Share this article</p>
             <div className="flex gap-3 flex-wrap">
               {[
-                { label: 'Twitter', icon: Twitter, href: share.twitter, color: 'hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2]' },
-                { label: 'Facebook', icon: Facebook, href: share.facebook, color: 'hover:bg-[#1877F2]/10 hover:text-[#1877F2]' },
-                { label: 'LinkedIn', icon: Linkedin, href: share.linkedin, color: 'hover:bg-[#0A66C2]/10 hover:text-[#0A66C2]' },
+                { label: 'Twitter', icon: Link2, href: share.twitter, color: 'hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2]' },
+                { label: 'Facebook', icon: Link2, href: share.facebook, color: 'hover:bg-[#1877F2]/10 hover:text-[#1877F2]' },
+                { label: 'LinkedIn', icon: Link2, href: share.linkedin, color: 'hover:bg-[#0A66C2]/10 hover:text-[#0A66C2]' },
               ].map(({ label, icon: Icon, href, color }) => (
                 <a key={label} href={href} target="_blank" rel="noreferrer"
                   className={`flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium text-muted-foreground transition-all ${color}`}>

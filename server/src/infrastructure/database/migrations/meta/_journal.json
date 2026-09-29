@@ -15,6 +15,13 @@
       "when": 1790064493371,
       "tag": "0001_naive_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790589619935,
+      "tag": "0002_yummy_wallflower",
+      "breakpoints": true
     }
   ]
 }

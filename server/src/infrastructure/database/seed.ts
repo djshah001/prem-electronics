@@ -7,36 +7,15 @@ import { db } from './db';
 import { users, categories, products, coupons, blogs } from './schema/index';
 import bcrypt from 'bcryptjs';
 import logger from '../../core/logger/logger';
+import { eq } from 'drizzle-orm';
 
 async function seed() {
   logger.info('🌱 Starting database seed...');
 
-  // ─── Users ──────────────────────────────────────────────────────────────────
-  const passwordHash = await bcrypt.hash('Admin@123', 12);
-  const customerHash = await bcrypt.hash('Customer@123', 12);
-
-  const [admin, customer] = await db
-    .insert(users)
-    .values([
-      {
-        name: 'Prem Admin',
-        email: 'admin@premelectronics.com',
-        passwordHash,
-        role: 'admin',
-        isVerified: true,
-      },
-      {
-        name: 'Demo Customer',
-        email: 'customer@premelectronics.com',
-        passwordHash: customerHash,
-        role: 'customer',
-        isVerified: true,
-      },
-    ])
-    .onConflictDoNothing()
-    .returning();
-
-  logger.info('✅ Users seeded');
+  logger.info('🧹 Truncating existing tables...');
+  await db.execute(
+    `TRUNCATE TABLE users, categories, products, coupons, blogs, orders CASCADE;`
+  );
 
   // ─── Categories ──────────────────────────────────────────────────────────────
   const [
@@ -45,28 +24,25 @@ async function seed() {
     wirelessAudio, wiredAudio,
   ] = await db
     .insert(categories)
-    .values([
+    .values(([
       { name: 'Smartphones', slug: 'smartphones', description: 'Latest smartphones from top brands', bannerImage: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=1200' },
       { name: 'Laptops', slug: 'laptops', description: 'Powerful laptops for work and play', bannerImage: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=1200' },
       { name: 'Audio', slug: 'audio', description: 'Premium headphones and speakers', bannerImage: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200' },
       { name: 'Televisions', slug: 'televisions', description: 'Smart TVs and displays', bannerImage: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=1200' },
       { name: 'Cameras', slug: 'cameras', description: 'DSLR, mirrorless, and action cameras', bannerImage: 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=1200' },
-      { name: 'Android Phones', slug: 'android-phones', description: 'Top Android smartphones', parentId: undefined },
-      { name: 'iPhones', slug: 'iphones', description: 'Apple iPhones', parentId: undefined },
-      { name: 'Gaming Laptops', slug: 'gaming-laptops', description: 'High-performance gaming laptops', parentId: undefined },
-      { name: 'Office Laptops', slug: 'office-laptops', description: 'Business and productivity laptops', parentId: undefined },
-      { name: 'Wireless Audio', slug: 'wireless-audio', description: 'Bluetooth headphones and earbuds', parentId: undefined },
-      { name: 'Wired Audio', slug: 'wired-audio', description: 'Wired headphones and earphones', parentId: undefined },
-    ])
+      { name: 'Android Phones', slug: 'android-phones', description: 'Top Android smartphones' },
+      { name: 'iPhones', slug: 'iphones', description: 'Apple iPhones' },
+      { name: 'Gaming Laptops', slug: 'gaming-laptops', description: 'High-performance gaming laptops' },
+      { name: 'Office Laptops', slug: 'office-laptops', description: 'Business and productivity laptops' },
+      { name: 'Wireless Audio', slug: 'wireless-audio', description: 'Bluetooth headphones and earbuds' },
+      { name: 'Wired Audio', slug: 'wired-audio', description: 'Wired headphones and earphones' },
+    ] as const).map(c => ({ bannerImage: null, parentId: null, ...c })))
     .onConflictDoNothing()
     .returning();
 
   // Set parent IDs for subcategories
   if (androidPhones && smartphones) {
-    await db.update(categories).set({ parentId: smartphones.id }).where(
-      // @ts-ignore
-      (t: any) => t.id === androidPhones.id
-    );
+    await db.update(categories).set({ parentId: smartphones.id }).where(eq(categories.id, androidPhones.id));
   }
 
   logger.info('✅ Categories seeded');
@@ -80,7 +56,7 @@ async function seed() {
 
   await db
     .insert(products)
-    .values([
+    .values(([
       // Smartphones
       {
         title: 'Samsung Galaxy S24 Ultra',
@@ -364,10 +340,37 @@ async function seed() {
         isBestSeller: true,
         barcode: '890123456009',
       },
-    ])
+    ]).map(p => p))
     .onConflictDoNothing();
 
   logger.info('✅ Products seeded');
+
+  // ─── Users ──────────────────────────────────────────────────────────────────
+  const passwordHash = await bcrypt.hash('Admin@123', 12);
+  const customerHash = await bcrypt.hash('Customer@123', 12);
+
+  const [admin, customer] = await db
+    .insert(users)
+    .values([
+      {
+        name: 'Prem Admin',
+        email: 'admin@premelectronics.com',
+        passwordHash,
+        role: 'admin',
+        isVerified: true,
+      },
+      {
+        name: 'Demo Customer',
+        email: 'customer@premelectronics.com',
+        passwordHash: customerHash,
+        role: 'customer',
+        isVerified: true,
+      },
+    ])
+    .onConflictDoNothing()
+    .returning();
+
+  logger.info('✅ Users seeded');
 
   // ─── Coupons ─────────────────────────────────────────────────────────────────
   await db
@@ -462,6 +465,67 @@ async function seed() {
 
   logger.info('✅ Blog posts seeded');
 
+  // ─── Orders ──────────────────────────────────────────────────────────────────
+  logger.info('📦 Seeding Orders...');
+  const [dbCust] = await db.select().from(users).where(eq(users.email, 'customer@premelectronics.com')).limit(1);
+  const dbProds = await db.select().from(products).limit(3);
+
+  if (dbCust && dbProds.length >= 2) {
+    const { orders, orderItems } = await import('./schema/index.js');
+    
+    // Order 1
+    const [order1] = await db.insert(orders).values([{
+      userId: dbCust.id,
+      orderNumber: 'ORD-DEMO-1001',
+      total: '124999',
+      subtotal: '124999',
+      tax: '0',
+      shipping: '0',
+      status: 'delivered',
+      paymentStatus: 'paid',
+      paymentMethod: 'razorpay',
+      razorpayOrderId: 'order_demo1',
+      razorpayPaymentId: 'pay_demo1',
+      shippingAddress: {
+        fullName: 'Demo Customer', phone: '9876543210', street: '123 Main St', city: 'Mumbai', state: 'MH', pincode: '400001', country: 'India'
+      }
+    }]).returning();
+
+    await db.insert(orderItems).values([{
+      orderId: order1.id,
+      productId: dbProds[0].id,
+      quantity: 1,
+      priceAtPurchase: dbProds[0].salePrice || dbProds[0].price,
+    }]);
+
+    // Order 2
+    const [order2] = await db.insert(orders).values([{
+      userId: dbCust.id,
+      orderNumber: 'ORD-DEMO-1002',
+      total: '154900',
+      subtotal: '154900',
+      tax: '0',
+      shipping: '0',
+      status: 'processing',
+      paymentStatus: 'paid',
+      paymentMethod: 'razorpay',
+      razorpayOrderId: 'order_demo2',
+      razorpayPaymentId: 'pay_demo2',
+      shippingAddress: {
+        fullName: 'Demo Customer', phone: '9876543210', street: '123 Main St', city: 'Mumbai', state: 'MH', pincode: '400001', country: 'India'
+      }
+    }]).returning();
+
+    await db.insert(orderItems).values([{
+      orderId: order2.id,
+      productId: dbProds[1].id,
+      quantity: 1,
+      priceAtPurchase: dbProds[1].salePrice || dbProds[1].price,
+    }]);
+
+    logger.info('✅ Orders seeded');
+  }
+
   logger.success(`
 ╔══════════════════════════════════════════════════════════════╗
 ║         🎉 Prem Electronics Database Seeded!                ║
@@ -471,6 +535,7 @@ async function seed() {
 ║  🏷  Coupons:  FIRSTORDER10 | WELCOME10 | FLAT500 | PREM20   ║
 ║  📦 Products:  9 products across 5 categories                ║
 ║  📝 Blogs:     3 SEO-optimized articles                      ║
+║  🛒 Orders:    2 demo orders                                 ║
 ╚══════════════════════════════════════════════════════════════╝
   `);
 

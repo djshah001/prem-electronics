@@ -56,7 +56,20 @@ export const productsController = {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
     const search = req.query.search as string | undefined;
-    const { data, meta } = await productsService.getProductsAdmin({ page, limit, search });
+    const sortBy = req.query.sortBy as string | undefined;
+    const sortOrder = req.query.sortOrder as string | undefined;
+    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+    const { data, meta } = await productsService.getProductsAdmin({ page, limit, search, sortBy, sortOrder, isActive, categoryId });
     sendSuccess(res, data, 'Admin products fetched.', 200, meta);
+  },
+
+  async bulkDelete(req: Request, res: Response) {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ success: false, message: 'Invalid IDs array' });
+    }
+    await productsService.bulkDelete(ids);
+    sendSuccess(res, null, 'Products deleted successfully.');
   },
 };

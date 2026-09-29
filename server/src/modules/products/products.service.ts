@@ -79,10 +79,14 @@ export const productsService = {
     return productsRepository.reactivate(id);
   },
 
-  async getProductsAdmin(query: { page: number; limit: number; search?: string }) {
-    const { data, total } = await productsRepository.findAllAdmin(query.page, query.limit, query.search);
+  async getProductsAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string; isActive?: boolean; categoryId?: string }) {
+    const { data, total } = await productsRepository.findAllAdmin(query.page, query.limit, query.search, query.sortBy, query.sortOrder as 'asc' | 'desc', query.isActive, query.categoryId);
     const meta = buildPaginationMeta(query.page, query.limit, total);
     return { data, meta };
+  },
+
+  async bulkDelete(ids: string[]) {
+    return productsRepository.bulkDelete(ids);
   },
 
   async getLowStockAlerts() {

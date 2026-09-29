@@ -72,6 +72,16 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
             alt={product.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+              const parent = e.currentTarget.parentElement;
+              if (parent && !parent.querySelector('.fallback-icon')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'w-full h-full flex items-center justify-center text-muted-foreground fallback-icon';
+                placeholder.innerHTML = '<svg class="w-12 h-12 opacity-20" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+                parent.appendChild(placeholder);
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">

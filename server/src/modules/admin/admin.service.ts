@@ -1,9 +1,10 @@
-import { sql, eq, gte, desc, and, lte } from 'drizzle-orm';
+import { sql, eq, gte, desc, and, lte, inArray } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db';
 import {
   orders,
   users,
   products,
+  categories,
   orderItems,
   reviews,
 } from '../../infrastructure/database/schema/index';
@@ -226,5 +227,69 @@ export const adminService = {
       .where(eq(products.id, productId))
       .returning({ id: products.id, stock: products.stock });
     return result[0];
+  },
+
+  // ─── Bulk Delete ────────────────────────────────────────────────────────────
+
+  async bulkDeleteProducts(ids: string[]) {
+    // Soft delete
+    await db
+      .update(products)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(inArray(products.id, ids));
+    return { deleted: ids.length };
+  },
+
+  async bulkDeleteCategories(ids: string[]) {
+    await db.delete(categories).where(inArray(categories.id, ids));
+    return { deleted: ids.length };
+  },
+
+  async bulkDeleteUsers(ids: string[]) {
+    await db.delete(users).where(inArray(users.id, ids));
+    return { deleted: ids.length };
+  },
+
+  async bulkDeleteOrders(ids: string[]) {
+    await db.delete(orders).where(inArray(orders.id, ids));
+    return { deleted: ids.length };
+  },
+
+  // ─── Admin Categories ───────────────────────────────────────────────────────
+
+  async getCategoriesAdmin(page: number, limit: number, search?: string) {
+    const offset = (page - 1) * limit;
+    const whereClause = search
+      ? sql`(${categories.name} ilike ${'%' + search + '%'} or ${categories.slug} ilike ${'%' + search + '%'})`
+      : undefined;
+
+    const [data, total] = await Promise.all([
+      db.select().from(categories).where(whereClause as any).orderBy(desc(categories.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(categories).where(whereClause as any),
+    ]);
+    return { data, total: Number(total[0].count) };
+  },
+
+  // ─── Admin Orders (server-side) ─────────────────────────────────────────────
+
+  async getOrdersAdmin(page: number, limit: number, search?: string, status?: string, sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
+    const offset = (page - 1) * limit;
+    const conditions: any[] = [];
+    if (status) conditions.push(eq(orders.status, status as any));
+    if (search) {
+      conditions.push(
+        sql`(${orders.orderNumber} ilike ${'%' + search + '%'})`
+      );
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const sortCol = (orders as any)[sortBy] ?? orders.createdAt;
+    const orderClause = sortOrder === 'asc' ? sql`${sortCol} asc` : sql`${sortCol} desc`;
+
+    const [data, total] = await Promise.all([
+      db.select().from(orders).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(orders).where(whereClause),
+    ]);
+    return { data, total: Number(total[0].count) };
   },
 };

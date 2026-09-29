@@ -1,4 +1,8 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -20,11 +24,16 @@ import reviewsRoutes from './modules/reviews/reviews.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import wishlistsRoutes from './modules/wishlists/wishlists.routes';
 import blogsRoutes from './modules/blogs/blogs.routes';
+import uploadRoutes from './modules/upload/upload.routes';
 
 const app = express();
 
 // ─── Security Middlewares ────────────────────────────────────────────────────
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(cors({
   origin: env.CLIENT_URL,
   credentials: true,
@@ -35,6 +44,17 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(publicLimiter);
+
+// ─── Static Uploads ─────────────────────────────────────────────────────────
+app.use(
+  '/uploads',
+  (_req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    next();
+  },
+  express.static(path.join(__dirname, '..', 'uploads'))
+);
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
@@ -54,6 +74,12 @@ app.use('/api/v1/coupons', couponsRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/wishlists', wishlistsRoutes);
 app.use('/api/v1/blogs', blogsRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+
+// ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
+app.get('/favicon.ico', (_req, res) => {
+  res.status(204).end();
+});
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, _res, next) => {
