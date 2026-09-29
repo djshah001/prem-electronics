@@ -55,7 +55,7 @@ export default function Home() {
             </motion.div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight font-['Outfit'] mb-6">
-              Power Your{' '}
+              Decrease Your{' '}
               <span className="gradient-text">Digital</span>{' '}
               Life
             </h1>
