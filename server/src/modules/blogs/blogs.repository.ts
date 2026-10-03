@@ -1,6 +1,6 @@
 import { eq, ilike, and, desc, sql } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
-import { blogs, users, type Blog, type NewBlog } from '../../infrastructure/database/schema/index';
+import { db } from '../../infrastructure/database/db.js';
+import { blogs, users, type Blog, type NewBlog } from '../../infrastructure/database/schema/index.js';
 
 export const blogsRepository = {
   async findMany(page: number, limit: number, search?: string): Promise<{ data: Blog[]; total: number }> {

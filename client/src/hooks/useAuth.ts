@@ -1,24 +1,34 @@
-import { useAtom, useSetAtom } from 'jotai';
-import { userAtom, authTokenAtom } from '../store/userAtom';
+import { useAtom } from 'jotai';
+import { userAtom } from '../store/userAtom';
 import { api } from '../api/axiosClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { User, AuthResponse } from '../types';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { cartItemsAtom } from '../store/cartAtom';
 
 export const useAuth = () => {
   const [user, setUser] = useAtom(userAtom);
-  const setToken = useSetAtom(authTokenAtom);
+  const [guestCart, setGuestCart] = useAtom(cartItemsAtom);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const loginMutation = useMutation({
     mutationFn: (data: { email: string; password: string }) =>
       api.post<AuthResponse>('/auth/login', data),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       setUser(res.data.user);
-      setToken(res.data.token);
-      localStorage.setItem('prem_token', res.data.token);
+      if (guestCart.length > 0) {
+        try {
+          await api.post('/cart/merge', {
+            items: guestCart.map(({ productId, quantity }) => ({ productId, quantity })),
+          });
+          setGuestCart([]);
+          await queryClient.invalidateQueries({ queryKey: ['cart'] });
+        } catch {
+          toast.warning('Signed in, but your guest cart could not be merged. It remains saved on this device.');
+        }
+      }
       toast.success(`Welcome back, ${res.data.user.name}! 👋`);
       if (res.data.user.role === 'admin' || res.data.user.role === 'superadmin') {
         navigate('/admin');
@@ -47,8 +57,6 @@ export const useAuth = () => {
     mutationFn: () => api.post('/auth/logout'),
     onSuccess: () => {
       setUser(null);
-      setToken(null);
-      localStorage.removeItem('prem_token');
       localStorage.removeItem('prem_user');
       queryClient.clear();
       toast.success('Logged out successfully.');
@@ -69,10 +77,19 @@ export const useAuth = () => {
   const verifyOTPMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
       api.post<AuthResponse>('/auth/verify-otp', data),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       setUser(res.data.user);
-      setToken(res.data.token);
-      localStorage.setItem('prem_token', res.data.token);
+      if (guestCart.length > 0) {
+        try {
+          await api.post('/cart/merge', {
+            items: guestCart.map(({ productId, quantity }) => ({ productId, quantity })),
+          });
+          setGuestCart([]);
+          await queryClient.invalidateQueries({ queryKey: ['cart'] });
+        } catch {
+          toast.warning('Your account is verified, but the guest cart could not be merged yet.');
+        }
+      }
       toast.success('Email verified! Welcome to Prem Electronics ⚡');
       navigate('/');
     },

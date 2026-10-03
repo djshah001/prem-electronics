@@ -19,8 +19,12 @@ import {
   DollarSign,
   Tag,
   Info,
+  ChevronLeft,
+  ChevronRight,
+
 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
+import { Link } from 'react-router-dom';
 import type { Product, PaginationMeta, Category } from '../../types';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
@@ -40,6 +44,26 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui/dialog';
+
+export interface VariantRow {
+  id?: string;
+  sku: string;
+  barcode: string;
+  price: string;
+  salePrice: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  isActive: boolean;
+  optionCombinationKey: string;
+  combinationLabel: string;
+  optionValueLabels: Array<{ optionName: string; valueLabel: string }>;
+}
+
+export interface OptionDef {
+  id?: string;
+  name: string;
+  values: Array<{ id?: string; label: string; colorSwatch?: string }>;
+}
 
 const formatPrice = (p: string | number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
@@ -107,6 +131,13 @@ export default function ProductManager() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [productMode, setProductMode] = useState<'simple' | 'variants'>('simple');
+  const [optionsList, setOptionsList] = useState<OptionDef[]>([]);
+  const [variantsList, setVariantsList] = useState<VariantRow[]>([]);
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [bulkStock, setBulkStock] = useState('');
+  const [newValInputs, setNewValInputs] = useState<Record<number, string>>({});
+  const [newSwatchInputs, setNewSwatchInputs] = useState<Record<number, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-products', page, search, statusFilter, categoryFilter, sortBy, sortOrder],
@@ -188,11 +219,11 @@ export default function ProductManager() {
   const bulkArchiveMutation = useMutation({
     mutationFn: (ids: string[]) => api.post('/admin/products/bulk-delete', { ids }),
     onSuccess: () => {
-      toast.success(`${selected.size} products archived`);
+      toast.success(`${selected.size} products deactivated`);
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ['admin-products'] });
     },
-    onError: (e: any) => toast.error(e?.message || 'Bulk archive failed'),
+    onError: (e: any) => toast.error(e?.message || 'Bulk deactivation failed'),
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,14 +275,17 @@ export default function ProductManager() {
       attributes: [],
     });
     setEditing(null);
+    setProductMode('simple');
+    setOptionsList([]);
+    setVariantsList([]);
     setShowModal(true);
   };
 
   const openEdit = (p: Product) => {
-    const attrArray = Object.entries(p.attributes || {}).map(([name, value]) => ({
-      name,
-      value: String(value),
-    }));
+    // Handle both legacy Record<string,unknown> and new {name,value}[] attribute formats
+    const attrArray = Array.isArray(p.attributes)
+      ? p.attributes
+      : Object.entries(p.attributes || {}).map(([name, value]) => ({ name, value: String(value) }));
     setForm({
       title: p.title,
       slug: p.slug,
@@ -274,6 +308,160 @@ export default function ProductManager() {
     });
     setEditing(p);
     setShowModal(true);
+    setProductMode('simple');
+    setOptionsList([]);
+    setVariantsList([]);
+
+    api.get<{ options: OptionDef[]; variants: any[] }>(`/products/${p.id}/variants`)
+      .then((res) => {
+        const vData = res.data;
+        if (vData?.options && vData.options.length > 0) {
+          setProductMode('variants');
+          setOptionsList(vData.options);
+          setVariantsList(vData.variants.map((v: any) => {
+            const optValues = v.optionValues || [];
+            const optionValueLabels: Array<{ optionName: string; valueLabel: string }> = [];
+            const labels: string[] = [];
+            for (const opt of vData.options) {
+              const matchedVal = opt.values?.find((val: any) => optValues.includes(val.id));
+              if (matchedVal) {
+                labels.push(matchedVal.label);
+                optionValueLabels.push({ optionName: opt.name, valueLabel: matchedVal.label });
+              }
+            }
+            return {
+              id: v.id,
+              sku: v.sku,
+              barcode: v.barcode || '',
+              price: String(v.price),
+              salePrice: v.salePrice ? String(v.salePrice) : '',
+              stockQuantity: v.stockQuantity,
+              lowStockThreshold: v.lowStockThreshold ?? 5,
+              isActive: v.isActive ?? true,
+              optionCombinationKey: v.optionCombinationKey,
+              combinationLabel: labels.join(' / ') || v.optionCombinationKey,
+              optionValueLabels,
+            };
+          }));
+        }
+      })
+      .catch(() => {});
+  };
+
+  const moveImage = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= form.images.length) return;
+    const updated = [...form.images];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setForm((f) => ({ ...f, images: updated }));
+  };
+
+  const setCoverImage = (index: number) => {
+    if (index === 0) return;
+    const updated = [...form.images];
+    const [selectedImg] = updated.splice(index, 1);
+    updated.unshift(selectedImg);
+    setForm((f) => ({ ...f, images: updated }));
+    toast.success('Cover image updated.');
+  };
+
+  const generateCombinations = () => {
+    const validOptions = optionsList.filter((o) => o.name.trim() && o.values.length > 0);
+    if (validOptions.length === 0) {
+      toast.error('Add at least one option with values to generate variants.');
+      return;
+    }
+
+    const cartesian = (arrays: any[][]): any[][] =>
+      arrays.reduce((acc, curr) => acc.flatMap((d) => curr.map((e) => [...d, e])), [[]]);
+
+    const valueArrays = validOptions.map((o) =>
+      o.values.map((v) => ({ optionName: o.name, valueLabel: v.label, swatch: v.colorSwatch }))
+    );
+
+    const combos = cartesian(valueArrays);
+    if (combos.length > 50) {
+      toast.warning('Generated 50 variants (capped at 50 to prevent overload).');
+      combos.length = 50;
+    }
+
+    const baseSku = form.sku.trim() || 'SKU';
+    const basePrice = form.price || '0';
+    const baseSale = form.salePrice || '';
+    const baseStock = form.stock || 10;
+    const baseThresh = form.lowStockThreshold || 5;
+
+    const newVariants: VariantRow[] = combos.map((combo) => {
+      const combinationKey = combo
+        .map((c: any) => `${c.optionName.trim().toLowerCase()}:${c.valueLabel.trim().toLowerCase().replace(/\s+/g, '-')}`)
+        .join(';');
+      const label = combo.map((c: any) => c.valueLabel).join(' / ');
+      const skuSuffix = combo.map((c: any) => c.valueLabel.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '')).join('-');
+      const sku = `${baseSku}-${skuSuffix}`;
+
+      const existing = variantsList.find((v) => v.optionCombinationKey === combinationKey);
+
+      return {
+        id: existing?.id,
+        sku: existing?.sku || sku,
+        barcode: existing?.barcode || '',
+        price: existing?.price || basePrice,
+        salePrice: existing?.salePrice || baseSale,
+        stockQuantity: existing?.stockQuantity ?? baseStock,
+        lowStockThreshold: existing?.lowStockThreshold ?? baseThresh,
+        isActive: existing?.isActive ?? true,
+        optionCombinationKey: combinationKey,
+        combinationLabel: label,
+        optionValueLabels: combo.map((c: any) => ({ optionName: c.optionName, valueLabel: c.valueLabel })),
+      };
+    });
+
+    setVariantsList(newVariants);
+    toast.success(`Generated ${newVariants.length} variant combinations!`);
+  };
+
+  const applyBulkFill = () => {
+    if (!bulkPrice && !bulkStock) {
+      toast.info('Enter bulk price or stock to apply.');
+      return;
+    }
+    setVariantsList((prev) =>
+      prev.map((v) => ({
+        ...v,
+        ...(bulkPrice ? { price: bulkPrice } : {}),
+        ...(bulkStock !== '' ? { stockQuantity: Number(bulkStock) } : {}),
+      }))
+    );
+    toast.success('Bulk values applied to all variants.');
+  };
+
+  const saveVariantsForProduct = async (productId: string) => {
+    if (productMode !== 'variants' || variantsList.length === 0) return;
+    await api.put(`/products/${productId}/variants`, {
+      options: optionsList.map((opt, i) => ({
+        name: opt.name,
+        displayOrder: i,
+        values: opt.values.map((v, j) => ({
+          label: v.label,
+          colorSwatch: v.colorSwatch || undefined,
+          displayOrder: j,
+        })),
+      })),
+      variants: variantsList.map((v) => ({
+        id: v.id,
+        sku: v.sku,
+        barcode: v.barcode || null,
+        price: Number(v.price),
+        salePrice: v.salePrice ? Number(v.salePrice) : null,
+        stockQuantity: Number(v.stockQuantity),
+        lowStockThreshold: Number(v.lowStockThreshold),
+        isActive: v.isActive,
+        optionCombinationKey: v.optionCombinationKey,
+        optionValueLabels: v.optionValueLabels,
+      })),
+    });
   };
 
   const closeModal = () => {
@@ -313,7 +501,7 @@ export default function ProductManager() {
       return;
     }
 
-    let salePrice: number | undefined = undefined;
+    let salePrice: number | null = null;
     if (form.salePrice !== undefined && form.salePrice !== '' && form.salePrice !== null) {
       const sp = Number(form.salePrice);
       if (isNaN(sp) || sp <= 0) {
@@ -335,12 +523,9 @@ export default function ProductManager() {
 
     const lowStockThreshold = Number(form.lowStockThreshold) >= 0 ? Number(form.lowStockThreshold) : 5;
 
-    const parsedAttrs: Record<string, string> = {};
-    form.attributes.forEach((attr) => {
-      if (attr.name.trim()) {
-        parsedAttrs[attr.name.trim()] = attr.value.trim();
-      }
-    });
+    const cleanAttrs = form.attributes
+      .filter((attr) => attr.name.trim() && attr.value.trim())
+      .map((attr) => ({ name: attr.name.trim(), value: attr.value.trim() }));
 
     const cleanImages = (Array.isArray(form.images) ? form.images : [])
       .map((img) => img.trim())
@@ -354,13 +539,13 @@ export default function ProductManager() {
       title,
       slug,
       sku,
-      barcode: form.barcode?.trim() || undefined,
-      description: form.description?.trim() || undefined,
+      barcode: form.barcode?.trim() || null,
+      description: form.description?.trim() || null,
       price,
       salePrice,
       stock,
       lowStockThreshold,
-      brand: form.brand?.trim() || undefined,
+      brand: form.brand?.trim() || null,
       categoryId: form.categoryId,
       isFeatured: Boolean(form.isFeatured),
       isNewArrival: Boolean(form.isNewArrival),
@@ -368,13 +553,46 @@ export default function ProductManager() {
       isActive: Boolean(form.isActive),
       images: cleanImages,
       tags: cleanTags,
-      attributes: parsedAttrs,
+      attributes: cleanAttrs,
     };
 
+    if (productMode === 'variants') {
+      if (variantsList.length === 0) {
+        toast.error('Please generate variants or switch to Simple Product mode.');
+        return;
+      }
+      for (const v of variantsList) {
+        if (!v.sku.trim()) {
+          toast.error(`Variant "${v.combinationLabel}" requires a SKU.`);
+          return;
+        }
+        if (!v.price || Number(v.price) <= 0) {
+          toast.error(`Variant "${v.combinationLabel}" requires a valid price > 0.`);
+          return;
+        }
+      }
+    }
+
     if (editing) {
-      updateMutation.mutate({ id: editing.id, payload });
+      updateMutation.mutate({ id: editing.id, payload }, {
+        onSuccess: async () => {
+          try {
+            await saveVariantsForProduct(editing.id);
+          } catch (e: any) {
+            toast.error(e?.message || 'Product updated, but failed to save variants.');
+          }
+        },
+      });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(payload, {
+        onSuccess: async (res) => {
+          try {
+            if (res.data?.id) await saveVariantsForProduct(res.data.id);
+          } catch (e: any) {
+            toast.error(e?.message || 'Product created, but failed to save variants.');
+          }
+        },
+      });
     }
   };
 
@@ -517,7 +735,7 @@ export default function ProductManager() {
               p.isActive ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"
             )}
           >
-            {p.isActive ? 'Active' : 'Archived'}
+            {p.isActive ? 'Active' : 'Inactive'}
           </span>
         );
       },
@@ -545,7 +763,7 @@ export default function ProductManager() {
                     onClick={() => archiveMutation.mutate(p.id)}
                     className="text-amber-500 focus:text-amber-500 focus:bg-amber-500/10 cursor-pointer"
                   >
-                    <Archive className="w-4 h-4 mr-2" /> Archive
+                    <Archive className="w-4 h-4 mr-2" /> Deactivate
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
@@ -606,7 +824,7 @@ export default function ProductManager() {
             },
             options: [
               { label: 'Active', value: 'active' },
-              { label: 'Archived', value: 'archived' },
+              { label: 'Inactive', value: 'archived' },
             ],
           },
           {
@@ -634,7 +852,7 @@ export default function ProductManager() {
               onClick={() => bulkArchiveMutation.mutate(Array.from(selected))}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-xl font-medium text-sm hover:bg-amber-500/20 transition-all"
             >
-              <Archive className="w-4 h-4" /> Archive ({selected.size})
+              <Archive className="w-4 h-4" /> Deactivate Selected ({selected.size})
             </motion.button>
           )
         }
@@ -754,6 +972,14 @@ export default function ProductManager() {
                     <label htmlFor="pm-category" className="block text-xs font-semibold text-foreground/80 mb-1">
                       Category *
                     </label>
+                    {flatCats.length === 0 ? (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-500 flex items-center justify-between">
+                        <span>No active categories found.</span>
+                        <Link to="/admin/categories" className="underline font-bold hover:text-amber-400">
+                          Create Category
+                        </Link>
+                      </div>
+                    ) : (
                     <select
                       id="pm-category"
                       required
@@ -768,6 +994,7 @@ export default function ProductManager() {
                         </option>
                       ))}
                     </select>
+                    )}
                   </div>
 
                   <FormField
@@ -785,6 +1012,43 @@ export default function ProductManager() {
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                   <DollarSign className="w-3.5 h-3.5 text-primary" /> Pricing & Inventory
                 </h3>
+                {/* Product Mode Toggle */}
+                <div className="flex items-center justify-between p-3 bg-muted/40 rounded-2xl border border-border mb-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">Product Type</h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Simple product or multiple variants (color, size, storage)
+                    </p>
+                  </div>
+                  <div className="flex bg-background border border-border rounded-xl p-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setProductMode('simple')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg transition-all',
+                        productMode === 'simple'
+                          ? 'bg-primary text-primary-foreground shadow'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Simple Product
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductMode('variants')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg transition-all',
+                        productMode === 'variants'
+                          ? 'bg-primary text-primary-foreground shadow'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      Variant-based
+                    </button>
+                  </div>
+                </div>
+
+                {productMode === 'simple' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     label="Regular Price (₹) *"
@@ -838,6 +1102,328 @@ export default function ProductManager() {
                     />
                   </div>
                 </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Options Manager */}
+                    <div className="p-4 rounded-2xl bg-card border border-border space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-bold text-foreground">Options & Values</h4>
+                          <p className="text-[11px] text-muted-foreground">
+                            Define options like Color, Size, Storage and their respective values.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (optionsList.length >= 4) {
+                              toast.info('Maximum 4 options allowed.');
+                              return;
+                            }
+                            setOptionsList((prev) => [...prev, { name: '', values: [] }]);
+                          }}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-primary/10 text-primary font-semibold rounded-lg hover:bg-primary/20 transition-all cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> Add Option
+                        </button>
+                      </div>
+
+                      {optionsList.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2 text-center border border-dashed border-border rounded-xl">
+                          No options added yet. Click &ldquo;Add Option&rdquo; above to start.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {optionsList.map((opt, optIdx) => {
+                            const isColor = opt.name.toLowerCase().includes('color');
+                            return (
+                              <div key={optIdx} className="p-3 bg-muted/30 rounded-xl border border-border space-y-2.5">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    placeholder="Option Name (e.g. Color, Storage, Size)"
+                                    value={opt.name}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setOptionsList((prev) =>
+                                        prev.map((o, idx) => (idx === optIdx ? { ...o, name: val } : o))
+                                      );
+                                    }}
+                                    className="flex-1 px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setOptionsList((prev) => prev.filter((_, idx) => idx !== optIdx))}
+                                    className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-muted"
+                                    title="Remove Option"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                {/* Values tags */}
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {opt.values.map((v, valIdx) => (
+                                    <span
+                                      key={valIdx}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded-lg text-xs font-medium"
+                                    >
+                                      {v.colorSwatch && (
+                                        <span
+                                          className="w-2.5 h-2.5 rounded-full border border-black/20"
+                                          style={{ backgroundColor: v.colorSwatch }}
+                                        />
+                                      )}
+                                      <span>{v.label}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOptionsList((prev) =>
+                                            prev.map((o, idx) =>
+                                              idx === optIdx
+                                                ? { ...o, values: o.values.filter((_, vIdx) => vIdx !== valIdx) }
+                                                : o
+                                            )
+                                          );
+                                        }}
+                                        className="text-muted-foreground hover:text-destructive ml-0.5"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    </span>
+                                  ))}
+
+                                  {/* Add value input */}
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      placeholder="New value"
+                                      value={newValInputs[optIdx] ?? ''}
+                                      onChange={(e) =>
+                                        setNewValInputs((prev) => ({ ...prev, [optIdx]: e.target.value }))
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const val = (newValInputs[optIdx] ?? '').trim();
+                                          if (!val) return;
+                                          setOptionsList((prev) =>
+                                            prev.map((o, idx) =>
+                                              idx === optIdx
+                                                ? {
+                                                    ...o,
+                                                    values: [
+                                                      ...o.values,
+                                                      {
+                                                        label: val,
+                                                        colorSwatch: isColor
+                                                          ? newSwatchInputs[optIdx] || '#000000'
+                                                          : undefined,
+                                                      },
+                                                    ],
+                                                  }
+                                                : o
+                                            )
+                                          );
+                                          setNewValInputs((prev) => ({ ...prev, [optIdx]: '' }));
+                                        }
+                                      }}
+                                      className="w-28 px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                    />
+                                    {isColor && (
+                                      <input
+                                        type="color"
+                                        value={newSwatchInputs[optIdx] ?? '#000000'}
+                                        onChange={(e) =>
+                                          setNewSwatchInputs((prev) => ({ ...prev, [optIdx]: e.target.value }))
+                                        }
+                                        title="Pick swatch color"
+                                        className="w-6 h-6 rounded cursor-pointer border border-border p-0"
+                                      />
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const val = (newValInputs[optIdx] ?? '').trim();
+                                        if (!val) return;
+                                        setOptionsList((prev) =>
+                                          prev.map((o, idx) =>
+                                            idx === optIdx
+                                              ? {
+                                                  ...o,
+                                                  values: [
+                                                    ...o.values,
+                                                    {
+                                                      label: val,
+                                                      colorSwatch: isColor
+                                                        ? newSwatchInputs[optIdx] || '#000000'
+                                                        : undefined,
+                                                    },
+                                                  ],
+                                                }
+                                              : o
+                                          )
+                                        );
+                                        setNewValInputs((prev) => ({ ...prev, [optIdx]: '' }));
+                                      }}
+                                      className="px-2 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:opacity-90"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={generateCombinations}
+                              className="flex items-center gap-1.5 px-4 py-2 gradient-primary text-white text-xs font-bold rounded-xl shadow hover:opacity-90 transition-all cursor-pointer"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" /> Generate Combinations
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bulk fill bar */}
+                    {variantsList.length > 0 && (
+                      <div className="p-3 bg-muted/40 rounded-xl border border-border flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-semibold text-foreground">Bulk Fill:</span>
+                        <input
+                          placeholder="Price (₹)"
+                          type="number"
+                          step="0.01"
+                          value={bulkPrice}
+                          onChange={(e) => setBulkPrice(e.target.value)}
+                          className="w-24 px-2 py-1 bg-background border border-border rounded-lg"
+                        />
+                        <input
+                          placeholder="Stock"
+                          type="number"
+                          value={bulkStock}
+                          onChange={(e) => setBulkStock(e.target.value)}
+                          className="w-20 px-2 py-1 bg-background border border-border rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={applyBulkFill}
+                          className="px-3 py-1 bg-primary/10 text-primary font-bold rounded-lg hover:bg-primary/20"
+                        >
+                          Apply to All
+                        </button>
+                        <span className="text-muted-foreground ml-auto">
+                          {variantsList.length} variant{variantsList.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Variants Table */}
+                    {variantsList.length > 0 && (
+                      <div className="border border-border rounded-xl overflow-hidden max-h-72 overflow-y-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-muted/80 text-muted-foreground font-semibold uppercase tracking-wider sticky top-0 border-b border-border">
+                            <tr>
+                              <th className="p-2.5">Variant</th>
+                              <th className="p-2.5">SKU *</th>
+                              <th className="p-2.5">Price (₹) *</th>
+                              <th className="p-2.5">Sale (₹)</th>
+                              <th className="p-2.5">Stock *</th>
+                              <th className="p-2.5">Active</th>
+                              <th className="p-2.5 w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {variantsList.map((v, vIdx) => (
+                              <tr key={vIdx} className="hover:bg-muted/30">
+                                <td className="p-2.5 font-medium text-foreground max-w-[140px] truncate">
+                                  {v.combinationLabel}
+                                </td>
+                                <td className="p-2">
+                                  <input
+                                    value={v.sku}
+                                    onChange={(e) => {
+                                      const val = e.target.value.toUpperCase();
+                                      setVariantsList((prev) =>
+                                        prev.map((item, i) => (i === vIdx ? { ...item, sku: val } : item))
+                                      );
+                                    }}
+                                    className="w-28 px-1.5 py-1 bg-background border border-border rounded text-xs font-mono"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={v.price}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setVariantsList((prev) =>
+                                        prev.map((item, i) => (i === vIdx ? { ...item, price: val } : item))
+                                      );
+                                    }}
+                                    className="w-20 px-1.5 py-1 bg-background border border-border rounded text-xs"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={v.salePrice}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setVariantsList((prev) =>
+                                        prev.map((item, i) => (i === vIdx ? { ...item, salePrice: val } : item))
+                                      );
+                                    }}
+                                    className="w-20 px-1.5 py-1 bg-background border border-border rounded text-xs"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <input
+                                    type="number"
+                                    value={v.stockQuantity}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setVariantsList((prev) =>
+                                        prev.map((item, i) => (i === vIdx ? { ...item, stockQuantity: val } : item))
+                                      );
+                                    }}
+                                    className="w-16 px-1.5 py-1 bg-background border border-border rounded text-xs"
+                                  />
+                                </td>
+                                <td className="p-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={v.isActive}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setVariantsList((prev) =>
+                                        prev.map((item, i) => (i === vIdx ? { ...item, isActive: checked } : item))
+                                      );
+                                    }}
+                                    className="accent-primary w-3.5 h-3.5 rounded"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setVariantsList((prev) => prev.filter((_, i) => i !== vIdx))}
+                                    className="text-muted-foreground hover:text-destructive"
+                                    title="Remove variant"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Section 3: Media & Images */}
@@ -868,29 +1454,61 @@ export default function ProductManager() {
 
                 {form.images.filter(Boolean).length > 0 && (
                   <div className="flex gap-2.5 mb-3 flex-wrap">
-                    {form.images.filter(Boolean).map((url, i) => (
+                    {form.images.filter(Boolean).map((url, i, arr) => (
                       <div
                         key={i}
-                        className="relative group w-16 h-16 rounded-xl overflow-hidden border border-border bg-muted flex-shrink-0"
+                        className="relative group w-24 h-24 rounded-xl overflow-hidden border border-border bg-muted flex-shrink-0"
                       >
                         <img src={url} alt="" className="w-full h-full object-cover" />
-                        {i === 0 && (
-                          <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-primary-foreground text-[9px] font-bold text-center py-0.5">
-                            Cover
+                        {i === 0 ? (
+                          <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-primary-foreground text-[9px] font-bold text-center py-0.5 flex items-center justify-center gap-0.5 shadow">
+                            <Star className="w-2.5 h-2.5 fill-current" /> Cover
                           </span>
+                        ) : (
+                          <button
+                            type="button"
+                            title="Set as cover image"
+                            onClick={() => setCoverImage(i)}
+                            className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 bg-background/90 hover:bg-background text-foreground text-[9px] px-1.5 py-0.5 rounded shadow transition-all flex items-center gap-0.5 border border-border"
+                          >
+                            <Star className="w-2.5 h-2.5" /> Cover
+                          </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              images: f.images.filter((_, idx) => idx !== i),
-                            }))
-                          }
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          {i > 0 && (
+                            <button
+                              type="button"
+                              title="Move left"
+                              onClick={() => moveImage(i, 'left')}
+                              className="w-5 h-5 rounded-full bg-background/90 hover:bg-background text-foreground flex items-center justify-center shadow border border-border"
+                            >
+                              <ChevronLeft className="w-3 h-3" />
+                            </button>
+                          )}
+                          {i < arr.length - 1 && (
+                            <button
+                              type="button"
+                              title="Move right"
+                              onClick={() => moveImage(i, 'right')}
+                              className="w-5 h-5 rounded-full bg-background/90 hover:bg-background text-foreground flex items-center justify-center shadow border border-border"
+                            >
+                              <ChevronRight className="w-3 h-3" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            title="Remove image"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                images: f.images.filter((_, idx) => idx !== i),
+                              }))
+                            }
+                            className="w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -1,7 +1,7 @@
-import { usersRepository } from './users.repository';
-import { NotFoundError } from '../../core/errors/appError';
-import { buildPaginationMeta } from '../../core/utils/responseHandler';
-import type { UpdateProfileInput, CreateAddressInput, UpdateAddressInput } from './users.schema';
+import { usersRepository } from './users.repository.js';
+import { NotFoundError } from '../../core/errors/appError.js';
+import { buildPaginationMeta } from '../../core/utils/responseHandler.js';
+import type { UpdateProfileInput, CreateAddressInput, UpdateAddressInput } from './users.schema.js';
 
 const sanitizeUser = (user: { passwordHash?: string; otpToken?: string | null; otpExpiry?: Date | null; resetToken?: string | null; resetTokenExpiry?: Date | null; [key: string]: unknown }) => {
   const { passwordHash, otpToken, otpExpiry, resetToken, resetTokenExpiry, ...safe } = user;
@@ -25,25 +25,18 @@ export const usersService = {
   },
 
   async createAddress(userId: string, input: CreateAddressInput) {
-    if (input.isDefault) {
-      await usersRepository.clearDefaultAddresses(userId);
-    }
-    return usersRepository.createAddress({ ...input, userId });
+    return usersRepository.createAddressWithDefault({ ...input, userId });
   },
 
   async updateAddress(userId: string, addressId: string, input: UpdateAddressInput) {
-    if (input.isDefault) {
-      await usersRepository.clearDefaultAddresses(userId);
-    }
-    const address = await usersRepository.updateAddress(addressId, userId, input);
+    const address = await usersRepository.updateAddressWithDefault(addressId, userId, input);
     if (!address) throw new NotFoundError('Address not found.');
     return address;
   },
 
   async deleteAddress(userId: string, addressId: string) {
-    const existing = await usersRepository.getAddressById(addressId, userId);
-    if (!existing) throw new NotFoundError('Address not found.');
-    await usersRepository.deleteAddress(addressId, userId);
+    const deleted = await usersRepository.deleteAddressAndPromote(addressId, userId);
+    if (!deleted) throw new NotFoundError('Address not found.');
   },
 
   async getUsersAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {

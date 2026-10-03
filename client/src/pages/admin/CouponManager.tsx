@@ -12,8 +12,8 @@ const formatPrice = (p: string | number) =>
 
 const EMPTY_FORM = {
   code: '', description: '', discountType: 'flat' as 'flat' | 'percentage',
-  discountValue: '', minPurchase: '0', maxDiscount: '', usageLimit: '',
-  isActive: true, expiresAt: '',
+  discountValue: '', minPurchase: '0', maxDiscount: '', usageLimit: '', perUserLimit: '',
+  firstOrderOnly: false, isActive: true, expiresAt: '',
 };
 
 export default function CouponManager() {
@@ -53,6 +53,7 @@ export default function CouponManager() {
       code: c.code, description: c.description || '', discountType: c.discountType,
       discountValue: c.discountValue, minPurchase: c.minPurchase, maxDiscount: c.maxDiscount || '',
       usageLimit: c.usageLimit ? String(c.usageLimit) : '', isActive: c.isActive,
+      perUserLimit: c.perUserLimit ? String(c.perUserLimit) : '', firstOrderOnly: c.firstOrderOnly,
       expiresAt: c.expiresAt ? c.expiresAt.slice(0, 10) : '',
     });
     setEditing(c);
@@ -65,6 +66,7 @@ export default function CouponManager() {
     const payload: Record<string, unknown> = {
       ...form,
       usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
+      perUserLimit: form.perUserLimit ? Number(form.perUserLimit) : null,
       maxDiscount: form.maxDiscount || null,
       expiresAt: form.expiresAt || null,
     };
@@ -215,6 +217,21 @@ export default function CouponManager() {
                       className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary/50"
                       placeholder="Unlimited" />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Per-customer limit</label>
+                    <input type="number" min="1" value={form.perUserLimit}
+                      onChange={(e) => setForm((f) => ({ ...f, perUserLimit: e.target.value }))}
+                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary/50"
+                      placeholder="Unlimited" />
+                  </div>
+                  <label className="flex items-center gap-3 self-end pb-3">
+                    <input type="checkbox" checked={form.firstOrderOnly}
+                      onChange={(e) => setForm((f) => ({ ...f, firstOrderOnly: e.target.checked }))}
+                      className="w-4 h-4 accent-primary" />
+                    <span className="text-sm font-medium">First order only</span>
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Expires At</label>

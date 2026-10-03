@@ -2,8 +2,7 @@
 import { Link } from 'react-router-dom';
 import { Store, LogOut } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { useAtom } from 'jotai';
-import { userAtom } from '../../store/userAtom';
+import { useAuth } from '../../hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,13 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export const AdminHeader = () => {
-  const [user, setUser] = useAtom(userAtom);
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-  };
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
@@ -62,7 +55,7 @@ export const AdminHeader = () => {
                 </DropdownMenuLabel>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-red-500 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-500/10 dark:focus:text-red-400 cursor-pointer">
+              <DropdownMenuItem onClick={() => logout.mutate()} className="text-red-500 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-500/10 dark:focus:text-red-400 cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

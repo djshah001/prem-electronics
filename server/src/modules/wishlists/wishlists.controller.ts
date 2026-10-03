@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { wishlistsService } from './wishlists.service';
-import { sendSuccess, sendNoContent } from '../../core/utils/responseHandler';
+import { wishlistsService } from './wishlists.service.js';
+import { sendSuccess, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const wishlistsController = {
   async getWishlist(req: Request, res: Response) {

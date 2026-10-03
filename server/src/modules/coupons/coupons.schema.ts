@@ -6,10 +6,12 @@ export const createCouponSchema = z.object({
   discountType: z.enum(['flat', 'percentage']),
   discountValue: z.number().positive(),
   minPurchase: z.number().min(0).default(0),
-  maxDiscount: z.number().positive().optional(),
-  usageLimit: z.number().int().positive().optional(),
+  maxDiscount: z.number().positive().nullish(),
+  usageLimit: z.number().int().positive().nullish(),
+  perUserLimit: z.number().int().positive().nullish(),
+  firstOrderOnly: z.boolean().default(false),
   isActive: z.boolean().default(true),
-  expiresAt: z.string().datetime().optional().transform((v) => v ? new Date(v) : undefined),
+  expiresAt: z.string().nullish().transform((value) => value ? new Date(value) : null),
 });
 
 export const updateCouponSchema = createCouponSchema.partial();

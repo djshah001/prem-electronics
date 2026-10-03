@@ -11,7 +11,6 @@ export const cartItemsAtom = atomWithStorage<CartItem[]>('prem_cart', [], undefi
 export const cartDrawerOpenAtom = atom(false);
 
 // Derived: total item count
-// Derived: total item count
 export const cartCountAtom = atom((get) => {
   const items = get(cartItemsAtom) as CartItem[]; // Explicit cast
   return items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0);

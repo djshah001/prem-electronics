@@ -1,6 +1,6 @@
-import { couponsRepository } from './coupons.repository';
-import { AppError, NotFoundError, ConflictError } from '../../core/errors/appError';
-import type { CreateCouponInput, UpdateCouponInput, ValidateCouponInput } from './coupons.schema';
+import { couponsRepository } from './coupons.repository.js';
+import { AppError, NotFoundError, ConflictError } from '../../core/errors/appError.js';
+import type { CreateCouponInput, UpdateCouponInput, ValidateCouponInput } from './coupons.schema.js';
 
 export const couponsService = {
   async getAll() {
@@ -36,7 +36,7 @@ export const couponsService = {
       ...input,
       discountValue: String(input.discountValue),
       minPurchase: String(input.minPurchase),
-      maxDiscount: input.maxDiscount ? String(input.maxDiscount) : undefined,
+      maxDiscount: input.maxDiscount ? String(input.maxDiscount) : null,
     });
   },
 
@@ -47,7 +47,7 @@ export const couponsService = {
       ...input,
       discountValue: input.discountValue ? String(input.discountValue) : undefined,
       minPurchase: input.minPurchase !== undefined ? String(input.minPurchase) : undefined,
-      maxDiscount: input.maxDiscount ? String(input.maxDiscount) : undefined,
+      maxDiscount: input.maxDiscount === undefined ? undefined : (input.maxDiscount === null ? null : String(input.maxDiscount)),
     });
   },
 

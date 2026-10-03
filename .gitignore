@@ -76,6 +76,7 @@ client/.vite/
 .turbo/
 coverage/
 .nyc_output/
+server/.test-dist/
 
 # ==========================================
 # 8. Operating System & Editor Metadata

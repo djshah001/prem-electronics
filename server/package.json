@@ -7,11 +7,12 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:generate": "drizzle-kit generate",
+    "test": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/infrastructure/payment/razorpay.test.js",
+    "db:generate": "npm run build && drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx src/infrastructure/database/seed.ts"
+    "db:seed": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/infrastructure/database/seed.js"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",

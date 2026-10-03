@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { adminController } from './admin.controller';
-import { asyncHandler } from '../../core/middlewares/asyncHandler';
-import { adminOnly } from '../../core/middlewares/authGuard';
+import { adminController } from './admin.controller.js';
+import { asyncHandler } from '../../core/middlewares/asyncHandler.js';
+import { adminOnly } from '../../core/middlewares/authGuard.js';
 
 const router = Router();
 

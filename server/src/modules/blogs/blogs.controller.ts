@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { blogsService } from './blogs.service';
-import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler';
+import { blogsService } from './blogs.service.js';
+import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const blogsController = {
   async getBlogs(req: Request, res: Response) {

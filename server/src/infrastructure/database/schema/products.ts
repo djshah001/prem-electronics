@@ -12,9 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { categories } from './categories';
-import { orderItems } from './orderItems';
-import { reviews } from './reviews';
+import { categories } from './categories.js';
+import { orderItems } from './orderItems.js';
+import { reviews } from './reviews.js';
 
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -29,7 +29,7 @@ export const products = pgTable('products', {
   lowStockThreshold: integer('low_stock_threshold').default(5).notNull(),
   images: jsonb('images').$type<string[]>().default([]),
   tags: jsonb('tags').$type<string[]>().default([]),
-  attributes: jsonb('attributes').$type<Record<string, unknown>>().default({}),
+  attributes: jsonb('attributes').$type<Array<{ name: string; value: string }>>().default([]),
   brand: varchar('brand', { length: 100 }),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   isActive: boolean('is_active').default(true).notNull(),

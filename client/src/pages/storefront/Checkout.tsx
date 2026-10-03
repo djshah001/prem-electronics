@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -44,6 +44,7 @@ export default function Checkout() {
     country: 'India',
   });
   const [useNewAddress, setUseNewAddress] = useState(false);
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
 
   // Fetch saved addresses
   const { data: addressesRes } = useQuery({
@@ -51,14 +52,19 @@ export default function Checkout() {
     queryFn: () => api.get<Address[]>('/users/addresses'),
     enabled: !!user,
   });
-  const addresses = addressesRes?.data ?? [];
+  const addresses = useMemo(() => addressesRes?.data ?? [], [addressesRes?.data]);
+  useEffect(() => {
+    if (!selectedAddressId && addresses.length > 0 && !useNewAddress) {
+      setSelectedAddressId(addresses.find((address) => address.isDefault)?.id ?? addresses[0].id);
+    }
+  }, [addresses, selectedAddressId, useNewAddress]);
 
   // Cart validation
   const validateMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (code?: string) =>
       api.post<CartValidationResult>('/cart/validate', {
         items: cartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        couponCode: appliedCoupon || undefined,
+        couponCode: code || undefined,
       }),
   });
 
@@ -66,24 +72,29 @@ export default function Checkout() {
 
   // Apply coupon
   const handleApplyCoupon = () => {
-    setAppliedCoupon(couponCode.toUpperCase());
-    validateMutation.mutate();
-    toast.success(`Coupon "${couponCode.toUpperCase()}" applied!`);
+    const code = couponCode.trim().toUpperCase();
+    validateMutation.mutate(code, {
+      onSuccess: () => { setAppliedCoupon(code); toast.success(`Coupon "${code}" applied!`); },
+      onError: (error: { message?: string }) => toast.error(error.message ?? 'Coupon could not be applied.'),
+    });
   };
 
-  // Refresh validation on mount
-  useState(() => { validateMutation.mutate(); });
+  useEffect(() => {
+    if (cartItems.length > 0) validateMutation.mutate(appliedCoupon || undefined);
+    // Recalculate whenever the authoritative cart changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItems, appliedCoupon]);
 
   const handleCheckout = async () => {
     if (!user) { navigate('/login'); return; }
     if (!cart) { toast.error('Please validate your cart first.'); return; }
 
-    const shippingAddress =
+    let shippingAddress =
       useNewAddress || !selectedAddressId
         ? newAddress
         : undefined;
 
-    const shippingAddressId = !useNewAddress && selectedAddressId ? selectedAddressId : undefined;
+    let shippingAddressId = !useNewAddress && selectedAddressId ? selectedAddressId : undefined;
 
     if (!shippingAddress && !shippingAddressId) {
       toast.error('Please select or enter a shipping address.');
@@ -91,12 +102,18 @@ export default function Checkout() {
     }
 
     try {
+      if (shippingAddress && saveNewAddress) {
+        const saved = await api.post<Address>('/users/addresses', { ...shippingAddress, type: 'shipping', isDefault: addresses.length === 0 });
+        shippingAddressId = saved.data.id;
+        shippingAddress = undefined;
+      }
       // Create order
       const orderRes = await api.post<{
         orderId: string;
         orderNumber: string;
         razorpayOrderId: string;
         amount: number;
+        mockPayment: boolean;
       }>('/orders', {
         items: cartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         shippingAddressId,
@@ -104,15 +121,15 @@ export default function Checkout() {
         couponCode: appliedCoupon || undefined,
       });
 
-      const { razorpayOrderId, amount, orderId, orderNumber } = orderRes.data;
+      const { razorpayOrderId, amount, orderId, orderNumber, mockPayment } = orderRes.data;
 
-      // In development / test mode with placeholder credentials
-      if (RAZORPAY_KEY === 'rzp_test_example' || razorpayOrderId.startsWith('order_')) {
+      // Mock checkout is available only when the server explicitly enables it outside production.
+      if (mockPayment) {
         toast.info('Simulating payment (development test mode)...');
         try {
           await api.post('/payments/verify', {
             razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: `pay_test_${Date.now()}`,
+            razorpay_payment_id: `mock_payment_${Date.now()}`,
             razorpay_signature: 'mock_signature',
           });
           clearCart();
@@ -231,13 +248,14 @@ export default function Checkout() {
                   { key: 'city', label: 'City', span: 1 },
                   { key: 'state', label: 'State', span: 1 },
                 ].map(({ key, label, span }) => (
-                  <div key={key} className={`col-span-${span}`}>
+                  <div key={key} className={span === 2 ? 'col-span-2' : 'col-span-1'}>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
                     <input type="text" value={newAddress[key as keyof typeof newAddress]}
                       onChange={(e) => setNewAddress({ ...newAddress, [key]: e.target.value })}
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
                   </div>
                 ))}
+                <label className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={saveNewAddress} onChange={(event) => setSaveNewAddress(event.target.checked)} /> Save this address to my account</label>
               </div>
             )}
           </div>

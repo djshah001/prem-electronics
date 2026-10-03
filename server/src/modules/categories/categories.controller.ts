@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { categoriesService } from './categories.service';
-import { createCategorySchema, updateCategorySchema } from './categories.schema';
-import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler';
+import { categoriesService } from './categories.service.js';
+import { createCategorySchema, updateCategorySchema } from './categories.schema.js';
+import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const categoriesController = {
   async getTree(req: Request, res: Response) {
@@ -46,7 +46,7 @@ export const categoriesController = {
     if (!Array.isArray(ids)) {
       return res.status(400).json({ success: false, message: 'Invalid IDs array' });
     }
-    await categoriesService.bulkDelete(ids);
-    sendSuccess(res, null, 'Categories deleted successfully.');
+    const result = await categoriesService.bulkDelete(ids);
+    sendSuccess(res, result, 'Category archive operation completed.');
   },
 };

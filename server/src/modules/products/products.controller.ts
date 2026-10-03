@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { productsService } from './products.service';
-import { createProductSchema, updateProductSchema, productQuerySchema } from './products.schema';
-import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler';
+import { productsService } from './products.service.js';
+import { createProductSchema, updateProductSchema, productQuerySchema } from './products.schema.js';
+import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const productsController = {
   async getProducts(req: Request, res: Response) {
@@ -23,6 +23,16 @@ export const productsController = {
   async getById(req: Request, res: Response) {
     const product = await productsService.getById((req.params.id as string));
     sendSuccess(res, product);
+  },
+
+  async getVariants(req: Request, res: Response) {
+    const data = await productsService.getVariants(req.params.id as string);
+    sendSuccess(res, data, 'Product variants fetched.');
+  },
+
+  async saveVariants(req: Request, res: Response) {
+    const data = await productsService.saveVariants(req.params.id as string, req.body);
+    sendSuccess(res, data, 'Product variants saved successfully.');
   },
 
   async create(req: Request, res: Response) {
@@ -70,6 +80,6 @@ export const productsController = {
       return res.status(400).json({ success: false, message: 'Invalid IDs array' });
     }
     await productsService.bulkDelete(ids);
-    sendSuccess(res, null, 'Products deleted successfully.');
+    sendSuccess(res, null, 'Products deactivated successfully.');
   },
 };

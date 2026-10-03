@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import { usersService } from './users.service';
+import { usersService } from './users.service.js';
 import {
   updateProfileSchema,
   createAddressSchema,
   updateAddressSchema,
-} from './users.schema';
-import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler';
+} from './users.schema.js';
+import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const usersController = {
   async getProfile(req: Request, res: Response) {

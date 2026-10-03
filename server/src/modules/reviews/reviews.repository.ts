@@ -1,13 +1,15 @@
 import { eq, desc, sql, and } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
-import { reviews, orderItems, orders, type Review, type NewReview } from '../../infrastructure/database/schema/index';
+import { db } from '../../infrastructure/database/db.js';
+import { reviews, orderItems, orders, products, type Review, type NewReview } from '../../infrastructure/database/schema/index.js';
 
 export const reviewsRepository = {
+  /** Public: approved reviews only */
   async findByProduct(productId: string, page: number, limit: number) {
     const offset = (page - 1) * limit;
+    const approvedCondition = and(eq(reviews.productId, productId), eq(reviews.isApproved, true));
     const [data, countResult] = await Promise.all([
-      db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt)).limit(limit).offset(offset),
-      db.select({ count: sql<number>`count(*)` }).from(reviews).where(eq(reviews.productId, productId)),
+      db.select().from(reviews).where(approvedCondition).orderBy(desc(reviews.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(reviews).where(approvedCondition),
     ]);
     return { data, total: Number(countResult[0].count) };
   },
@@ -15,6 +17,11 @@ export const reviewsRepository = {
   async findByUserAndProduct(userId: string, productId: string): Promise<Review | undefined> {
     const result = await db.select().from(reviews)
       .where(and(eq(reviews.userId, userId), eq(reviews.productId, productId))).limit(1);
+    return result[0];
+  },
+
+  async findById(reviewId: string): Promise<Review | undefined> {
+    const result = await db.select().from(reviews).where(eq(reviews.id, reviewId)).limit(1);
     return result[0];
   },
 
@@ -31,11 +38,40 @@ export const reviewsRepository = {
     return result[0];
   },
 
+  async update(reviewId: string, data: Partial<NewReview>): Promise<Review | undefined> {
+    const result = await db.update(reviews)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(reviews.id, reviewId))
+      .returning();
+    return result[0];
+  },
+
+  async approve(reviewId: string): Promise<Review | undefined> {
+    const result = await db.update(reviews)
+      .set({ isApproved: true, updatedAt: new Date() })
+      .where(eq(reviews.id, reviewId))
+      .returning();
+    return result[0];
+  },
+
+  async reject(reviewId: string): Promise<void> {
+    await db.delete(reviews).where(eq(reviews.id, reviewId));
+  },
+
+  /** Rating aggregate over APPROVED reviews only — used after any approval/rejection */
   async getProductAvgRating(productId: string): Promise<{ avg: number; count: number }> {
     const result = await db.select({
       avg: sql<number>`avg(${reviews.rating})`,
       count: sql<number>`count(*)`,
-    }).from(reviews).where(eq(reviews.productId, productId));
+    }).from(reviews).where(and(eq(reviews.productId, productId), eq(reviews.isApproved, true)));
     return { avg: Number(result[0].avg ?? 0), count: Number(result[0].count) };
+  },
+
+  /** Recompute and persist product rating aggregate; call after any approval/rejection/deletion. */
+  async recomputeProductRating(productId: string): Promise<void> {
+    const { avg, count } = await this.getProductAvgRating(productId);
+    await db.update(products)
+      .set({ avgRating: String(Number(avg.toFixed(2))), reviewCount: count, updatedAt: new Date() })
+      .where(eq(products.id, productId));
   },
 };

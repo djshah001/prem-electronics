@@ -21,6 +21,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import VerifyOTP from './pages/auth/VerifyOTP';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
 // Pages — Customer
 import Account from './pages/customer/Account';
@@ -33,7 +34,10 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import { Suspense, lazy } from 'react';
 const ProductDetails = lazy(() => import('./pages/storefront/ProductDetails'));
 const Addresses = lazy(() => import('./pages/customer/Addresses'));
+const Profile = lazy(() => import('./pages/customer/Profile'));
 const Wishlist = lazy(() => import('./pages/customer/Wishlist'));
+const OrderDetail = lazy(() => import('./pages/customer/OrderDetail'));
+
 const BlogPage = lazy(() => import('./pages/blog/Blog'));
 const BlogDetails = lazy(() => import('./pages/blog/BlogDetails'));
 
@@ -113,6 +117,7 @@ const router = createBrowserRouter([
           { path: '/register', element: <Register /> },
           { path: '/verify-otp', element: <VerifyOTP /> },
           { path: '/forgot-password', element: <ForgotPassword /> },
+          { path: '/reset-password', element: <ResetPassword /> },
         ],
       },
 
@@ -124,8 +129,9 @@ const router = createBrowserRouter([
           { path: '/order-success/:id', element: <OrderSuccess /> },
           { path: '/account', element: <Account /> },
           { path: '/account/orders', element: <Orders /> },
-          { path: '/account/orders/:id', element: <OrderSuccess /> },
+          { path: '/account/orders/:id', element: <OrderDetail /> },
           { path: '/account/addresses', element: <Addresses /> },
+          { path: '/account/profile', element: <Profile /> },
           { path: '/wishlist', element: <Wishlist /> },
         ],
       },

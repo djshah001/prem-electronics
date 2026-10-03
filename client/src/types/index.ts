@@ -26,7 +26,6 @@ export interface Address {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export interface AuthResponse {
-  token: string;
   user: User;
 }
 
@@ -42,6 +41,42 @@ export interface Category {
   children?: Category[];
 }
 
+// ─── Product Variants ─────────────────────────────────────────────────────────
+export interface ProductOptionValue {
+  id: string;
+  optionId: string;
+  label: string;
+  normalizedValue: string;
+  displayOrder: number;
+  colorSwatch?: string | null;
+}
+
+export interface ProductOption {
+  id: string;
+  productId: string;
+  name: string;
+  normalizedKey: string;
+  displayOrder: number;
+  values?: ProductOptionValue[];
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  sku: string;
+  barcode?: string | null;
+  price: string;
+  salePrice?: string | null;
+  priceMinor: number;
+  salePriceMinor?: number | null;
+  stockQuantity: number;
+  reservedQuantity: number;
+  lowStockThreshold: number;
+  isActive: boolean;
+  optionCombinationKey: string;
+  optionValues?: string[];
+}
+
 // ─── Product ─────────────────────────────────────────────────────────────────
 export interface Product {
   id: string;
@@ -55,7 +90,7 @@ export interface Product {
   lowStockThreshold: number;
   images: string[];
   tags: string[];
-  attributes: Record<string, unknown>;
+  attributes: Array<{ name: string; value: string }>;
   brand?: string;
   categoryId?: string;
   isActive: boolean;
@@ -66,6 +101,8 @@ export interface Product {
   avgRating: string;
   reviewCount: number;
   createdAt: string;
+  options?: ProductOption[];
+  variants?: ProductVariant[];
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
@@ -77,6 +114,8 @@ export interface CartItem {
   salePrice?: string;
   quantity: number;
   slug: string;
+  variantId?: string;
+  variantSnapshot?: Record<string, unknown>;
 }
 
 export interface CartValidationResult {
@@ -107,12 +146,15 @@ export interface Order {
   userId?: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  returnStatus: 'none' | 'requested' | 'approved' | 'rejected' | 'completed';
+  refundStatus: 'none' | 'pending' | 'processed';
   subtotal: string;
   discount: string;
   tax: string;
   shipping: string;
   total: string;
   couponCode?: string;
+  paymentMethod?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   shippingAddress: Address;
@@ -125,6 +167,7 @@ export interface OrderItem {
   id: string;
   orderId: string;
   productId?: string;
+  productTitle?: string;
   quantity: number;
   priceAtPurchase: string;
   variantSnapshot: Record<string, unknown>;
@@ -139,7 +182,9 @@ export interface Coupon {
   discountValue: string;
   minPurchase: string;
   maxDiscount?: string;
-  usageLimit?: number;
+  usageLimit?: number | null;
+  perUserLimit?: number | null;
+  firstOrderOnly: boolean;
   usedCount: number;
   isActive: boolean;
   expiresAt?: string;
@@ -229,6 +274,7 @@ export interface WishlistItem {
     stock: number;
     avgRating: string;
     reviewCount: number;
+    isActive: boolean;
   };
 }
 

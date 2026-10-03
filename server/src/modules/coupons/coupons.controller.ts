@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { couponsService } from './coupons.service';
-import { createCouponSchema, updateCouponSchema, validateCouponSchema } from './coupons.schema';
-import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler';
+import { couponsService } from './coupons.service.js';
+import { createCouponSchema, updateCouponSchema, validateCouponSchema } from './coupons.schema.js';
+import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const couponsController = {
   async getAll(req: Request, res: Response) {

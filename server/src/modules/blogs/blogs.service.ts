@@ -1,6 +1,6 @@
-import { blogsRepository } from './blogs.repository';
-import { NotFoundError, ConflictError } from '../../core/errors/appError';
-import { buildPaginationMeta } from '../../core/utils/responseHandler';
+import { blogsRepository } from './blogs.repository.js';
+import { NotFoundError, ConflictError } from '../../core/errors/appError.js';
+import { buildPaginationMeta } from '../../core/utils/responseHandler.js';
 
 export const blogsService = {
   async getBlogs(page: number, limit: number, search?: string) {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { couponsController } from './coupons.controller';
-import { asyncHandler } from '../../core/middlewares/asyncHandler';
-import { adminOnly, authenticate } from '../../core/middlewares/authGuard';
+import { couponsController } from './coupons.controller.js';
+import { asyncHandler } from '../../core/middlewares/asyncHandler.js';
+import { adminOnly, authenticate } from '../../core/middlewares/authGuard.js';
 
 const router = Router();
 

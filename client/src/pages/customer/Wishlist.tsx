@@ -28,7 +28,7 @@ export default function Wishlist() {
   });
 
   const handleMoveToCart = (item: WishlistItem) => {
-    addToCart(item.product as any, 1);
+    addToCart(item.product, 1);
     removeMutation.mutate(item.productId);
     toast.success('Moved to cart!');
   };
@@ -96,10 +96,10 @@ export default function Wishlist() {
                         <p className="text-lg font-black text-foreground">{formatPrice(effectivePrice)}</p>
                         {p.salePrice && <p className="text-xs text-muted-foreground line-through">{formatPrice(p.price)}</p>}
                       </div>
-                      <button onClick={() => handleMoveToCart(item)} disabled={p.stock === 0}
+                      <button onClick={() => handleMoveToCart(item)} disabled={p.stock === 0 || !p.isActive}
                         className="flex items-center gap-1.5 px-3 py-2 gradient-primary text-white rounded-xl text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-40">
                         <ShoppingCart className="w-3.5 h-3.5" />
-                        {p.stock === 0 ? 'Out' : 'Add'}
+                        {p.stock === 0 || !p.isActive ? 'Unavailable' : 'Add'}
                       </button>
                     </div>
                   </div>

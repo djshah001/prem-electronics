@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
-import { coupons, type Coupon, type NewCoupon } from '../../infrastructure/database/schema/index';
+import { db } from '../../infrastructure/database/db.js';
+import { couponRedemptions, coupons, orders, type Coupon, type NewCoupon } from '../../infrastructure/database/schema/index.js';
 
 export const couponsRepository = {
   async findAll(): Promise<Coupon[]> {
@@ -40,6 +40,18 @@ export const couponsRepository = {
       .update(coupons)
       .set({ usedCount: sql`${coupons.usedCount} + 1`, updatedAt: new Date() })
       .where(eq(coupons.id, id));
+  },
+
+  async countUserRedemptions(couponId: string, userId: string): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(couponRedemptions)
+      .where(sql`${couponRedemptions.couponId} = ${couponId} and ${couponRedemptions.userId} = ${userId}`);
+    return Number(result.count);
+  },
+
+  async countPaidOrders(userId: string): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(orders)
+      .where(sql`${orders.userId} = ${userId} and ${orders.paymentStatus} = 'paid'`);
+    return Number(result.count);
   },
 
   async delete(id: string): Promise<void> {

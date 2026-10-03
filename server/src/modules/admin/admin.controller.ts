@@ -1,9 +1,12 @@
 import { Request, Response } from 'express';
-import { adminService } from './admin.service';
-import { sendSuccess, sendNoContent, buildPaginationMeta } from '../../core/utils/responseHandler';
+import { adminService } from './admin.service.js';
+import { sendSuccess, sendNoContent, buildPaginationMeta } from '../../core/utils/responseHandler.js';
 import { z } from 'zod';
 
-const bulkDeleteSchema = z.object({ ids: z.array(z.string().uuid()).min(1) });
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100)
+    .transform((ids) => [...new Set(ids)]),
+});
 
 export const adminController = {
   async getDashboard(req: Request, res: Response) {
@@ -67,25 +70,25 @@ export const adminController = {
   async bulkDeleteProducts(req: Request, res: Response) {
     const { ids } = bulkDeleteSchema.parse(req.body);
     const result = await adminService.bulkDeleteProducts(ids);
-    sendSuccess(res, result, `${result.deleted} products archived.`);
+    sendSuccess(res, result, `${result.archived} products archived.`);
   },
 
   async bulkDeleteCategories(req: Request, res: Response) {
     const { ids } = bulkDeleteSchema.parse(req.body);
     const result = await adminService.bulkDeleteCategories(ids);
-    sendSuccess(res, result, `${result.deleted} categories deleted.`);
+    sendSuccess(res, result, `${result.archived} categories archived.`);
   },
 
   async bulkDeleteUsers(req: Request, res: Response) {
     const { ids } = bulkDeleteSchema.parse(req.body);
     const result = await adminService.bulkDeleteUsers(ids);
-    sendSuccess(res, result, `${result.deleted} users deleted.`);
+    sendSuccess(res, result, `${result.blocked} customers blocked.`);
   },
 
   async bulkDeleteOrders(req: Request, res: Response) {
     const { ids } = bulkDeleteSchema.parse(req.body);
     const result = await adminService.bulkDeleteOrders(ids);
-    sendSuccess(res, result, `${result.deleted} orders deleted.`);
+    sendSuccess(res, result, `${result.archived} orders archived.`);
   },
 
   // ─── Admin Categories ─────────────────────────────────────────────────────

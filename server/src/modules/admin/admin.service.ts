@@ -1,5 +1,5 @@
-import { sql, eq, gte, desc, and, lte, inArray } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
+import { sql, eq, gte, desc, and, inArray } from 'drizzle-orm';
+import { db } from '../../infrastructure/database/db.js';
 import {
   orders,
   users,
@@ -7,7 +7,8 @@ import {
   categories,
   orderItems,
   reviews,
-} from '../../infrastructure/database/schema/index';
+} from '../../infrastructure/database/schema/index.js';
+import { reviewsService } from '../reviews/reviews.service.js';
 
 export const adminService = {
   async getDashboardMetrics() {
@@ -208,16 +209,11 @@ export const adminService = {
   },
 
   async approveReview(reviewId: string) {
-    const result = await db
-      .update(reviews)
-      .set({ isApproved: true, updatedAt: new Date() })
-      .where(eq(reviews.id, reviewId))
-      .returning();
-    return result[0];
+    return reviewsService.approveReview(reviewId);
   },
 
   async rejectReview(reviewId: string) {
-    await db.delete(reviews).where(eq(reviews.id, reviewId));
+    return reviewsService.rejectReview(reviewId);
   },
 
   async updateStock(productId: string, stock: number) {
@@ -232,27 +228,66 @@ export const adminService = {
   // ─── Bulk Delete ────────────────────────────────────────────────────────────
 
   async bulkDeleteProducts(ids: string[]) {
-    // Soft delete
-    await db
+    const archived = await db
       .update(products)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(inArray(products.id, ids));
-    return { deleted: ids.length };
+      .where(inArray(products.id, ids))
+      .returning({ id: products.id });
+    return { archived: archived.length, ids: archived.map((item) => item.id) };
   },
 
   async bulkDeleteCategories(ids: string[]) {
-    await db.delete(categories).where(inArray(categories.id, ids));
-    return { deleted: ids.length };
+    const [productDependencies, childDependencies] = await Promise.all([
+      db.select({ id: products.categoryId })
+        .from(products)
+        .where(and(inArray(products.categoryId, ids), eq(products.isActive, true))),
+      db.select({ id: categories.parentId })
+        .from(categories)
+        .where(and(inArray(categories.parentId, ids), eq(categories.isActive, true))),
+    ]);
+    const blockedIds = new Set([
+      ...productDependencies.map((item) => item.id).filter(Boolean),
+      ...childDependencies.map((item) => item.id).filter(Boolean),
+    ] as string[]);
+    const eligibleIds = ids.filter((id) => !blockedIds.has(id));
+    const archived = eligibleIds.length > 0
+      ? await db.update(categories)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(inArray(categories.id, eligibleIds))
+        .returning({ id: categories.id })
+      : [];
+    return {
+      archived: archived.length,
+      ids: archived.map((item) => item.id),
+      failed: ids.filter((id) => blockedIds.has(id)).map((id) => ({
+        id,
+        reason: 'Category has active products or child categories.',
+      })),
+    };
   },
 
   async bulkDeleteUsers(ids: string[]) {
-    await db.delete(users).where(inArray(users.id, ids));
-    return { deleted: ids.length };
+    const blocked = await db.update(users)
+      .set({ isBlocked: true, updatedAt: new Date() })
+      .where(and(inArray(users.id, ids), eq(users.role, 'customer')))
+      .returning({ id: users.id });
+    const blockedIds = new Set(blocked.map((item) => item.id));
+    return {
+      blocked: blocked.length,
+      ids: [...blockedIds],
+      failed: ids.filter((id) => !blockedIds.has(id)).map((id) => ({
+        id,
+        reason: 'Only customer accounts can be blocked by this bulk action.',
+      })),
+    };
   },
 
   async bulkDeleteOrders(ids: string[]) {
-    await db.delete(orders).where(inArray(orders.id, ids));
-    return { deleted: ids.length };
+    const archived = await db.update(orders)
+      .set({ isArchived: true, updatedAt: new Date() })
+      .where(inArray(orders.id, ids))
+      .returning({ id: orders.id });
+    return { archived: archived.length, ids: archived.map((item) => item.id) };
   },
 
   // ─── Admin Categories ───────────────────────────────────────────────────────
@@ -274,7 +309,7 @@ export const adminService = {
 
   async getOrdersAdmin(page: number, limit: number, search?: string, status?: string, sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
     const offset = (page - 1) * limit;
-    const conditions: any[] = [];
+    const conditions: any[] = [eq(orders.isArchived, false)];
     if (status) conditions.push(eq(orders.status, status as any));
     if (search) {
       conditions.push(
