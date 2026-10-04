@@ -1,7 +1,21 @@
 import { Request, Response } from 'express';
 import { adminService } from './admin.service.js';
-import { sendSuccess, sendNoContent, buildPaginationMeta } from '../../core/utils/responseHandler.js';
+import { sendSuccess, sendNoContent } from '../../core/utils/responseHandler.js';
 import { z } from 'zod';
+import { adminP2Service } from './admin.p2.service.js';
+import {
+  analyticsQuerySchema,
+  blockCustomerSchema,
+  customerListQuerySchema,
+  customerOrderQuerySchema,
+  inventoryListQuerySchema,
+  inventoryStockSchema,
+  reviewListQuerySchema,
+  transactionListQuerySchema,
+  uuidParamSchema,
+} from './admin.schema.js';
+import { categoryAdminQuerySchema } from '../categories/categories.schema.js';
+import { categoriesService } from '../categories/categories.service.js';
 
 const bulkDeleteSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100)
@@ -15,53 +29,65 @@ export const adminController = {
   },
 
   async getAnalytics(req: Request, res: Response) {
-    const period = Number(req.query.period) || 30;
-    const analytics = await adminService.getAnalytics(period);
+    const query = analyticsQuerySchema.parse(req.query);
+    const analytics = await adminP2Service.getAnalytics(query);
     sendSuccess(res, analytics, 'Analytics fetched.');
   },
 
+  async getModuleStats(_req: Request, res: Response) {
+    sendSuccess(res, await adminP2Service.getModuleStats(), 'Module statistics fetched.');
+  },
+
   async getLowStock(req: Request, res: Response) {
-    const threshold = req.query.threshold ? Number(req.query.threshold) : undefined;
-    const items = await adminService.getLowStock(threshold);
-    sendSuccess(res, items, 'Low stock items fetched.');
+    const query = inventoryListQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getInventory(query);
+    sendSuccess(res, data, 'Low stock variants fetched.', 200, meta);
   },
 
   async updateStock(req: Request, res: Response) {
-    const { stock } = req.body;
-    const product = await adminService.updateStock((req.params.productId as string), Number(stock));
-    sendSuccess(res, product, 'Stock updated.');
+    const id = uuidParamSchema.parse(req.params.variantId);
+    const { stock } = inventoryStockSchema.parse(req.body);
+    sendSuccess(res, await adminP2Service.updateVariantStock(id, stock), 'Variant stock updated.');
   },
 
   async getCustomers(req: Request, res: Response) {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-    const search = req.query.search as string | undefined;
-    const { data, total } = await adminService.getCustomers(page, limit, search);
-    const meta = buildPaginationMeta(page, limit, total);
+    const query = customerListQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getCustomers(query);
     sendSuccess(res, data, 'Customers fetched.', 200, meta);
   },
 
+  async getCustomerDetail(req: Request, res: Response) {
+    const id = uuidParamSchema.parse(req.params.userId);
+    sendSuccess(res, await adminP2Service.getCustomerDetail(id), 'Customer fetched.');
+  },
+
+  async getCustomerOrders(req: Request, res: Response) {
+    const id = uuidParamSchema.parse(req.params.userId);
+    const query = customerOrderQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getCustomerOrders(id, query);
+    sendSuccess(res, data, 'Customer orders fetched.', 200, meta);
+  },
+
   async toggleBlockCustomer(req: Request, res: Response) {
-    const { block } = req.body;
-    const result = await adminService.toggleBlockCustomer((req.params.userId as string), Boolean(block));
+    const id = uuidParamSchema.parse(req.params.userId);
+    const { block } = blockCustomerSchema.parse(req.body);
+    const result = await adminService.toggleBlockCustomer(id, block);
     sendSuccess(res, result, block ? 'Customer blocked.' : 'Customer unblocked.');
   },
 
   async getPendingReviews(req: Request, res: Response) {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-    const { data, total } = await adminService.getPendingReviews(page, limit);
-    const meta = buildPaginationMeta(page, limit, total);
+    const query = reviewListQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getPendingReviews(query);
     sendSuccess(res, data, 'Pending reviews fetched.', 200, meta);
   },
 
   async approveReview(req: Request, res: Response) {
-    const review = await adminService.approveReview((req.params.reviewId as string));
+    const review = await adminService.approveReview(uuidParamSchema.parse(req.params.reviewId));
     sendSuccess(res, review, 'Review approved.');
   },
 
   async rejectReview(req: Request, res: Response) {
-    await adminService.rejectReview((req.params.reviewId as string));
+    await adminService.rejectReview(uuidParamSchema.parse(req.params.reviewId));
     sendNoContent(res);
   },
 
@@ -94,25 +120,32 @@ export const adminController = {
   // ─── Admin Categories ─────────────────────────────────────────────────────
 
   async getCategoriesAdmin(req: Request, res: Response) {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-    const search = req.query.search as string | undefined;
-    const { data, total } = await adminService.getCategoriesAdmin(page, limit, search);
-    const meta = buildPaginationMeta(page, limit, total);
+    const query = categoryAdminQuerySchema.parse(req.query);
+    const { data, meta } = await categoriesService.getCategoriesAdmin(query);
     sendSuccess(res, data, 'Categories fetched.', 200, meta);
   },
 
   // ─── Admin Orders (with filters) ─────────────────────────────────────────
 
   async getOrdersAdmin(req: Request, res: Response) {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-    const search = req.query.search as string | undefined;
-    const status = req.query.status as string | undefined;
-    const sortBy = (req.query.sortBy as string) || 'createdAt';
-    const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
-    const { data, total } = await adminService.getOrdersAdmin(page, limit, search, status, sortBy, sortOrder);
-    const meta = buildPaginationMeta(page, limit, total);
+    const query = customerOrderQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getOrders(query);
     sendSuccess(res, data, 'Orders fetched.', 200, meta);
+  },
+
+  async getOrderDetail(req: Request, res: Response) {
+    const id = uuidParamSchema.parse(req.params.orderId);
+    sendSuccess(res, await adminP2Service.getOrderDetail(id), 'Order fetched.');
+  },
+
+  async getTransactions(req: Request, res: Response) {
+    const query = transactionListQuerySchema.parse(req.query);
+    const { data, meta } = await adminP2Service.getTransactions(query);
+    sendSuccess(res, data, 'Transactions fetched.', 200, meta);
+  },
+
+  async getTransactionDetail(req: Request, res: Response) {
+    const id = uuidParamSchema.parse(req.params.transactionId);
+    sendSuccess(res, await adminP2Service.getTransactionDetail(id), 'Transaction fetched.');
   },
 };

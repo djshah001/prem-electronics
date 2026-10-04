@@ -10,10 +10,13 @@ export const cartItemSchema = z.object({
 export const validateCartSchema = z.object({
   items: z.array(cartItemSchema).min(1, 'Cart cannot be empty'),
   couponCode: z.string().optional(),
+  purchaseType: z.enum(['personal', 'company']).default('personal'),
+  placeOfSupplyStateCode: z.string().regex(/^\d{2}$/).optional(),
 });
 
 export const mergeCartSchema = z.object({
   items: z.array(cartItemSchema).max(100).default([]),
+  idempotencyToken: z.string().uuid(),
 });
 
 export const setCartItemSchema = z.object({

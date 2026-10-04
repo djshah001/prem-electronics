@@ -21,12 +21,14 @@ export const paymentAttempts = pgTable('payment_attempts', {
   currency: varchar('currency', { length: 3 }).default('INR').notNull(),
   status: paymentAttemptStatusEnum('status').default('created').notNull(),
   failureReason: varchar('failure_reason', { length: 500 }),
+  capturedAt: timestamp('captured_at', { withTimezone: true }),
   finalizedAt: timestamp('finalized_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('payment_attempts_order_id_idx').on(table.orderId),
   index('payment_attempts_provider_order_id_idx').on(table.providerOrderId),
+  index('payment_attempts_status_captured_at_idx').on(table.status, table.capturedAt),
 ]);
 
 export const paymentAttemptsRelations = relations(paymentAttempts, ({ one }) => ({
@@ -34,4 +36,3 @@ export const paymentAttemptsRelations = relations(paymentAttempts, ({ one }) => 
 }));
 
 export type PaymentAttempt = typeof paymentAttempts.$inferSelect;
-

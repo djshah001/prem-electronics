@@ -7,12 +7,14 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/infrastructure/payment/razorpay.test.js",
+    "test": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/infrastructure/payment/razorpay.test.js .test-dist/infrastructure/gst/gstin.test.js .test-dist/modules/pricing/gstPricing.test.js .test-dist/modules/blogs/blogSanitizer.test.js .test-dist/modules/admin/admin.schema.test.js",
+    "test:db": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/modules/cart/cart.integration.test.js && node --test .test-dist/modules/businesses/businesses.integration.test.js && node --test .test-dist/modules/auth/auth.integration.test.js && node --test .test-dist/modules/admin/analytics.integration.test.js && node --test .test-dist/modules/admin/api.smoke.integration.test.js",
     "db:generate": "npm run build && drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/infrastructure/database/seed.js"
+    "db:seed": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/infrastructure/database/seed.js",
+    "blogs:remediate": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/modules/blogs/remediateBlogs.js"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",
@@ -30,6 +32,7 @@
     "nodemailer": "^6.9.16",
     "pg": "^8.13.1",
     "razorpay": "^2.9.6",
+    "sanitize-html": "2.17.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -40,6 +43,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.11.10",
+    "@types/sanitize-html": "2.16.0",
     "drizzle-kit": "^0.30.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

@@ -3,7 +3,7 @@ import {
   useTable,
 } from '@tanstack/react-table';
 import { clsx } from 'clsx';
-import { Package, Search, ChevronLeft, ChevronRight, Filter, ChevronDown, Check } from 'lucide-react';
+import { Package, Search, ChevronLeft, ChevronRight, Filter, ChevronDown, Check, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +30,10 @@ interface DataTableProps {
   columns: any[];
   data: any[];
   isLoading?: boolean;
+  isFetching?: boolean;
+  error?: string;
+  onRetry?: () => void;
+  emptyMessage?: string;
   
   // Searching
   search?: string;
@@ -43,6 +47,8 @@ interface DataTableProps {
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
 
   // Custom Top Actions
   actions?: React.ReactNode;
@@ -52,6 +58,10 @@ export function DataTable({
   columns,
   data,
   isLoading,
+  isFetching,
+  error,
+  onRetry,
+  emptyMessage = 'No data found.',
   search,
   onSearchChange,
   searchPlaceholder = 'Search...',
@@ -59,12 +69,19 @@ export function DataTable({
   page,
   totalPages,
   onPageChange,
+  pageSize,
+  onPageSizeChange,
   actions,
 }: DataTableProps) {
   const table = useTable({ features: dataTableFeatures, data: data as any, columns: columns as any });
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-300">
+          {error} {onRetry && <button onClick={onRetry} className="ml-2 font-semibold underline">Retry</button>}
+        </div>
+      )}
       {/* Top Toolbar */}
       {(onSearchChange || filters.length > 0 || actions) && (
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-card p-4 rounded-xl border border-border shadow-sm">
@@ -118,6 +135,7 @@ export function DataTable({
               {actions}
             </div>
           )}
+          {isFetching && !isLoading && <span className="inline-flex items-center gap-2 text-xs text-muted-foreground"><RefreshCw className="w-3 h-3 animate-spin" />Refreshing</span>}
         </div>
       )}
 
@@ -163,7 +181,7 @@ export function DataTable({
                   <tr>
                     <td colSpan={columns.length} className="px-4 py-12 text-center text-muted-foreground">
                       <Package className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      No data found.
+                      {emptyMessage}
                     </td>
                   </tr>
                 )}
@@ -175,13 +193,15 @@ export function DataTable({
 
       {/* Pagination Container */}
       {onPageChange && totalPages !== undefined && totalPages > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-card rounded-xl border border-border shadow-sm">
+        <div className="flex flex-wrap gap-3 items-center justify-between px-4 py-3 bg-card rounded-xl border border-border shadow-sm">
           <p className="text-sm text-muted-foreground">
             Page <span className="font-medium text-foreground">{page}</span> of{' '}
             <span className="font-medium text-foreground">{totalPages}</span>
           </p>
           <div className="flex items-center gap-2">
+            {onPageSizeChange && <label className="text-sm text-muted-foreground">Rows <select aria-label="Rows per page" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))} className="ml-1 rounded-lg border border-border bg-background px-2 py-1">{[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>}
             <button
+              aria-label="Previous page"
               disabled={page === 1}
               onClick={() => onPageChange(page! - 1)}
               className="p-2 rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
@@ -189,6 +209,7 @@ export function DataTable({
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
+              aria-label="Next page"
               disabled={page === totalPages}
               onClick={() => onPageChange(page! + 1)}
               className="p-2 rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-50 disabled:hover:bg-transparent transition-colors"

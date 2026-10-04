@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tag, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, X, Search, RefreshCw } from 'lucide-react';
 import { api } from '../../api/axiosClient';
-import type { Coupon } from '../../types';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
+import { useDebounce } from '../../hooks/useDebounce';
+import type { Coupon, PaginationMeta } from '../../types';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
 
@@ -21,29 +23,44 @@ export default function CouponManager() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [state, setState] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-coupons'],
-    queryFn: () => api.get<Coupon[]>('/coupons'),
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ['admin-coupons', page, debouncedSearch, state],
+    queryFn: () => api.get<Coupon[]>('/coupons', {
+      page, limit: 20,
+      ...(debouncedSearch && { search: debouncedSearch }),
+      ...(state && { state }),
+    } as Record<string, unknown>),
+    placeholderData: (previous) => previous,
   });
 
   const coupons = data?.data ?? [];
+  const meta = data?.meta as PaginationMeta | undefined;
 
   const createMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.post<Coupon>('/coupons', payload),
-    onSuccess: () => { toast.success('Coupon created!'); qc.invalidateQueries({ queryKey: ['admin-coupons'] }); closeModal(); },
+    onSuccess: () => { toast.success('Coupon created!'); qc.invalidateQueries({ queryKey: ['admin-coupons'] }); qc.invalidateQueries({ queryKey: ['admin-module-stats'] }); closeModal(); },
     onError: (e: any) => toast.error(e?.message || 'Failed to create'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) => api.put<Coupon>(`/coupons/${id}`, payload),
-    onSuccess: () => { toast.success('Coupon updated!'); qc.invalidateQueries({ queryKey: ['admin-coupons'] }); closeModal(); },
+    onSuccess: () => { toast.success('Coupon updated!'); qc.invalidateQueries({ queryKey: ['admin-coupons'] }); qc.invalidateQueries({ queryKey: ['admin-module-stats'] }); closeModal(); },
     onError: (e: any) => toast.error(e?.message || 'Failed to update'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/coupons/${id}`),
-    onSuccess: () => { toast.success('Coupon deleted'); qc.invalidateQueries({ queryKey: ['admin-coupons'] }); },
+    onSuccess: () => {
+      toast.success('Coupon deleted');
+      if (coupons.length === 1 && page > 1) setPage((value) => value - 1);
+      qc.invalidateQueries({ queryKey: ['admin-coupons'] });
+      qc.invalidateQueries({ queryKey: ['admin-module-stats'] });
+    },
     onError: (e: any) => toast.error(e?.message || 'Failed to delete'),
   });
 
@@ -65,9 +82,11 @@ export default function CouponManager() {
     e.preventDefault();
     const payload: Record<string, unknown> = {
       ...form,
+      discountValue: Number(form.discountValue),
+      minPurchase: Number(form.minPurchase),
       usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
       perUserLimit: form.perUserLimit ? Number(form.perUserLimit) : null,
-      maxDiscount: form.maxDiscount || null,
+      maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : null,
       expiresAt: form.expiresAt || null,
     };
     if (editing) updateMutation.mutate({ id: editing.id, payload });
@@ -93,7 +112,31 @@ export default function CouponManager() {
         </button>
       </div>
 
-      {isLoading ? (
+      <div className="mb-6"><ModuleStatsCards module="coupons" /></div>
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label className="relative flex-1">
+          <span className="sr-only">Search coupons</span>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Search code or description"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm" />
+        </label>
+        <select aria-label="Filter coupons by state" value={state}
+          onChange={(event) => { setState(event.target.value); setPage(1); }}
+          className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm">
+          <option value="">All states</option><option value="active">Active</option>
+          <option value="inactive">Inactive</option><option value="expired">Expired</option>
+        </select>
+        {isFetching && !isLoading && <span className="text-xs text-muted-foreground">Refreshing…</span>}
+      </div>
+
+      {isError ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-8 text-center">
+          <p className="mb-3 text-sm text-red-400">Coupons could not be loaded.</p>
+          <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" /> Retry</button>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-card rounded-xl animate-pulse" />)}</div>
       ) : (
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -130,12 +173,12 @@ export default function CouponManager() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(coupon)} id={`edit-coupon-${coupon.id}`}
+                      <button onClick={() => openEdit(coupon)} id={`edit-coupon-${coupon.id}`} aria-label={`Edit ${coupon.code}`}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => { if (confirm(`Delete coupon "${coupon.code}"?`)) deleteMutation.mutate(coupon.id); }}
-                        id={`delete-coupon-${coupon.id}`}
+                        id={`delete-coupon-${coupon.id}`} aria-label={`Delete ${coupon.code}`}
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -145,6 +188,14 @@ export default function CouponManager() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {meta && meta.totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <button disabled={!meta.hasPrevPage || isFetching} onClick={() => setPage((value) => value - 1)} className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+          <span className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages} · {meta.total} coupons</span>
+          <button disabled={!meta.hasNextPage || isFetching} onClick={() => setPage((value) => value + 1)} className="rounded-lg border border-border px-4 py-2 text-sm disabled:opacity-40">Next</button>
         </div>
       )}
 
@@ -164,7 +215,7 @@ export default function CouponManager() {
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold font-['Outfit']">{editing ? 'Edit Coupon' : 'New Coupon'}</h2>
-                <button onClick={closeModal} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-all">
+                <button onClick={closeModal} aria-label="Close coupon editor" className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-accent transition-all">
                   <X className="w-4 h-4" />
                 </button>
               </div>

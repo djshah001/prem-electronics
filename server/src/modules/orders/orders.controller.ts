@@ -52,7 +52,7 @@ export const ordersController = {
 
   async updateStatus(req: Request, res: Response) {
     const input = updateOrderStatusSchema.parse(req.body);
-    const order = await ordersService.updateStatus(req.params.id as string, input);
+    const order = await ordersService.updateStatus(req.params.id as string, input, req.user!.id);
     sendSuccess(res, order, 'Order status updated.');
   },
 
@@ -61,12 +61,12 @@ export const ordersController = {
     if (!['approved', 'rejected', 'completed'].includes(returnStatus)) {
       return res.status(400).json({ success: false, message: 'Invalid returnStatus value.' });
     }
-    const order = await ordersService.updateReturnStatus(req.params.id as string, returnStatus);
+    const order = await ordersService.updateReturnStatus(req.params.id as string, returnStatus, req.user!.id);
     sendSuccess(res, order, `Return status updated to ${returnStatus}.`);
   },
 
   async processRefund(req: Request, res: Response) {
-    const order = await ordersService.processRefund(req.params.id as string);
+    const order = await ordersService.processRefund(req.params.id as string, req.user!.id);
     sendSuccess(res, order, 'Refund marked as processed.');
   },
 

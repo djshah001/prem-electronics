@@ -30,9 +30,9 @@ const generateOTP = (): string =>
 const hashToken = (value: string): string =>
   crypto.createHash('sha256').update(value).digest('hex');
 
-const generateAccessToken = (user: User): string => {
+const generateAccessToken = (user: User, sessionId: string): string => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, sid: sessionId },
     env.JWT_SECRET,
     { expiresIn: env.ACCESS_TOKEN_EXPIRES_IN } as jwt.SignOptions
   );
@@ -41,8 +41,8 @@ const generateAccessToken = (user: User): string => {
 const createSession = async (user: User) => {
   const refreshToken = crypto.randomBytes(48).toString('hex');
   const refreshExpiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
-  await authRepository.createSession(user.id, hashToken(refreshToken), refreshExpiresAt);
-  return { accessToken: generateAccessToken(user), refreshToken, refreshExpiresAt };
+  const session = await authRepository.createSession(user.id, hashToken(refreshToken), refreshExpiresAt);
+  return { accessToken: generateAccessToken(user, session.id), refreshToken, refreshExpiresAt };
 };
 
 const logDevelopmentSecret = (message: string) => {
@@ -213,21 +213,32 @@ export const authService = {
   async refresh(refreshToken: string) {
     const nextRefreshToken = crypto.randomBytes(48).toString('hex');
     const refreshExpiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
-    const user = await authRepository.rotateSession(
+    const rotated = await authRepository.rotateSession(
       hashToken(refreshToken),
       hashToken(nextRefreshToken),
       refreshExpiresAt
     );
-    if (!user) throw new UnauthorizedError('Refresh session is invalid or expired.');
+    if (!rotated) throw new UnauthorizedError('Refresh session is invalid or expired.');
     return {
-      accessToken: generateAccessToken(user),
+      accessToken: generateAccessToken(rotated.user, rotated.sessionId),
       refreshToken: nextRefreshToken,
       refreshExpiresAt,
-      user: sanitizeUser(user),
+      user: sanitizeUser(rotated.user),
     };
   },
 
-  async logout(refreshToken?: string) {
-    if (refreshToken) await authRepository.revokeSession(hashToken(refreshToken));
+  async logout(refreshToken?: string, accessToken?: string) {
+    let sessionId: string | undefined;
+    if (accessToken) {
+      try {
+        sessionId = (jwt.verify(accessToken, env.JWT_SECRET) as { sid?: string }).sid;
+      } catch {
+        // An expired access token may accompany a valid refresh cookie.
+      }
+    }
+    await authRepository.revokeSessionFamily({
+      tokenHash: refreshToken ? hashToken(refreshToken) : undefined,
+      sessionId,
+    });
   },
 };

@@ -2,6 +2,7 @@ import { eq, and, gte, lte, ilike, or, sql, desc, asc, inArray } from 'drizzle-o
 import { db } from '../../infrastructure/database/db.js';
 import {
   products,
+  categories,
   productOptions,
   productOptionValues,
   productVariants,
@@ -12,6 +13,13 @@ import {
 import type { ProductQuery } from './products.schema.js';
 
 export const productsRepository = {
+  async getCategorySnapshot(categoryId: string | null) {
+    if (!categoryId) return { id: null, name: 'Unknown / uncategorized' };
+    const [category] = await db.select({ id: categories.id, name: categories.name })
+      .from(categories).where(eq(categories.id, categoryId)).limit(1);
+    return category ?? { id: null, name: 'Unknown / uncategorized' };
+  },
+
   async findMany(query: ProductQuery): Promise<{ data: Product[]; total: number }> {
     const {
       page,
@@ -63,7 +71,7 @@ export const productsRepository = {
     }
 
     const [data, countResult] = await Promise.all([
-      db.select().from(products).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
+      db.select().from(products).where(whereClause).orderBy(orderClause, desc(products.id)).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(products).where(whereClause),
     ]);
 

@@ -1,5 +1,10 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types';
+import {
+  clearLocalAuthState,
+  getSessionGeneration,
+  isLogoutInProgress,
+} from '../auth/session';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -12,17 +17,17 @@ export const axiosClient = axios.create({
 type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 let refreshPromise: Promise<void> | null = null;
 
-const clearLocalSession = () => {
-  localStorage.removeItem('prem_token'); // remove legacy tokens during the migration
-  localStorage.removeItem('prem_user');
-};
-
 const refreshSession = () => {
+  const generation = getSessionGeneration();
   if (!refreshPromise) {
     refreshPromise = axios.post(`${BASE_URL}/auth/refresh`, undefined, {
       withCredentials: true,
       headers: { 'Content-Type': 'application/json' },
-    }).then(() => undefined).finally(() => {
+    }).then(() => {
+      if (generation !== getSessionGeneration() || isLogoutInProgress()) {
+        throw new Error('Session changed while refresh was in progress.');
+      }
+    }).finally(() => {
       refreshPromise = null;
     });
   }
@@ -35,19 +40,19 @@ axiosClient.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     const status = error.response?.status;
     const url = String(config?.url ?? '');
-    const isAuthAction = ['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/refresh']
+    const isAuthAction = ['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/refresh', '/auth/logout']
       .some((path) => url.includes(path));
 
-    if (status === 401 && config && !config._retry && !isAuthAction) {
+    if (status === 401 && config && !config._retry && !isAuthAction && !isLogoutInProgress()) {
       config._retry = true;
       try {
         await refreshSession();
         return axiosClient(config);
       } catch {
-        clearLocalSession();
+        clearLocalAuthState();
         const publicPaths = ['/login', '/register', '/forgot-password', '/verify-otp', '/reset-password'];
         if (!publicPaths.some((path) => window.location.pathname.startsWith(path))) {
-          window.location.href = '/login';
+          window.location.replace('/login?reason=expired');
         }
       }
     }

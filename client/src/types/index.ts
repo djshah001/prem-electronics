@@ -24,6 +24,57 @@ export interface Address {
   isDefault: boolean;
 }
 
+export interface BusinessAddress {
+  building?: string;
+  street?: string;
+  locality?: string;
+  city: string;
+  district?: string;
+  state: string;
+  stateCode: string;
+  pincode: string;
+  country: string;
+  source: 'provider' | 'customer';
+}
+
+export interface GstVerification {
+  id: string;
+  gstin: string;
+  provider: string;
+  registrationStatus: 'active' | 'inactive' | 'cancelled' | 'suspended' | 'unknown';
+  legalName: string;
+  tradeName?: string;
+  taxpayerType?: string;
+  stateCode: string;
+  stateName: string;
+  principalAddress?: BusinessAddress;
+  additionalAddresses: BusinessAddress[];
+  checkedAt: string;
+  expiresAt: string;
+  cached: boolean;
+}
+
+export interface BusinessProfile {
+  id: string;
+  verificationId: string;
+  nickname?: string;
+  gstin: string;
+  legalName: string;
+  tradeName?: string;
+  taxpayerType?: string;
+  registrationStatus: string;
+  registrationStateCode: string;
+  registrationStateName: string;
+  registeredAddress?: BusinessAddress;
+  billingAddress: BusinessAddress;
+  contactPerson?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  isDefault: boolean;
+  version: number;
+  verifiedAt: string;
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export interface AuthResponse {
   user: User;
@@ -92,6 +143,8 @@ export interface Product {
   tags: string[];
   attributes: Array<{ name: string; value: string }>;
   brand?: string;
+  hsnCode?: string;
+  gstRateBps?: number;
   categoryId?: string;
   isActive: boolean;
   isFeatured: boolean;
@@ -126,6 +179,14 @@ export interface CartValidationResult {
     quantity: number;
     unitPrice: number;
     lineTotal: number;
+    unitPriceMinor: number;
+    discountMinor: number;
+    taxableMinor: number;
+    gstRateBps: number;
+    cgstMinor: number;
+    sgstMinor: number;
+    igstMinor: number;
+    finalMinor: number;
     variantSnapshot: Record<string, unknown>;
   }>;
   subtotal: number;
@@ -134,6 +195,17 @@ export interface CartValidationResult {
   tax: number;
   total: number;
   coupon: { id: string; code: string } | null;
+  amountMinor: number;
+  taxBreakdown: {
+    mode: 'exclusive' | 'inclusive';
+    policyVersion: string;
+    jurisdiction: 'intra_state' | 'inter_state';
+    taxableMinor: number;
+    cgstMinor: number;
+    sgstMinor: number;
+    igstMinor: number;
+    totalTaxMinor: number;
+  };
 }
 
 // ─── Order ───────────────────────────────────────────────────────────────────
@@ -159,6 +231,14 @@ export interface Order {
   razorpayPaymentId?: string;
   shippingAddress: Address;
   notes?: string;
+  purchaseType?: 'personal' | 'company';
+  buyerBusinessSnapshot?: Record<string, unknown>;
+  sellerSnapshot?: Record<string, unknown>;
+  billingAddress?: Address | BusinessAddress;
+  taxSnapshot?: Record<string, unknown>;
+  pricingPolicyVersion?: string;
+  invoiceNumber?: string;
+  invoiceIssuedAt?: string;
   createdAt: string;
   items?: OrderItem[];
 }
@@ -171,6 +251,17 @@ export interface OrderItem {
   quantity: number;
   priceAtPurchase: string;
   variantSnapshot: Record<string, unknown>;
+  skuSnapshot?: string;
+  imageSnapshot?: string;
+  hsnCodeSnapshot?: string;
+  unitPriceMinor?: number;
+  discountMinor?: number;
+  taxableMinor?: number;
+  gstRateBps?: number;
+  cgstMinor?: number;
+  sgstMinor?: number;
+  igstMinor?: number;
+  lineTotalMinor?: number;
 }
 
 // ─── Coupon ──────────────────────────────────────────────────────────────────
@@ -284,11 +375,18 @@ export interface Blog {
   title: string;
   slug: string;
   content: string;
-  imageUrl?: string;
+  excerpt?: string | null;
+  imageUrl?: string | null;
+  coverAlt?: string | null;
   authorId?: string;
   authorName?: string;
   seoTitle?: string;
   seoDescription?: string;
+  status: 'draft' | 'published' | 'archived';
+  publishedAt?: string | null;
+  archivedAt?: string | null;
+  version: number;
+  redirectedFrom?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -303,7 +401,10 @@ export interface CustomerAdmin {
   isBlocked: boolean;
   createdAt: string;
   orderCount: number;
-  totalSpent: number;
+  phone?: string | null;
+  grossPaidMinor: number;
+  refundedMinor: number;
+  netPaidMinor: number;
 }
 
 // ─── Upload ───────────────────────────────────────────────────────────────────

@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+const singleQuery = (value: unknown) => Array.isArray(value) ? { repeatedQueryParameter: true } : value;
+const queryInt = (fallback: number, max: number) => z.preprocess(singleQuery, z.coerce.number().int().min(1).max(max).default(fallback));
+const queryBoolean = z.preprocess(singleQuery, z.enum(['true', 'false']).transform((value) => value === 'true').optional());
+
 const optionalNullableText = (max: number) => z.string().max(max).nullish().transform((value) =>
   value === undefined ? undefined : (value && value.trim() !== '' ? value.trim() : null)
 );
@@ -52,6 +56,8 @@ export const createProductSchema = z.object({
   attributes: productAttributesSchema,
   barcode: z.string().max(100).nullish().transform((v) => (v && v.trim() !== '' ? v.trim() : null)),
   brand: z.string().max(100).nullish().transform((v) => (v && v.trim() !== '' ? v.trim() : null)),
+  hsnCode: z.string().trim().min(4).max(20).optional(),
+  gstRateBps: z.number().int().min(0).max(10_000).optional(),
   categoryId: z.string().uuid('A valid category is required.'),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
@@ -77,6 +83,8 @@ export const updateProductSchema = z.object({
   attributes: productAttributesSchema.optional(),
   barcode: optionalNullableText(100),
   brand: optionalNullableText(100),
+  hsnCode: optionalNullableText(20),
+  gstRateBps: z.number().int().min(0).max(10_000).nullable().optional(),
   categoryId: z.string().uuid('A valid category is required.').optional(),
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
@@ -85,21 +93,37 @@ export const updateProductSchema = z.object({
 });
 
 export const productQuerySchema = z.object({
-  page: z.string().transform(Number).default('1'),
-  limit: z.string().transform(Number).default('12'),
-  search: z.string().optional(),
-  categoryId: z.string().uuid().optional(),
-  minPrice: z.string().transform(Number).optional(),
-  maxPrice: z.string().transform(Number).optional(),
-  brand: z.string().optional(),
-  minRating: z.string().transform(Number).optional(),
-  inStock: z.string().transform((v) => v === 'true').optional(),
-  isFeatured: z.string().transform((v) => v === 'true').optional(),
-  isNewArrival: z.string().transform((v) => v === 'true').optional(),
-  isBestSeller: z.string().transform((v) => v === 'true').optional(),
-  sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'rating', 'popular']).default('newest'),
+  page: queryInt(1, 1_000_000),
+  limit: queryInt(12, 100),
+  search: z.preprocess(singleQuery, z.string().trim().max(120).optional()),
+  categoryId: z.preprocess(singleQuery, z.string().uuid().optional()),
+  minPrice: z.preprocess(singleQuery, z.coerce.number().min(0).optional()),
+  maxPrice: z.preprocess(singleQuery, z.coerce.number().min(0).optional()),
+  brand: z.preprocess(singleQuery, z.string().trim().max(100).optional()),
+  minRating: z.preprocess(singleQuery, z.coerce.number().min(0).max(5).optional()),
+  inStock: queryBoolean,
+  isFeatured: queryBoolean,
+  isNewArrival: queryBoolean,
+  isBestSeller: queryBoolean,
+  sortBy: z.preprocess(singleQuery, z.enum(['price_asc', 'price_desc', 'newest', 'rating', 'popular']).default('newest')),
+}).strict().superRefine((value, ctx) => {
+  if (value.minPrice !== undefined && value.maxPrice !== undefined && value.minPrice > value.maxPrice) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['minPrice'], message: 'Minimum price cannot exceed maximum price.' });
+  }
 });
+
+export const productAdminQuerySchema = z.object({
+  page: queryInt(1, 1_000_000), limit: queryInt(20, 100),
+  search: z.preprocess(singleQuery, z.string().trim().max(120).optional()),
+  sortBy: z.preprocess(singleQuery, z.enum(['createdAt', 'title', 'price', 'stock', 'isActive']).default('createdAt')),
+  sortOrder: z.preprocess(singleQuery, z.enum(['asc', 'desc']).default('desc')),
+  isActive: queryBoolean,
+  categoryId: z.preprocess(singleQuery, z.string().uuid().optional()),
+}).strict();
+
+export const productBulkSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(100).transform((ids) => [...new Set(ids)]) }).strict();
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ProductQuery = z.infer<typeof productQuerySchema>;
+export type ProductAdminQuery = z.infer<typeof productAdminQuerySchema>;

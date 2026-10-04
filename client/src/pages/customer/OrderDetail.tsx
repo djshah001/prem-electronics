@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 interface OrderDetail extends Order {
   items: (OrderItem & { productImages?: string[]; productSlug?: string })[];
+  merchant?: { name: string; gstin?: string | null; address?: string | null; phone?: string | null; email?: string | null };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -170,16 +171,15 @@ export default function OrderDetail() {
       <div className="hidden print:block mb-8 pb-6 border-b-2 border-foreground/20">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-black font-['Outfit'] tracking-tight">PREM ELECTRONICS</h1>
-            <p className="text-xs text-muted-foreground mt-1">Authorized Electronics Retailer & Service</p>
-            <p className="text-xs text-muted-foreground">GSTIN: 27AABCP1234F1Z5</p>
-            <p className="text-xs text-muted-foreground">123 Electronic Market, Station Road, Mumbai, Maharashtra 400001</p>
-            <p className="text-xs text-muted-foreground">support@premelectronics.com | +91 98765 43210</p>
+            <h1 className="text-2xl font-black font-['Outfit'] tracking-tight">{order.merchant?.name ?? 'Prem Electronics'}</h1>
+            {order.merchant?.gstin && <p className="text-xs text-muted-foreground">GSTIN: {order.merchant.gstin}</p>}
+            {order.merchant?.address && <p className="text-xs text-muted-foreground">{order.merchant.address}</p>}
+            {(order.merchant?.email || order.merchant?.phone) && <p className="text-xs text-muted-foreground">{[order.merchant.email, order.merchant.phone].filter(Boolean).join(' | ')}</p>}
           </div>
           <div className="text-right">
             <h2 className="text-lg font-bold font-['Outfit']">TAX INVOICE</h2>
-            <p className="text-xs text-muted-foreground font-mono mt-1">Invoice #: {order.orderNumber}</p>
-            <p className="text-xs text-muted-foreground">Date: {formatDate(order.createdAt)}</p>
+            <p className="text-xs text-muted-foreground font-mono mt-1">Invoice #: {order.invoiceNumber ?? 'Issued after payment capture'}</p>
+            <p className="text-xs text-muted-foreground">Date: {formatDate(order.invoiceIssuedAt ?? order.createdAt)}</p>
             <p className="text-xs text-muted-foreground">Payment: {order.paymentMethod?.toUpperCase() ?? 'ONLINE'} ({order.paymentStatus.toUpperCase()})</p>
             {order.razorpayPaymentId && (
               <p className="text-[11px] font-mono text-muted-foreground">Txn: {order.razorpayPaymentId}</p>
@@ -364,6 +364,14 @@ export default function OrderDetail() {
               </div>
             </div>
           )}
+          {order.purchaseType === 'company' && order.buyerBusinessSnapshot && (() => {
+            const buyer = order.buyerBusinessSnapshot as any;
+            const billing = buyer.billingAddress ?? order.billingAddress;
+            return <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
+              <h2 className="font-bold font-['Outfit'] mb-3 flex items-center gap-2"><Receipt className="w-4 h-4 text-primary" /> Billed to</h2>
+              <div className="text-sm text-muted-foreground space-y-0.5"><p className="font-medium text-foreground">{buyer.legalName}</p>{buyer.tradeName && <p>{buyer.tradeName}</p>}<p className="font-mono">GSTIN: {buyer.gstin}</p>{billing && <><p>{[billing.building, billing.street, billing.locality].filter(Boolean).join(', ')}</p><p>{billing.city}, {billing.state} – {billing.pincode}</p></>}<p className="text-xs mt-2">Verified identity snapshot · Profile version {buyer.profileVersion}</p></div>
+            </div>;
+          })()}
         </div>
 
         {/* Order Summary */}
@@ -387,10 +395,11 @@ export default function OrderDetail() {
                 <span className="text-muted-foreground">Shipping</span>
                 <span>{Number(order.shipping) === 0 ? <span className="text-green-400">Free</span> : formatPrice(order.shipping)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (GST 18% incl.)</span>
-                <span>{formatPrice(order.tax)}</span>
-              </div>
+              <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span>{formatPrice(order.tax)}</span></div>
+              {Number((order.taxSnapshot as any)?.cgstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>CGST</span><span>{formatPrice(Number((order.taxSnapshot as any).cgstMinor) / 100)}</span></div>}
+              {Number((order.taxSnapshot as any)?.sgstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>SGST / UTGST</span><span>{formatPrice(Number((order.taxSnapshot as any).sgstMinor) / 100)}</span></div>}
+              {Number((order.taxSnapshot as any)?.igstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>IGST</span><span>{formatPrice(Number((order.taxSnapshot as any).igstMinor) / 100)}</span></div>}
+              {(order.taxSnapshot as any)?.placeOfSupplyState && <div className="flex justify-between text-xs text-muted-foreground"><span>Place of supply</span><span>{(order.taxSnapshot as any).placeOfSupplyState} ({(order.taxSnapshot as any).placeOfSupplyStateCode})</span></div>}
               <div className="flex justify-between font-bold text-base pt-2 border-t border-border">
                 <span>Total</span>
                 <span className="text-primary">{formatPrice(order.total)}</span>
@@ -422,7 +431,7 @@ export default function OrderDetail() {
 
       {/* Print-only Invoice Footer */}
       <div className="hidden print:block mt-8 pt-6 border-t border-foreground/20 text-center text-xs text-muted-foreground">
-        <p>This is a computer-generated tax invoice and requires no physical signature.</p>
+        <p>This is a computer-generated invoice. It is not an IRP-registered e-invoice.</p>
         <p className="mt-1">Thank you for shopping with Prem Electronics!</p>
       </div>
 

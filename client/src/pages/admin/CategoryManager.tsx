@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { clsx } from 'clsx';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
 
 const EMPTY_FORM = { name: '', slug: '', description: '', bannerImage: '', parentId: '', isActive: true };
 
@@ -264,6 +265,7 @@ export default function CategoryManager() {
       </div>
 
       {/* Table */}
+      <div className="mb-6"><ModuleStatsCards module="categories" /></div>
       <DataTable
         columns={columns}
         data={tableData}

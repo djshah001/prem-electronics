@@ -26,6 +26,7 @@ import adminRoutes from './modules/admin/admin.routes.js';
 import wishlistsRoutes from './modules/wishlists/wishlists.routes.js';
 import blogsRoutes from './modules/blogs/blogs.routes.js';
 import uploadRoutes from './modules/upload/upload.routes.js';
+import businessesRoutes from './modules/businesses/businesses.routes.js';
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/wishlists', wishlistsRoutes);
 app.use('/api/v1/blogs', blogsRoutes);
 app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/businesses', businessesRoutes);
 
 // ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
 app.get('/favicon.ico', (_req, res) => {

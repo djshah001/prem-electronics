@@ -11,6 +11,9 @@ import { toast } from 'sonner';
 import { clsx } from 'clsx';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
+import { Link } from 'react-router-dom';
+import { useDebounce } from '../../hooks/useDebounce';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-500/20 text-amber-400',
@@ -215,13 +218,14 @@ export default function OrderManager() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-orders', page, search, statusFilter, sortBy, sortOrder],
+    queryKey: ['admin-orders', page, debouncedSearch, statusFilter, sortBy, sortOrder],
     queryFn: () =>
       api.get<Order[]>('/admin/orders', {
         page, limit: 20,
-        ...(search && { search }),
+        ...(debouncedSearch && { search: debouncedSearch }),
         ...(statusFilter && { status: statusFilter }),
         sortBy, sortOrder,
       } as Record<string, unknown>),
@@ -365,6 +369,7 @@ export default function OrderManager() {
             >
               <Eye className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
+            <Link to={`/admin/orders/${order.id}`} aria-label={`Open order ${order.orderNumber} page`} className="px-2 py-1.5 rounded-lg border border-border text-xs hover:bg-muted">Open</Link>
           </div>
         );
       },
@@ -392,6 +397,7 @@ export default function OrderManager() {
         </p>
       </div>
 
+      <div className="mb-6"><ModuleStatsCards module="orders" /></div>
       <DataTable
         columns={columns}
         data={tableData}

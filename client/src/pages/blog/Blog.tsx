@@ -63,14 +63,14 @@ export default function BlogPage() {
                 <Link to={`/blog/${blog.slug}`}>
                   <div className="aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary/20 to-purple-500/20">
                     {blog.imageUrl
-                      ? <img src={blog.imageUrl} alt={blog.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ? <img src={blog.imageUrl} alt={blog.coverAlt ?? blog.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                       : <div className="w-full h-full flex items-center justify-center"><BookOpen className="w-10 h-10 text-primary/40" /></div>}
                   </div>
                 </Link>
                 <div className="p-5">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                     <Calendar className="w-3 h-3" />
-                    {new Date(blog.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {new Date(blog.publishedAt ?? blog.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
                     {blog.authorName && <span className="ml-1">· by {blog.authorName}</span>}
                   </div>
                   <Link to={`/blog/${blog.slug}`}>
@@ -79,7 +79,7 @@ export default function BlogPage() {
                     </h2>
                   </Link>
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                    {blog.seoDescription ?? blog.content.replace(/<[^>]*>/g, '').slice(0, 120) + '...'}
+                    {blog.excerpt ?? blog.seoDescription ?? blog.content.replace(/<[^>]*>/g, '').slice(0, 120) + '...'}
                   </p>
                   <Link to={`/blog/${blog.slug}`} className="text-primary text-sm font-semibold hover:underline">
                     Read more →

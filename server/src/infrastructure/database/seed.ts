@@ -22,12 +22,19 @@ import {
   carts,
   cartItems,
   couponRedemptions,
+  gstVerifications,
+  businessProfiles,
+  paymentAttempts,
+  paymentRefunds,
+  orderStatusEvents,
+  type BusinessAddress,
 } from './schema/index.js';
 import { reviewsRepository } from '../../modules/reviews/reviews.repository.js';
 import { productsRepository } from '../../modules/products/products.repository.js';
+import { sanitizeBlogHtml } from '../../modules/blogs/blogSanitizer.js';
 import bcrypt from 'bcryptjs';
 import logger from '../../core/logger/logger.js';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, like, sql } from 'drizzle-orm';
 
 /** Convert flat Record<string,string> attribute objects to the canonical {name,value}[] schema format. */
 const toAttrs = (obj: Record<string, string>): Array<{ name: string; value: string }> =>
@@ -49,7 +56,7 @@ async function seed() {
     }
     logger.warn(`Resetting explicitly confirmed disposable database: ${databaseName}`);
     await db.execute(
-      `TRUNCATE TABLE users, categories, products, product_options, product_option_values, product_variants, variant_option_values, coupons, blogs, orders, order_items, addresses, reviews, wishlists, carts, cart_items, coupon_redemptions, webhook_events CASCADE;`
+      `TRUNCATE TABLE users, categories, products, product_options, product_option_values, product_variants, variant_option_values, coupons, blogs, blog_content_revisions, blog_slug_redirects, orders, order_items, order_status_events, payment_attempts, payment_refunds, addresses, reviews, wishlists, carts, cart_items, cart_merge_operations, coupon_redemptions, gst_verifications, business_profiles, webhook_events CASCADE;`
     );
   } else {
     logger.info('Non-destructive seed mode: existing business records will be preserved where unique.');
@@ -168,6 +175,8 @@ async function seed() {
         OS: 'Android 14 with One UI 6.1',
       }),
       brand: 'Samsung',
+      hsnCode: '85171300',
+      gstRateBps: 1800,
       categoryId: smartphones?.id,
       isActive: true,
       isFeatured: true,
@@ -199,6 +208,8 @@ async function seed() {
         OS: 'iOS 18 with Apple Intelligence',
       }),
       brand: 'Apple',
+      hsnCode: '85171300',
+      gstRateBps: 1800,
       categoryId: smartphones?.id,
       isActive: true,
       isFeatured: true,
@@ -228,6 +239,8 @@ async function seed() {
         Color: 'Cool Blue',
       }),
       brand: 'OnePlus',
+      hsnCode: '85171300',
+      gstRateBps: 1800,
       categoryId: smartphones?.id,
       isActive: true,
       isFeatured: false,
@@ -259,6 +272,8 @@ async function seed() {
         OS: 'Windows 11 Home',
       }),
       brand: 'ASUS',
+      hsnCode: '84713010',
+      gstRateBps: 1800,
       categoryId: laptops?.id,
       isActive: true,
       isFeatured: true,
@@ -289,6 +304,8 @@ async function seed() {
         OS: 'macOS Sonoma',
       }),
       brand: 'Apple',
+      hsnCode: '84713010',
+      gstRateBps: 1800,
       categoryId: laptops?.id,
       isActive: true,
       isFeatured: true,
@@ -320,6 +337,8 @@ async function seed() {
         Color: 'Black',
       }),
       brand: 'Sony',
+      hsnCode: '85183000',
+      gstRateBps: 1800,
       categoryId: audio?.id,
       isActive: true,
       isFeatured: true,
@@ -349,6 +368,8 @@ async function seed() {
         Color: 'White',
       }),
       brand: 'Apple',
+      hsnCode: '85183000',
+      gstRateBps: 1800,
       categoryId: audio?.id,
       isActive: true,
       isFeatured: false,
@@ -379,6 +400,8 @@ async function seed() {
         OS: 'webOS 23 with ThinQ AI',
       }),
       brand: 'LG',
+      hsnCode: '85287219',
+      gstRateBps: 1800,
       categoryId: tvs?.id,
       isActive: true,
       isFeatured: true,
@@ -409,6 +432,8 @@ async function seed() {
         Mount: 'Sony E-mount',
       }),
       brand: 'Sony',
+      hsnCode: '85258900',
+      gstRateBps: 1800,
       categoryId: cameras?.id,
       isActive: true,
       isFeatured: true,
@@ -419,10 +444,22 @@ async function seed() {
   ];
 
   await db.insert(products).values(productSeedData).onConflictDoNothing();
+  // Non-destructive backfill for demo rows created by older seed versions. Existing classifications win.
+  for (const seeded of productSeedData) {
+    await db.update(products).set({
+      hsnCode: seeded.hsnCode,
+      gstRateBps: seeded.gstRateBps,
+      updatedAt: new Date(),
+    }).where(and(eq(products.slug, seeded.slug), isNull(products.hsnCode)));
+    await db.update(products).set({
+      gstRateBps: seeded.gstRateBps,
+      updatedAt: new Date(),
+    }).where(and(eq(products.slug, seeded.slug), isNull(products.gstRateBps)));
+  }
   const seededProducts = await db.select().from(products);
   const productBySlug = new Map(seededProducts.map((p) => [p.slug, p]));
 
-  logger.info('✅ Products seeded with structured attributes');
+  logger.info('✅ Products seeded with structured attributes, HSN classifications, and GST rates');
 
   // ─── 2b. Product Variants & Options ──────────────────────────────────────────
   // Ensure default variant exists for every seeded product
@@ -752,39 +789,164 @@ async function seed() {
   const [customerUser] = await db.select().from(users).where(eq(users.email, 'customer@premelectronics.com')).limit(1);
   const [secondCustomer] = await db.select().from(users).where(eq(users.email, 'rahul@premelectronics.com')).limit(1);
 
+  // Development-only taxpayer fixture. It is intentionally labelled and must not be used as merchant legal data.
+  const fixtureGstin = '27AAPFU0939F1ZV';
+  const registeredBusinessAddress: BusinessAddress = {
+    building: 'Development Fixture House',
+    street: 'Fixture Road',
+    locality: 'Bandra West',
+    city: 'Mumbai',
+    district: 'Mumbai Suburban',
+    state: 'Maharashtra',
+    stateCode: '27',
+    pincode: '400050',
+    country: 'India',
+    source: 'provider' as const,
+  };
+  let customerBusinessProfile: typeof businessProfiles.$inferSelect | undefined;
+
+  const seedBusinessForUser = async (
+    userId: string,
+    nickname: string,
+    contactPerson: string,
+    contactEmail: string,
+    billingAddress: BusinessAddress
+  ) => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const [existingVerification] = await db.select().from(gstVerifications).where(and(
+      eq(gstVerifications.userId, userId),
+      eq(gstVerifications.gstin, fixtureGstin),
+      eq(gstVerifications.provider, 'fixture')
+    )).limit(1);
+    const verificationValues = {
+      userId,
+      gstin: fixtureGstin,
+      provider: 'fixture',
+      registrationStatus: 'active',
+      legalName: 'DEVELOPMENT FIXTURE ENTERPRISES',
+      tradeName: 'Fixture Electronics',
+      taxpayerType: 'Regular',
+      stateCode: '27',
+      stateName: 'Maharashtra',
+      principalAddress: registeredBusinessAddress,
+      additionalAddresses: [],
+      providerPayload: { fixture: true, warning: 'Development seed data only' },
+      checkedAt: now,
+      expiresAt,
+    };
+    const verification = existingVerification
+      ? (await db.update(gstVerifications).set(verificationValues).where(eq(gstVerifications.id, existingVerification.id)).returning())[0]
+      : (await db.insert(gstVerifications).values(verificationValues).returning())[0];
+
+    const [existingProfile] = await db.select().from(businessProfiles).where(and(
+      eq(businessProfiles.userId, userId),
+      eq(businessProfiles.gstin, fixtureGstin)
+    )).limit(1);
+    const [currentDefault] = await db.select({ id: businessProfiles.id }).from(businessProfiles).where(and(
+      eq(businessProfiles.userId, userId),
+      eq(businessProfiles.isDefault, true),
+      eq(businessProfiles.isArchived, false)
+    )).limit(1);
+    const shouldBeDefault = existingProfile?.isDefault ?? !currentDefault;
+
+    const [profile] = await db.insert(businessProfiles).values({
+      userId,
+      verificationId: verification.id,
+      nickname,
+      gstin: fixtureGstin,
+      legalName: verification.legalName,
+      tradeName: verification.tradeName,
+      taxpayerType: verification.taxpayerType,
+      registrationStatus: verification.registrationStatus,
+      registrationStateCode: verification.stateCode,
+      registrationStateName: verification.stateName,
+      registeredAddress: registeredBusinessAddress,
+      billingAddress: { ...billingAddress, source: 'customer' },
+      contactPerson,
+      contactPhone: '9876500000',
+      contactEmail,
+      isDefault: shouldBeDefault,
+      verifiedAt: verification.checkedAt,
+    }).onConflictDoUpdate({
+      target: [businessProfiles.userId, businessProfiles.gstin],
+      set: {
+        verificationId: verification.id,
+        nickname,
+        legalName: verification.legalName,
+        tradeName: verification.tradeName,
+        taxpayerType: verification.taxpayerType,
+        registrationStatus: verification.registrationStatus,
+        registrationStateCode: verification.stateCode,
+        registrationStateName: verification.stateName,
+        registeredAddress: registeredBusinessAddress,
+        billingAddress: { ...billingAddress, source: 'customer' },
+        contactPerson,
+        contactEmail,
+        isArchived: false,
+        verifiedAt: verification.checkedAt,
+        updatedAt: now,
+      },
+    }).returning();
+    return profile;
+  };
+
+  if (customerUser) {
+    customerBusinessProfile = await seedBusinessForUser(
+      customerUser.id,
+      'Priya Demo Company',
+      'Priya Sharma',
+      'accounts.priya@example.test',
+      { ...registeredBusinessAddress, building: 'Accounts Office, Level 4', street: 'Development Commerce Road', locality: 'Lower Parel', city: 'Mumbai', district: 'Mumbai', pincode: '400013', source: 'customer' }
+    );
+  }
+  if (secondCustomer) {
+    await seedBusinessForUser(
+      secondCustomer.id,
+      'Rahul Demo Company',
+      'Rahul Patel',
+      'accounts.rahul@example.test',
+      { ...registeredBusinessAddress, building: 'Billing Desk, Unit 2', street: 'Fixture Industrial Road', locality: 'Andheri East', city: 'Mumbai', district: 'Mumbai Suburban', pincode: '400069', source: 'customer' }
+    );
+  }
+
   logger.info('✅ Users seeded: Admin, Customer (Priya Sharma), and Second Customer (Rahul Patel)');
 
   // ─── 4. Addresses ────────────────────────────────────────────────────────────
   if (customerUser) {
-    await db
-      .insert(addresses)
-      .values([
-        {
-          userId: customerUser.id,
-          type: 'both',
-          fullName: 'Priya Sharma',
-          phone: '9876543210',
-          street: 'Flat 402, Sunshine Heights, Linking Road, Bandra West',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400050',
-          country: 'India',
-          isDefault: true,
-        },
-        {
-          userId: customerUser.id,
-          type: 'shipping',
-          fullName: 'Priya Sharma (Office)',
-          phone: '9876543210',
-          street: 'Tech Hub Park, Tower B, 6th Floor, Viman Nagar',
-          city: 'Pune',
-          state: 'Maharashtra',
-          pincode: '411014',
-          country: 'India',
-          isDefault: false,
-        },
-      ])
-      .onConflictDoNothing();
+    const addressFixtures = [
+      {
+        userId: customerUser.id,
+        type: 'both' as const,
+        fullName: 'Priya Sharma',
+        phone: '9876543210',
+        street: 'Flat 402, Sunshine Heights, Linking Road, Bandra West',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400050',
+        country: 'India',
+        isDefault: true,
+      },
+      {
+        userId: customerUser.id,
+        type: 'shipping' as const,
+        fullName: 'Priya Sharma (Office)',
+        phone: '9876543210',
+        street: 'Tech Hub Park, Tower B, 6th Floor, Viman Nagar',
+        city: 'Pune',
+        state: 'Maharashtra',
+        pincode: '411014',
+        country: 'India',
+        isDefault: false,
+      },
+    ];
+    for (const address of addressFixtures) {
+      const [existing] = await db.select({ id: addresses.id }).from(addresses).where(and(
+        eq(addresses.userId, customerUser.id),
+        eq(addresses.street, address.street)
+      )).limit(1);
+      if (!existing) await db.insert(addresses).values(address);
+    }
     logger.info('✅ Customer delivery addresses seeded');
   }
 
@@ -1234,10 +1396,203 @@ async function seed() {
       }
     }
 
-    logger.info('✅ Orders seeded across 6 lifecycle states with variant IDs & coupon redemption');
+    // Order 7: Paid company purchase with immutable business, seller, and line-level GST snapshots.
+    if (customerBusinessProfile) {
+      const s24Var = getVariantForProduct(s24.id, 'S24U-BLK-512');
+      const invoiceIssuedAt = new Date('2026-10-02T10:30:00.000Z');
+      const purchaseOrderReference = 'PO-DEMO-1001';
+      const [companyOrder] = await db.insert(orders).values({
+        orderNumber: 'PE-2026-B2B01',
+        userId: customerUser.id,
+        status: 'delivered',
+        paymentStatus: 'paid',
+        returnStatus: 'none',
+        refundStatus: 'none',
+        purchaseType: 'company',
+        businessProfileId: customerBusinessProfile.id,
+        subtotal: '134999.00',
+        discount: '0.00',
+        shipping: '0.00',
+        tax: '24299.82',
+        total: '159298.82',
+        amountMinor: 15929882,
+        currency: 'INR',
+        paymentMethod: 'razorpay',
+        razorpayOrderId: 'order_seed_b2b01',
+        razorpayPaymentId: 'pay_seed_b2b01_success',
+        shippingAddress: defaultAddress,
+        billingAddress: customerBusinessProfile.billingAddress,
+        purchaseOrderReference,
+        pricingPolicyVersion: 'seed-gst-v1',
+        invoiceNumber: 'INV-SEED-B2B01',
+        invoiceIssuedAt,
+        sellerSnapshot: {
+          name: 'Prem Electronics Development Fixture',
+          gstin: '27ABCDE1234F1Z0',
+          address: 'Development fixture address, Mumbai, Maharashtra 400001',
+          phone: '+91 90000 00000',
+          email: 'seller-fixture@example.test',
+          stateCode: '27',
+        },
+        buyerBusinessSnapshot: {
+          profileId: customerBusinessProfile.id,
+          verificationId: customerBusinessProfile.verificationId,
+          gstin: customerBusinessProfile.gstin,
+          legalName: customerBusinessProfile.legalName,
+          tradeName: customerBusinessProfile.tradeName,
+          taxpayerType: customerBusinessProfile.taxpayerType,
+          registrationStatus: customerBusinessProfile.registrationStatus,
+          registrationStateCode: customerBusinessProfile.registrationStateCode,
+          registrationStateName: customerBusinessProfile.registrationStateName,
+          registeredAddress: customerBusinessProfile.registeredAddress,
+          billingAddress: customerBusinessProfile.billingAddress,
+          contactPerson: customerBusinessProfile.contactPerson,
+          contactPhone: customerBusinessProfile.contactPhone,
+          contactEmail: customerBusinessProfile.contactEmail,
+          verifiedAt: customerBusinessProfile.verifiedAt.toISOString(),
+          profileVersion: customerBusinessProfile.version,
+          authorizedRepresentative: true,
+          purchaseOrderReference,
+        },
+        taxSnapshot: {
+          policyVersion: 'seed-gst-v1',
+          mode: 'exclusive',
+          supplierStateCode: '27',
+          placeOfSupplyStateCode: '27',
+          placeOfSupplyState: 'Maharashtra',
+          scenario: 'ordinary_goods_movement',
+          jurisdiction: 'intra_state',
+          taxableMinor: 13499900,
+          cgstMinor: 1214991,
+          sgstMinor: 1214991,
+          igstMinor: 0,
+          totalTaxMinor: 2429982,
+          rounding: 'half_up_per_line_minor_unit',
+        },
+        notes: 'Development fixture company order for GST invoice UI verification.',
+      }).onConflictDoNothing().returning();
+
+      if (companyOrder) {
+        await db.insert(orderItems).values({
+          orderId: companyOrder.id,
+          productId: s24.id,
+          variantId: s24Var?.id,
+          productTitle: s24.title,
+          quantity: 1,
+          priceAtPurchase: '134999.00',
+          skuSnapshot: s24Var?.sku ?? s24.sku,
+          imageSnapshot: (s24.images as string[])?.[0],
+          hsnCodeSnapshot: s24.hsnCode ?? '85171300',
+          unitPriceMinor: 13499900,
+          discountMinor: 0,
+          taxableMinor: 13499900,
+          gstRateBps: 1800,
+          cgstMinor: 1214991,
+          sgstMinor: 1214991,
+          igstMinor: 0,
+          lineTotalMinor: 15929882,
+          variantSnapshot: {
+            sku: s24Var?.sku ?? s24.sku,
+            brand: s24.brand,
+            color: 'Titanium Black',
+            storage: '512GB',
+            attributes: s24.attributes,
+          },
+        });
+      }
+    }
+
+    logger.info('✅ Orders seeded across 7 lifecycle/company scenarios with variant, coupon, and GST snapshots');
   }
 
   // ─── 10. Blog Posts ──────────────────────────────────────────────────────────
+  // Complete reporting snapshots for seed orders and add authoritative payment/refund events.
+  await db.execute(sql`
+    update ${orderItems} oi
+    set category_id_snapshot = p.category_id,
+        category_name_snapshot = coalesce(c.name, 'Unknown / uncategorized'),
+        category_snapshot_source = 'historical',
+        sku_snapshot = coalesce(oi.sku_snapshot, (select pv.sku from ${productVariants} pv where pv.id = oi.variant_id), p.sku),
+        image_snapshot = coalesce(oi.image_snapshot, p.images->>0),
+        hsn_code_snapshot = coalesce(oi.hsn_code_snapshot, p.hsn_code),
+        unit_price_minor = round(oi.price_at_purchase::numeric * 100)::int,
+        discount_minor = round(coalesce(o.discount, 0)::numeric * 100)::int,
+        taxable_minor = round((o.subtotal::numeric - coalesce(o.discount, 0)::numeric) * 100)::int,
+        gst_rate_bps = coalesce(nullif(oi.gst_rate_bps, 0), p.gst_rate_bps, 1800),
+        cgst_minor = round(coalesce(o.tax, 0)::numeric * 50)::int,
+        sgst_minor = round(coalesce(o.tax, 0)::numeric * 50)::int,
+        igst_minor = 0,
+        line_total_minor = o.amount_minor
+    from ${products} p
+    left join ${categories} c on c.id = p.category_id
+    , ${orders} o
+    where oi.product_id = p.id and o.id = oi.order_id and o.order_number like 'PE-2026-%'
+  `);
+
+  const reportingOrders = await db.select().from(orders).where(like(orders.orderNumber, 'PE-2026-%'));
+  for (const order of reportingOrders) {
+    const [existingHistory] = await db.select({ id: orderStatusEvents.id }).from(orderStatusEvents)
+      .where(eq(orderStatusEvents.orderId, order.id)).limit(1);
+    if (!existingHistory) {
+      await db.insert(orderStatusEvents).values({
+        orderId: order.id,
+        eventType: 'seed_snapshot',
+        toValue: order.status,
+        metadata: { paymentStatus: order.paymentStatus, returnStatus: order.returnStatus, refundStatus: order.refundStatus },
+        createdAt: order.createdAt,
+      });
+    }
+    if (!order.razorpayOrderId) continue;
+    const [existingAttempt] = await db.select().from(paymentAttempts)
+      .where(eq(paymentAttempts.providerOrderId, order.razorpayOrderId)).limit(1);
+    if (existingAttempt) continue;
+    const captured = order.paymentStatus === 'paid' || order.paymentStatus === 'refunded';
+    await db.insert(paymentAttempts).values({
+      orderId: order.id,
+      providerOrderId: order.razorpayOrderId,
+      providerPaymentId: order.razorpayPaymentId,
+      amountMinor: order.amountMinor,
+      currency: order.currency,
+      status: order.paymentStatus === 'refunded' ? 'refunded' : captured ? 'captured' : 'created',
+      capturedAt: captured ? order.createdAt : null,
+      finalizedAt: captured ? order.createdAt : null,
+    });
+  }
+
+  const refundFixtures = [
+    { orderNumber: 'PE-2026-DELIV1', providerRefundId: 'rfnd_seed_partial_200', amountMinor: 20000, merchandiseMinor: 20000, taxMinor: 0, shippingMinor: 0 },
+    { orderNumber: 'PE-2026-REFUND', providerRefundId: 'rfnd_seed_full_refund', amountMinor: 4247882, merchandiseMinor: 3599900, taxMinor: 647982, shippingMinor: 0 },
+  ];
+  for (const fixture of refundFixtures) {
+    const order = reportingOrders.find((candidate) => candidate.orderNumber === fixture.orderNumber);
+    if (!order) continue;
+    const [attempt] = await db.select().from(paymentAttempts).where(eq(paymentAttempts.orderId, order.id)).limit(1);
+    if (!attempt) continue;
+    await db.insert(paymentRefunds).values({
+      orderId: order.id,
+      paymentAttemptId: attempt.id,
+      providerRefundId: fixture.providerRefundId,
+      amountMinor: fixture.amountMinor,
+      merchandiseMinor: fixture.merchandiseMinor,
+      taxMinor: fixture.taxMinor,
+      shippingMinor: fixture.shippingMinor,
+      currency: order.currency,
+      status: 'processed',
+      processedAt: new Date(order.createdAt.getTime() + 60 * 1000),
+    }).onConflictDoUpdate({
+      target: paymentRefunds.providerRefundId,
+      set: {
+        amountMinor: fixture.amountMinor,
+        merchandiseMinor: fixture.merchandiseMinor,
+        taxMinor: fixture.taxMinor,
+        shippingMinor: fixture.shippingMinor,
+        status: 'processed',
+        processedAt: new Date(order.createdAt.getTime() + 60 * 1000),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
   await db
     .insert(blogs)
     .values([
@@ -1274,7 +1629,64 @@ async function seed() {
     ])
     .onConflictDoNothing();
 
-  logger.info('✅ Blog posts seeded');
+  const publishedBlogFixtures = [
+    {
+      slug: 'best-smartphones-2024',
+      excerpt: 'A practical comparison of three flagship smartphones for performance, cameras and long-term value.',
+      coverAlt: 'Three modern smartphones displayed together',
+      publishedAt: new Date('2026-09-15T04:30:00.000Z'),
+    },
+    {
+      slug: 'noise-cancelling-headphones-comparison-2024',
+      excerpt: 'Compare comfort, battery life, portability and active noise cancellation before choosing premium headphones.',
+      coverAlt: 'Black over-ear headphones on a light surface',
+      publishedAt: new Date('2026-09-20T04:30:00.000Z'),
+    },
+    {
+      slug: 'gaming-laptop-buying-guide-2024',
+      excerpt: 'Understand the GPU, processor, display, memory and thermal specifications that matter in a gaming laptop.',
+      coverAlt: 'Gaming laptop open on a modern desk',
+      publishedAt: new Date('2026-09-25T04:30:00.000Z'),
+    },
+  ];
+  for (const fixture of publishedBlogFixtures) {
+    const [post] = await db.select().from(blogs).where(eq(blogs.slug, fixture.slug)).limit(1);
+    if (!post) continue;
+    await db.update(blogs).set({
+      content: sanitizeBlogHtml(post.content),
+      excerpt: fixture.excerpt,
+      coverAlt: fixture.coverAlt,
+      status: 'published',
+      isActive: true,
+      publishedAt: fixture.publishedAt,
+      archivedAt: null,
+      updatedAt: new Date(),
+    }).where(eq(blogs.id, post.id));
+  }
+
+  await db.insert(blogs).values([
+    {
+      title: 'Smart Home Starter Guide (Editorial Draft)',
+      slug: 'smart-home-starter-guide-draft',
+      excerpt: 'A development fixture showing the private draft workflow.',
+      content: sanitizeBlogHtml('<h2>Start with a reliable network</h2><p>This editorial draft remains visible only to authorized administrators until it is published.</p>'),
+      authorId: adminUser?.id,
+      status: 'draft',
+      isActive: true,
+    },
+    {
+      title: 'Archived Television Calibration Guide',
+      slug: 'archived-television-calibration-guide',
+      excerpt: 'A development fixture retained for archive and restore testing.',
+      content: sanitizeBlogHtml('<h2>Archived guide</h2><p>This post is retained administratively but excluded from every public blog endpoint.</p>'),
+      authorId: adminUser?.id,
+      status: 'archived',
+      isActive: false,
+      archivedAt: new Date('2026-09-30T04:30:00.000Z'),
+    },
+  ]).onConflictDoNothing();
+
+  logger.info('✅ Blog posts seeded across published, draft, and archived states');
 
   logger.success(`
 ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -1284,22 +1696,25 @@ async function seed() {
 ║  👤 Customer:    customer@premelectronics.com / Customer@123              ║
 ║  👤 Customer 2:  rahul@premelectronics.com / Customer@123                 ║
 ║  📍 Addresses:   2 saved delivery addresses (Home default & Office)       ║
+║  🏢 Businesses:  Account-isolated GST fixture profiles for both customers ║
 ║  🏷  Coupons:     WELCOME10 | FIRSTORDER10 | FLAT500 | PREM20 | EXPIRED50  ║
-║  📦 Products:    9 flagship products with rich structured attributes      ║
+║  📦 Products:    9 products with attributes, HSN, and GST rates            ║
 ║  🔀 Variants:    Options & variants for S24 Ultra, iPhone 16, Sony XM5     ║
 ║                  plus default variants for all simple products            ║
 ║  📁 Categories:  10 categories with banner images & hierarchy             ║
 ║  ⭐ Reviews:     3 approved reviews + 1 pending moderation                ║
 ║  ❤️ Wishlist:    2 items saved in customer wishlist                       ║
 ║  🛒 Cart:        Active cart item with variant seeded for checkout        ║
-║  📝 Blogs:       3 SEO articles                                           ║
-║  📦 Orders:      6 lifecycle orders with variant references:              ║
+║  📝 Blogs:       3 published + 1 draft + 1 archived sanitized article     ║
+║  💳 Payments:    Captures, one partial refund, and one full refund ledger ║
+║  📦 Orders:      7 lifecycle/company orders with variant references:      ║
 ║                  - PE-2026-DELIV1: Delivered (Test Return/Review/Invoice) ║
 ║                  - PE-2026-RETREQ: Return Requested (Test Admin Approve)  ║
 ║                  - PE-2026-RETAPP: Return Approved (Test Admin Refund)    ║
 ║                  - PE-2026-REFUND: Cancelled & Refund Processed           ║
 ║                  - PE-2026-PEND01: Pending (Test Online Cancel Order)     ║
 ║                  - PE-2026-COUPON: Confirmed with WELCOME10 redeemed      ║
+║                  - PE-2026-B2B01: Company GST invoice snapshot fixture    ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
   `);
 

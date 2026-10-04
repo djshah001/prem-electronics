@@ -1,6 +1,6 @@
 import { and, eq, or, sql } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db.js';
-import { carts, cartItems, products, productVariants } from '../../infrastructure/database/schema/index.js';
+import { carts, cartItems, cartMergeOperations, products, productVariants } from '../../infrastructure/database/schema/index.js';
 
 type DatabaseExecutor = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -33,13 +33,26 @@ export const cartRepository = {
       .orderBy(cartItems.createdAt);
   },
 
-  async mergeIdempotent(userId: string, guestItems: Array<{ productId: string; variantId?: string; quantity: number }>) {
-    await db.transaction(async (tx) => {
+  async mergeIdempotent(userId: string, idempotencyToken: string, guestItems: Array<{ productId: string; variantId?: string; quantity: number }>) {
+    return db.transaction(async (tx) => {
+      const inserted = await tx.insert(cartMergeOperations).values({ userId, idempotencyToken }).onConflictDoNothing({
+        target: [cartMergeOperations.userId, cartMergeOperations.idempotencyToken],
+      }).returning({ id: cartMergeOperations.id });
+      if (inserted.length === 0) {
+        const [prior] = await tx.select({ result: cartMergeOperations.result }).from(cartMergeOperations)
+          .where(and(eq(cartMergeOperations.userId, userId), eq(cartMergeOperations.idempotencyToken, idempotencyToken))).limit(1);
+        return { replayed: true, ...(prior?.result ?? { adjustments: [], rejected: [] }) };
+      }
       const cart = await ensureCart(tx, userId);
+      const adjustments: Array<Record<string, unknown>> = [];
+      const rejected: Array<Record<string, unknown>> = [];
       for (const item of guestItems) {
         const [product] = await tx.select({ id: products.id, stock: products.stock, isActive: products.isActive })
           .from(products).where(eq(products.id, item.productId)).limit(1);
-        if (!product?.isActive || product.stock < 1) continue;
+        if (!product?.isActive || product.stock < 1) {
+          rejected.push({ productId: item.productId, variantId: item.variantId, reason: 'Product is inactive or unavailable.' });
+          continue;
+        }
 
         let resolvedVariantId = item.variantId;
         let availableStock = product.stock;
@@ -50,13 +63,19 @@ export const cartRepository = {
             .limit(1);
           if (defaultVar) {
             resolvedVariantId = defaultVar.id;
-            if (!defaultVar.isActive || defaultVar.stock < 1) continue;
+            if (!defaultVar.isActive || defaultVar.stock < 1) {
+              rejected.push({ productId: item.productId, reason: 'Default variant is inactive or unavailable.' });
+              continue;
+            }
             availableStock = defaultVar.stock;
           }
         } else {
-          const [variant] = await tx.select({ id: productVariants.id, stock: productVariants.stockQuantity, isActive: productVariants.isActive })
+          const [variant] = await tx.select({ id: productVariants.id, productId: productVariants.productId, stock: productVariants.stockQuantity, isActive: productVariants.isActive })
             .from(productVariants).where(eq(productVariants.id, resolvedVariantId)).limit(1);
-          if (!variant || !variant.isActive || variant.stock < 1) continue;
+          if (!variant || variant.productId !== item.productId || !variant.isActive || variant.stock < 1) {
+            rejected.push({ productId: item.productId, variantId: resolvedVariantId, reason: 'Variant is invalid, inactive or unavailable.' });
+            continue;
+          }
           availableStock = variant.stock;
         }
 
@@ -66,7 +85,9 @@ export const cartRepository = {
 
         const [existing] = await tx.select().from(cartItems).where(condition).limit(1);
 
-        const quantity = Math.min(Math.max(existing?.quantity ?? 0, item.quantity), availableStock);
+        const requestedQuantity = (existing?.quantity ?? 0) + item.quantity;
+        const quantity = Math.min(requestedQuantity, availableStock, 99);
+        if (quantity !== requestedQuantity) adjustments.push({ productId: item.productId, variantId: resolvedVariantId, requestedQuantity, quantity, reason: 'Quantity was capped to current stock or purchase limit.' });
         if (existing) {
           await tx.update(cartItems).set({ quantity, updatedAt: new Date() }).where(eq(cartItems.id, existing.id));
         } else {
@@ -74,6 +95,9 @@ export const cartRepository = {
         }
       }
       await tx.update(carts).set({ updatedAt: new Date() }).where(eq(carts.id, cart.id));
+      const result = { adjustments, rejected };
+      await tx.update(cartMergeOperations).set({ result }).where(eq(cartMergeOperations.id, inserted[0].id));
+      return { replayed: false, ...result };
     });
   },
 

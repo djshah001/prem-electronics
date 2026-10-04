@@ -10,6 +10,7 @@ export interface JwtPayload {
   id: string;
   email: string;
   role: UserRole;
+  sid: string;
 }
 
 declare global {
@@ -39,11 +40,18 @@ export const authenticate = async (req: Request, _res: Response, next: NextFunct
     }
 
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    if (!decoded.sid) {
+      throw new UnauthorizedError('This session is no longer valid.');
+    }
+    const activeSession = await authRepository.findActiveSession(decoded.sid, decoded.id);
+    if (!activeSession) {
+      throw new UnauthorizedError('This session is no longer valid.');
+    }
     const currentUser = await authRepository.findById(decoded.id);
     if (!currentUser || !currentUser.isVerified || currentUser.isBlocked) {
       throw new UnauthorizedError('This session is no longer valid.');
     }
-    req.user = { id: currentUser.id, email: currentUser.email, role: currentUser.role };
+    req.user = { id: currentUser.id, email: currentUser.email, role: currentUser.role, sid: decoded.sid };
     next();
   } catch (err) {
     next(err);

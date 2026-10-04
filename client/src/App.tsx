@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, Navigate, Link } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Navbar } from './components/layout/Navbar';
@@ -31,12 +31,14 @@ import Orders from './pages/customer/Orders';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Lazy pages
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
+import { subscribeToLogout, clearLocalAuthState } from './auth/session';
 const ProductDetails = lazy(() => import('./pages/storefront/ProductDetails'));
 const Addresses = lazy(() => import('./pages/customer/Addresses'));
 const Profile = lazy(() => import('./pages/customer/Profile'));
 const Wishlist = lazy(() => import('./pages/customer/Wishlist'));
 const OrderDetail = lazy(() => import('./pages/customer/OrderDetail'));
+const Businesses = lazy(() => import('./pages/customer/Businesses'));
 
 const BlogPage = lazy(() => import('./pages/blog/Blog'));
 const BlogDetails = lazy(() => import('./pages/blog/BlogDetails'));
@@ -48,6 +50,12 @@ const CategoryManager = lazy(() => import('./pages/admin/CategoryManager'));
 const LowStock = lazy(() => import('./pages/admin/LowStock'));
 const CustomerManager = lazy(() => import('./pages/admin/CustomerManager'));
 const ReviewModeration = lazy(() => import('./pages/admin/ReviewModeration'));
+const Analytics = lazy(() => import('./pages/admin/Analytics'));
+const TransactionManager = lazy(() => import('./pages/admin/TransactionManager'));
+const CustomerDetail = lazy(() => import('./pages/admin/CustomerDetail'));
+const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail'));
+const BlogManager = lazy(() => import('./pages/admin/BlogManager'));
+const BlogEditor = lazy(() => import('./pages/admin/BlogEditor'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +106,9 @@ const AdminLayout = () => (
   </div>
 );
 
+const AdminNotFound = () => <div className="p-8 min-h-[60vh] grid place-items-center"><div className="text-center"><p className="text-6xl font-black text-primary">404</p><h2 className="text-2xl font-bold mt-3">Admin page not found</h2><p className="text-muted-foreground mt-2">This route is not part of the authorized admin console.</p><Link to="/admin/dashboard" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Back to dashboard</Link></div></div>;
+const AccessDenied = () => <div className="min-h-screen grid place-items-center bg-background p-6"><div className="text-center"><p className="text-5xl font-black text-red-500">403</p><h1 className="text-2xl font-bold mt-3">Access denied</h1><p className="text-muted-foreground mt-2">Your account is signed in but does not have permission to open the admin console.</p><Link to="/" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Return to storefront</Link></div></div>;
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
   {
@@ -108,6 +119,7 @@ const router = createBrowserRouter([
       { path: '/products/:slug', element: <ProductDetails /> },
       { path: '/blog', element: <BlogPage /> },
       { path: '/blog/:slug', element: <BlogDetails /> },
+      { path: '/access-denied', element: <AccessDenied /> },
 
       // Auth routes
       {
@@ -132,6 +144,7 @@ const router = createBrowserRouter([
           { path: '/account/orders/:id', element: <OrderDetail /> },
           { path: '/account/addresses', element: <Addresses /> },
           { path: '/account/profile', element: <Profile /> },
+          { path: '/account/businesses', element: <Businesses /> },
           { path: '/wishlist', element: <Wishlist /> },
         ],
       },
@@ -145,14 +158,23 @@ const router = createBrowserRouter([
       {
         element: <AdminLayout />,
         children: [
-          { path: '/admin', element: <AdminDashboard /> },
+          { path: '/admin', element: <Navigate to="/admin/dashboard" replace /> },
+          { path: '/admin/dashboard', element: <AdminDashboard /> },
+          { path: '/admin/analytics', element: <Analytics /> },
           { path: '/admin/products', element: <ProductManager /> },
           { path: '/admin/orders', element: <OrderManager /> },
+          { path: '/admin/orders/:id', element: <AdminOrderDetail /> },
+          { path: '/admin/transactions', element: <TransactionManager /> },
           { path: '/admin/coupons', element: <CouponManager /> },
           { path: '/admin/categories', element: <CategoryManager /> },
           { path: '/admin/inventory', element: <LowStock /> },
           { path: '/admin/customers', element: <CustomerManager /> },
+          { path: '/admin/customers/:id', element: <CustomerDetail /> },
           { path: '/admin/reviews', element: <ReviewModeration /> },
+          { path: '/admin/blogs', element: <BlogManager /> },
+          { path: '/admin/blogs/new', element: <BlogEditor /> },
+          { path: '/admin/blogs/:id/edit', element: <BlogEditor /> },
+          { path: '/admin/*', element: <AdminNotFound /> },
         ],
       },
     ],
@@ -160,6 +182,15 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useEffect(() => subscribeToLogout(() => {
+    clearLocalAuthState();
+    void queryClient.cancelQueries();
+    queryClient.clear();
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.replace('/login?reason=signed-out');
+    }
+  }), []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

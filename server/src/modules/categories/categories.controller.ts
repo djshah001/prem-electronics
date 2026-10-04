@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { categoriesService } from './categories.service.js';
-import { createCategorySchema, updateCategorySchema } from './categories.schema.js';
+import { createCategorySchema, updateCategorySchema, categoryAdminQuerySchema, categoryBulkSchema } from './categories.schema.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const categoriesController = {
@@ -32,20 +32,13 @@ export const categoriesController = {
   },
 
   async getCategoriesAdmin(req: Request, res: Response) {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-    const search = req.query.search as string | undefined;
-    const sortBy = req.query.sortBy as string | undefined;
-    const sortOrder = req.query.sortOrder as string | undefined;
-    const { data, meta } = await categoriesService.getCategoriesAdmin({ page, limit, search, sortBy, sortOrder });
+    const query = categoryAdminQuerySchema.parse(req.query);
+    const { data, meta } = await categoriesService.getCategoriesAdmin(query);
     sendSuccess(res, data, 'Admin categories fetched.', 200, meta);
   },
 
   async bulkDelete(req: Request, res: Response) {
-    const { ids } = req.body;
-    if (!Array.isArray(ids)) {
-      return res.status(400).json({ success: false, message: 'Invalid IDs array' });
-    }
+    const { ids } = categoryBulkSchema.parse(req.body);
     const result = await categoriesService.bulkDelete(ids);
     sendSuccess(res, result, 'Category archive operation completed.');
   },

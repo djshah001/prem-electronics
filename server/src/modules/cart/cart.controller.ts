@@ -9,7 +9,7 @@ export const cartController = {
   },
   async mergeCart(req: Request, res: Response) {
     const input = mergeCartSchema.parse(req.body);
-    sendSuccess(res, await cartService.mergeCart(req.user!.id, input.items), 'Guest cart merged successfully.');
+    sendSuccess(res, await cartService.mergeCart(req.user!.id, input.idempotencyToken, input.items), 'Guest cart merged successfully.');
   },
   async addItem(req: Request, res: Response) {
     const input = setCartItemSchema.parse(req.body);

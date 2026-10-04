@@ -92,7 +92,10 @@ export const authController = {
   },
 
   async logout(req: Request, res: Response) {
-    await authService.logout(req.cookies?.refreshToken as string | undefined);
+    await authService.logout(
+      req.cookies?.refreshToken as string | undefined,
+      req.cookies?.accessToken as string | undefined
+    );
     res.clearCookie('accessToken', CLEAR_COOKIE_OPTIONS);
     res.clearCookie('refreshToken', { ...CLEAR_COOKIE_OPTIONS, path: '/api/v1/auth' });
     sendSuccess(res, null, 'Logged out successfully.');

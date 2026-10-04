@@ -31,6 +31,8 @@ export const products = pgTable('products', {
   tags: jsonb('tags').$type<string[]>().default([]),
   attributes: jsonb('attributes').$type<Array<{ name: string; value: string }>>().default([]),
   brand: varchar('brand', { length: 100 }),
+  hsnCode: varchar('hsn_code', { length: 20 }),
+  gstRateBps: integer('gst_rate_bps'),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   isActive: boolean('is_active').default(true).notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),

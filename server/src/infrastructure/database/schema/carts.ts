@@ -1,4 +1,4 @@
-import { pgTable, uuid, integer, timestamp, uniqueIndex, check } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, integer, timestamp, uniqueIndex, check, varchar, jsonb } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { users } from './users.js';
 import { products } from './products.js';
@@ -24,6 +24,16 @@ export const cartItems = pgTable('cart_items', {
 }, (table) => [
   uniqueIndex('cart_items_cart_variant_unique').on(table.cartId, table.variantId),
   check('cart_items_positive_quantity', sql`${table.quantity} > 0`),
+]);
+
+export const cartMergeOperations = pgTable('cart_merge_operations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  idempotencyToken: varchar('idempotency_token', { length: 100 }).notNull(),
+  result: jsonb('result').$type<{ adjustments: Array<Record<string, unknown>>; rejected: Array<Record<string, unknown>> }>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('cart_merge_operations_user_token_unique').on(table.userId, table.idempotencyToken),
 ]);
 
 export const cartsRelations = relations(carts, ({ one, many }) => ({

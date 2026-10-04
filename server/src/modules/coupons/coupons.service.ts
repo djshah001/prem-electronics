@@ -1,10 +1,12 @@
 import { couponsRepository } from './coupons.repository.js';
 import { AppError, NotFoundError, ConflictError } from '../../core/errors/appError.js';
-import type { CreateCouponInput, UpdateCouponInput, ValidateCouponInput } from './coupons.schema.js';
+import type { CouponListQuery, CreateCouponInput, UpdateCouponInput, ValidateCouponInput } from './coupons.schema.js';
+import { buildPaginationMeta } from '../../core/utils/responseHandler.js';
 
 export const couponsService = {
-  async getAll() {
-    return couponsRepository.findAll();
+  async getAll(query: CouponListQuery) {
+    const { data, total } = await couponsRepository.findAll(query);
+    return { data, meta: buildPaginationMeta(query.page, query.limit, total) };
   },
 
   async validate(input: ValidateCouponInput) {

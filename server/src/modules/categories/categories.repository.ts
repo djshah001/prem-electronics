@@ -97,7 +97,7 @@ export const categoriesRepository = {
     const orderClause = sortOrder === 'asc' ? asc(orderCol) : desc(orderCol);
 
     const [data, countResult] = await Promise.all([
-      db.select().from(categories).where(whereClause).orderBy(orderClause).limit(limit).offset(offset),
+      db.select().from(categories).where(whereClause).orderBy(orderClause, desc(categories.id)).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(categories).where(whereClause),
     ]);
     return { data, total: Number(countResult[0].count) };

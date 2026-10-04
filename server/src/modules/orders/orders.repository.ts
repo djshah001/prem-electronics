@@ -6,6 +6,7 @@ import {
   products,
   productVariants,
   paymentAttempts,
+  orderStatusEvents,
   type Order,
   type NewOrder,
   type NewOrderItem,
@@ -113,6 +114,14 @@ export const ordersRepository = {
         inventoryReservationExpiresAt: reservationExpiresAt,
       }).returning();
 
+      await tx.insert(orderStatusEvents).values({
+        orderId: order.id,
+        eventType: 'order_created',
+        toValue: order.status,
+        actorUserId: order.userId,
+        metadata: { paymentStatus: order.paymentStatus },
+      });
+
       await tx.insert(orderItems).values(items.map((item) => ({ ...item, orderId: order.id })));
       await tx.insert(paymentAttempts).values({
         orderId: order.id,
@@ -176,8 +185,22 @@ export const ordersRepository = {
       productId: orderItems.productId,
       variantId: orderItems.variantId,
       productTitle: orderItems.productTitle,
+      categoryIdSnapshot: orderItems.categoryIdSnapshot,
+      categoryNameSnapshot: orderItems.categoryNameSnapshot,
+      categorySnapshotSource: orderItems.categorySnapshotSource,
       quantity: orderItems.quantity,
       priceAtPurchase: orderItems.priceAtPurchase,
+      skuSnapshot: orderItems.skuSnapshot,
+      imageSnapshot: orderItems.imageSnapshot,
+      hsnCodeSnapshot: orderItems.hsnCodeSnapshot,
+      unitPriceMinor: orderItems.unitPriceMinor,
+      discountMinor: orderItems.discountMinor,
+      taxableMinor: orderItems.taxableMinor,
+      gstRateBps: orderItems.gstRateBps,
+      cgstMinor: orderItems.cgstMinor,
+      sgstMinor: orderItems.sgstMinor,
+      igstMinor: orderItems.igstMinor,
+      lineTotalMinor: orderItems.lineTotalMinor,
       variantSnapshot: orderItems.variantSnapshot,
       createdAt: orderItems.createdAt,
       productImages: products.images,
@@ -209,6 +232,8 @@ export const ordersRepository = {
         status: 'confirmed',
         razorpayPaymentId,
         razorpaySignature,
+        invoiceNumber: sql`COALESCE(${orders.invoiceNumber}, ${'INV-'} || ${orders.orderNumber})`,
+        invoiceIssuedAt: sql`COALESCE(${orders.invoiceIssuedAt}, NOW())`,
         updatedAt: new Date(),
       })
       .where(eq(orders.id, id))
@@ -249,7 +274,7 @@ export const ordersRepository = {
       .where(inArray(orders.id, ids));
   },
 
-  async transitionStatus(id: string, status: Order['status'], allowedFrom: Order['status'][]): Promise<Order | undefined> {
+  async transitionStatus(id: string, status: Order['status'], allowedFrom: Order['status'][], actorUserId?: string): Promise<Order | undefined> {
     return db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, id)).for('update').limit(1);
       if (!order || !allowedFrom.includes(order.status)) return undefined;
@@ -278,10 +303,14 @@ export const ordersRepository = {
         } : {}),
         updatedAt: now,
       }).where(eq(orders.id, id)).returning();
+      await tx.insert(orderStatusEvents).values({
+        orderId: id, eventType: 'fulfilment_changed', fromValue: order.status, toValue: status,
+        actorUserId, metadata: { paymentStatus: updated.paymentStatus, refundStatus: updated.refundStatus },
+      });
       return updated;
     });
   },
-  async requestReturn(orderId: string, reason: string): Promise<Order | undefined> {
+  async requestReturn(orderId: string, reason: string, actorUserId?: string): Promise<Order | undefined> {
     return db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
       if (!order || order.status !== 'delivered' || order.returnStatus !== 'none') return undefined;
@@ -290,11 +319,12 @@ export const ordersRepository = {
         notes: reason ? `Return: ${reason}` : order.notes,
         updatedAt: new Date(),
       }).where(eq(orders.id, orderId)).returning();
+      await tx.insert(orderStatusEvents).values({ orderId, eventType: 'return_changed', fromValue: order.returnStatus, toValue: 'requested', actorUserId, metadata: { reason } });
       return updated;
     });
   },
 
-  async updateReturnStatus(orderId: string, returnStatus: 'approved' | 'rejected' | 'completed'): Promise<Order | undefined> {
+  async updateReturnStatus(orderId: string, returnStatus: 'approved' | 'rejected' | 'completed', actorUserId?: string): Promise<Order | undefined> {
     return db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
       if (!order) return undefined;
@@ -305,6 +335,7 @@ export const ordersRepository = {
         extra.paymentStatus = 'refunded';
       }
       const [updated] = await tx.update(orders).set({ returnStatus, ...extra, updatedAt: now }).where(eq(orders.id, orderId)).returning();
+      await tx.insert(orderStatusEvents).values({ orderId, eventType: 'return_changed', fromValue: order.returnStatus, toValue: returnStatus, actorUserId });
       return updated;
     });
   },

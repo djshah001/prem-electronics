@@ -10,13 +10,16 @@ router.use(...adminOnly);
 // Dashboard & Analytics
 router.get('/dashboard', asyncHandler(adminController.getDashboard));
 router.get('/analytics', asyncHandler(adminController.getAnalytics));
+router.get('/stats', asyncHandler(adminController.getModuleStats));
 
 // Inventory / Low Stock
 router.get('/inventory/low-stock', asyncHandler(adminController.getLowStock));
-router.patch('/inventory/:productId/stock', asyncHandler(adminController.updateStock));
+router.patch('/inventory/:variantId/stock', asyncHandler(adminController.updateStock));
 
 // Customer Management
 router.get('/customers', asyncHandler(adminController.getCustomers));
+router.get('/customers/:userId/orders', asyncHandler(adminController.getCustomerOrders));
+router.get('/customers/:userId', asyncHandler(adminController.getCustomerDetail));
 router.patch('/customers/:userId/block', asyncHandler(adminController.toggleBlockCustomer));
 router.post('/customers/bulk-delete', asyncHandler(adminController.bulkDeleteUsers));
 
@@ -35,5 +38,9 @@ router.get('/categories', asyncHandler(adminController.getCategoriesAdmin));
 
 // Admin-level Orders (server-side table ops)
 router.get('/orders', asyncHandler(adminController.getOrdersAdmin));
+router.get('/orders/:orderId', asyncHandler(adminController.getOrderDetail));
+
+router.get('/transactions', asyncHandler(adminController.getTransactions));
+router.get('/transactions/:transactionId', asyncHandler(adminController.getTransactionDetail));
 
 export default router;

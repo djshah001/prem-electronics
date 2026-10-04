@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,6 +108,8 @@ const EMPTY_FORM = {
   stock: 0,
   lowStockThreshold: 5,
   brand: '',
+  hsnCode: '',
+  gstRateBps: 1800,
   categoryId: '',
   isFeatured: false,
   isNewArrival: false,
@@ -297,6 +300,8 @@ export default function ProductManager() {
       stock: p.stock,
       lowStockThreshold: p.lowStockThreshold ?? 5,
       brand: p.brand ?? '',
+      hsnCode: p.hsnCode ?? '',
+      gstRateBps: p.gstRateBps ?? 1800,
       categoryId: p.categoryId ?? '',
       isFeatured: Boolean(p.isFeatured),
       isNewArrival: Boolean(p.isNewArrival),
@@ -546,6 +551,8 @@ export default function ProductManager() {
       stock,
       lowStockThreshold,
       brand: form.brand?.trim() || null,
+      hsnCode: form.hsnCode?.trim() || undefined,
+      gstRateBps: Number(form.gstRateBps),
       categoryId: form.categoryId,
       isFeatured: Boolean(form.isFeatured),
       isNewArrival: Boolean(form.isNewArrival),
@@ -803,6 +810,7 @@ export default function ProductManager() {
       </div>
 
       {/* Table */}
+      <div className="mb-6"><ModuleStatsCards module="products" /></div>
       <DataTable
         columns={columns}
         data={tableData}
@@ -1003,6 +1011,24 @@ export default function ProductManager() {
                     placeholder="e.g. Sony, Apple, Samsung"
                     value={form.brand}
                     onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+                  />
+                  <FormField
+                    label="HSN code"
+                    id="pm-hsn"
+                    placeholder="Product classification"
+                    value={form.hsnCode}
+                    onChange={(e) => setForm((f) => ({ ...f, hsnCode: e.target.value }))}
+                  />
+                  <FormField
+                    label="GST rate (%)"
+                    id="pm-gst-rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={Number(form.gstRateBps) / 100}
+                    onChange={(e) => setForm((f) => ({ ...f, gstRateBps: Math.round(Number(e.target.value) * 100) }))}
+                    helperText="Stored as basis points"
                   />
                 </div>
               </div>

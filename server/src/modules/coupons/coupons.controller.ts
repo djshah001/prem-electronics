@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
 import { couponsService } from './coupons.service.js';
-import { createCouponSchema, updateCouponSchema, validateCouponSchema } from './coupons.schema.js';
+import { couponListQuerySchema, createCouponSchema, updateCouponSchema, validateCouponSchema } from './coupons.schema.js';
 import { sendSuccess, sendCreated, sendNoContent } from '../../core/utils/responseHandler.js';
 
 export const couponsController = {
   async getAll(req: Request, res: Response) {
-    const coupons = await couponsService.getAll();
-    sendSuccess(res, coupons);
+    const query = couponListQuerySchema.parse(req.query);
+    const { data, meta } = await couponsService.getAll(query);
+    sendSuccess(res, data, 'Coupons fetched.', 200, meta);
   },
 
   async validate(req: Request, res: Response) {
