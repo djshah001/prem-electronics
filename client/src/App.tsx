@@ -56,6 +56,12 @@ const CustomerDetail = lazy(() => import('./pages/admin/CustomerDetail'));
 const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail'));
 const BlogManager = lazy(() => import('./pages/admin/BlogManager'));
 const BlogEditor = lazy(() => import('./pages/admin/BlogEditor'));
+const InvoiceMaster = lazy(() => import('./pages/admin/InvoiceMaster'));
+const EmailMaster = lazy(() => import('./pages/admin/EmailMaster'));
+const CampaignManager = lazy(() => import('./pages/admin/CampaignManager'));
+const EmailLogs = lazy(() => import('./pages/admin/EmailLogs'));
+const Unsubscribe = lazy(() => import('./pages/storefront/Unsubscribe'));
+const MarketingPreferences = lazy(() => import('./pages/customer/MarketingPreferences'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +126,7 @@ const router = createBrowserRouter([
       { path: '/blog', element: <BlogPage /> },
       { path: '/blog/:slug', element: <BlogDetails /> },
       { path: '/access-denied', element: <AccessDenied /> },
+      { path: '/unsubscribe', element: <Unsubscribe /> },
 
       // Auth routes
       {
@@ -145,6 +152,7 @@ const router = createBrowserRouter([
           { path: '/account/addresses', element: <Addresses /> },
           { path: '/account/profile', element: <Profile /> },
           { path: '/account/businesses', element: <Businesses /> },
+          { path: '/account/marketing-preferences', element: <MarketingPreferences /> },
           { path: '/wishlist', element: <Wishlist /> },
         ],
       },
@@ -174,6 +182,10 @@ const router = createBrowserRouter([
           { path: '/admin/blogs', element: <BlogManager /> },
           { path: '/admin/blogs/new', element: <BlogEditor /> },
           { path: '/admin/blogs/:id/edit', element: <BlogEditor /> },
+          { path: '/admin/invoice-master', element: <InvoiceMaster /> },
+          { path: '/admin/email-master', element: <EmailMaster /> },
+          { path: '/admin/campaigns', element: <CampaignManager /> },
+          { path: '/admin/email-logs', element: <EmailLogs /> },
           { path: '/admin/*', element: <AdminNotFound /> },
         ],
       },

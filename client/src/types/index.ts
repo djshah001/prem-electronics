@@ -375,6 +375,9 @@ export interface Blog {
   title: string;
   slug: string;
   content: string;
+  editorJson?: { type: 'doc'; content?: Array<Record<string, unknown>> } | null;
+  editorSchemaVersion?: number;
+  editorMigrationStatus?: 'legacy_html' | 'structured' | 'recovery_required';
   excerpt?: string | null;
   imageUrl?: string | null;
   coverAlt?: string | null;

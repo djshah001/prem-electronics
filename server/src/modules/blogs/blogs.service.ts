@@ -3,6 +3,7 @@ import { AppError, ConflictError, NotFoundError } from '../../core/errors/appErr
 import { buildPaginationMeta } from '../../core/utils/responseHandler.js';
 import { blogTextContent, isAllowedBlogImageSource, sanitizeBlogHtml } from './blogSanitizer.js';
 import type { BlogAdminQuery } from './blogs.schema.js';
+import { renderStructuredDocument, structuredDocumentSchema } from '../communications/contentDocument.js';
 
 const protectContent = <T extends { content: string }>(blog: T): T => ({
   ...blog,
@@ -43,11 +44,16 @@ export const blogsService = {
     return protectContent(blog);
   },
 
-  async create(input: Record<string, unknown> & { title: string; slug: string; content: string; authorId: string }) {
+  async create(input: Record<string, any> & { title: string; slug: string; authorId: string }) {
     if (await blogsRepository.findBySlugAny(input.slug)) throw new ConflictError('A blog post with this slug already exists.');
+    const editorJson = input.editorJson ? structuredDocumentSchema.parse(input.editorJson) : undefined;
+    const content = editorJson ? renderStructuredDocument(editorJson, 'blog').html : prepareContent(String(input.content ?? ''));
     return blogsRepository.create({
       ...input,
-      content: prepareContent(input.content),
+      content: prepareContent(content),
+      editorJson,
+      editorSchemaVersion: 1,
+      editorMigrationStatus: editorJson ? 'structured' : 'legacy_html',
       authorId: input.authorId,
       status: 'draft',
       isActive: true,
@@ -62,9 +68,15 @@ export const blogsService = {
       if (collision && collision.id !== id) throw new ConflictError('A blog post with this slug already exists.');
     }
     const { expectedVersion, ...changes } = input;
-    if (typeof changes.content === 'string') changes.content = prepareContent(changes.content);
+    if (changes.editorJson) {
+      const editorJson = structuredDocumentSchema.parse(changes.editorJson);
+      changes.editorJson = editorJson;
+      changes.content = prepareContent(renderStructuredDocument(editorJson, 'blog').html);
+      changes.editorSchemaVersion = 1;
+      changes.editorMigrationStatus = 'structured';
+    } else if (typeof changes.content === 'string') changes.content = prepareContent(changes.content);
     const updated = await blogsRepository.update(
-      id, expectedVersion, changes as any, existing.content, existing.slug, existing.status === 'published'
+      id, expectedVersion, changes as any, existing.content, existing.slug, existing.status === 'published', existing.editorJson
     );
     if (!updated) throw new ConflictError('This post changed in another session. Reload before saving again.');
     return protectContent(updated);

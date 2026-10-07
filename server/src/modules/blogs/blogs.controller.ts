@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { blogsService } from './blogs.service.js';
 import { sendCreated, sendSuccess } from '../../core/utils/responseHandler.js';
+import { renderStructuredDocument, structuredDocumentSchema } from '../communications/contentDocument.js';
 import {
   blogAdminQuerySchema,
   blogIdSchema,
@@ -13,6 +14,10 @@ import {
 } from './blogs.schema.js';
 
 export const blogsController = {
+  async preview(req: Request, res: Response) {
+    const document = structuredDocumentSchema.parse(req.body.editorJson);
+    sendSuccess(res, renderStructuredDocument(document, 'blog'), 'Blog preview rendered.');
+  },
   async getPublic(req: Request, res: Response) {
     const query = blogPublicQuerySchema.parse(req.query);
     const { data, meta } = await blogsService.getPublic(query.page, query.limit, query.search);

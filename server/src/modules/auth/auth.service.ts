@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { env } from '../../config/env.js';
 import logger from '../../core/logger/logger.js';
 import { authRepository } from './auth.repository.js';
-import { sendOTPEmail, sendPasswordResetEmail } from '../../infrastructure/mail/mailer.js';
+import { emailMasterService } from '../communications/email.service.js';
 import {
   AppError,
   UnauthorizedError,
@@ -49,6 +49,12 @@ const logDevelopmentSecret = (message: string) => {
   if (env.NODE_ENV === 'development') logger.info(message);
 };
 
+const sendOTPEmail = (to: string, name: string, otp: string, userId?: string) =>
+  emailMasterService.enqueueAndAttempt('otp_verification', to, { customerName: name, otp }, `otp:${userId ?? to}:${hashToken(otp)}`, { priority: 1, expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60_000) });
+
+const sendPasswordResetEmail = (to: string, name: string, resetLink: string, userId?: string) =>
+  emailMasterService.enqueueAndAttempt('password_reset', to, { customerName: name, resetUrl: resetLink }, `password-reset:${userId ?? to}:${hashToken(resetLink)}`, { priority: 1, expiresAt: new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60_000) });
+
 const sanitizeUser = (user: User) => {
   const { passwordHash, otpToken, otpExpiry, resetToken, resetTokenExpiry, ...safe } = user;
   return safe;
@@ -74,7 +80,7 @@ export const authService = {
       });
 
       try {
-        await sendOTPEmail(updated.email, updated.name, otp);
+        await sendOTPEmail(updated.email, updated.name, otp, updated.id);
       } catch (err: any) {
         logger.error(`Failed to send OTP email to ${updated.email}: ${err?.message || err}`);
         logDevelopmentSecret(`[DEV OTP]: Verification code for ${updated.email} is ${otp}`);
@@ -96,7 +102,7 @@ export const authService = {
     });
 
     try {
-      await sendOTPEmail(user.email, user.name, otp);
+      await sendOTPEmail(user.email, user.name, otp, user.id);
     } catch (err: any) {
       logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
       logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
@@ -119,7 +125,7 @@ export const authService = {
       const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
       await authRepository.updateOTP(user.id, hashToken(otp), otpExpiry);
       try {
-        await sendOTPEmail(user.email, user.name, otp);
+        await sendOTPEmail(user.email, user.name, otp, user.id);
       } catch (err: any) {
         logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
         logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
@@ -149,6 +155,8 @@ export const authService = {
 
     await authRepository.verifyUser(user.id);
     const verifiedUser = { ...user, isVerified: true };
+    void emailMasterService.enqueueAndAttempt('welcome', user.email, { customerName: user.name }, `welcome:${user.id}`, { priority: 20 })
+      .catch((error) => logger.error('Welcome email remains available for queue retry.', { userId: user.id, error }));
     const session = await createSession(verifiedUser);
     return { ...session, user: sanitizeUser(verifiedUser) };
   },
@@ -166,7 +174,7 @@ export const authService = {
 
     const resetLink = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
     try {
-      await sendPasswordResetEmail(user.email, user.name, resetLink);
+      await sendPasswordResetEmail(user.email, user.name, resetLink, user.id);
     } catch (err: any) {
       logger.error(`Failed to send password reset email to ${user.email}: ${err?.message || err}`);
       logDevelopmentSecret(`[DEV RESET LINK]: Reset link for ${user.email} is ${resetLink}`);
@@ -203,7 +211,7 @@ export const authService = {
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     await authRepository.updateOTP(user.id, hashToken(otp), otpExpiry);
     try {
-      await sendOTPEmail(user.email, user.name, otp);
+      await sendOTPEmail(user.email, user.name, otp, user.id);
     } catch (err: any) {
       logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
       logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);

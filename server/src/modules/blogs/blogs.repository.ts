@@ -15,6 +15,9 @@ const blogProjection = {
   slug: blogs.slug,
   excerpt: blogs.excerpt,
   content: blogs.content,
+  editorJson: blogs.editorJson,
+  editorSchemaVersion: blogs.editorSchemaVersion,
+  editorMigrationStatus: blogs.editorMigrationStatus,
   imageUrl: blogs.imageUrl,
   coverAlt: blogs.coverAlt,
   seoTitle: blogs.seoTitle,
@@ -116,7 +119,7 @@ export const blogsRepository = {
     return result;
   },
 
-  async update(id: string, expectedVersion: number, data: Partial<NewBlog>, previousContent: string, previousSlug: string, wasPublished: boolean) {
+  async update(id: string, expectedVersion: number, data: Partial<NewBlog>, previousContent: string, previousSlug: string, wasPublished: boolean, previousEditorJson?: Record<string, unknown> | null) {
     return db.transaction(async (tx) => {
       const [updated] = await tx.update(blogs).set({
         ...data,
@@ -127,6 +130,7 @@ export const blogsRepository = {
       await tx.insert(blogContentRevisions).values({
         blogId: id,
         content: previousContent,
+        editorJson: previousEditorJson,
         version: expectedVersion,
         reason: 'edit',
       });

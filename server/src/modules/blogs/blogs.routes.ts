@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/admin', ...adminOnly, asyncHandler(blogsController.getAdmin));
 router.get('/admin/stats', ...adminOnly, asyncHandler(blogsController.getStats));
+router.post('/admin/preview', ...adminOnly, asyncHandler(blogsController.preview));
 router.get('/admin/:id', ...adminOnly, asyncHandler(blogsController.getAdminById));
 router.post('/admin', ...adminOnly, asyncHandler(blogsController.create));
 router.put('/admin/:id', ...adminOnly, asyncHandler(blogsController.update));

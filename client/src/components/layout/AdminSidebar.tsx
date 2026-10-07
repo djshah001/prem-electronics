@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   BarChart3, BookOpen, Boxes, ChevronLeft, ChevronRight, CreditCard,
-  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, Zap,
+  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, Zap, ReceiptText, Mail, Megaphone, ScrollText,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { adminMobileNavOpenAtom, adminSidebarCollapsedAtom } from '../../store/adminLayoutAtom';
@@ -29,6 +29,14 @@ const groups = [
   ] },
   { label: 'Content', items: [
     { icon: BookOpen, label: 'Blogs', href: '/admin/blogs' },
+  ] },
+  { label: 'Communications', items: [
+    { icon: Mail, label: 'Email Master', href: '/admin/email-master' },
+    { icon: Megaphone, label: 'Campaigns', href: '/admin/campaigns' },
+    { icon: ScrollText, label: 'Email Logs', href: '/admin/email-logs' },
+  ] },
+  { label: 'Settings / Documents', items: [
+    { icon: ReceiptText, label: 'Invoice Master', href: '/admin/invoice-master' },
   ] },
 ];
 

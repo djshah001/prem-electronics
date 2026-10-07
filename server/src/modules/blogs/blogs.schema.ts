@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isAllowedBlogImageSource } from './blogSanitizer.js';
+import { structuredDocumentSchema } from '../communications/contentDocument.js';
 
 const rejectRepeated = (value: unknown) => Array.isArray(value) ? { repeatedQueryParameter: true } : value;
 
@@ -30,14 +31,15 @@ const blogFields = {
   title: z.string().trim().min(3).max(255),
   slug: blogSlugSchema,
   excerpt: z.string().trim().max(500).optional().nullable(),
-  content: z.string().trim().min(1).max(250_000),
+  content: z.string().trim().min(1).max(250_000).optional(),
+  editorJson: structuredDocumentSchema.optional(),
   imageUrl: z.string().trim().max(1000).refine((value) => isAllowedBlogImageSource(value), 'Cover image must use an approved HTTPS host or uploaded asset path.').optional().nullable(),
   coverAlt: z.string().trim().max(255).optional().nullable(),
   seoTitle: z.string().trim().max(255).optional().nullable(),
   seoDescription: z.string().trim().max(500).optional().nullable(),
 };
 
-export const createBlogSchema = z.object(blogFields).strict();
+export const createBlogSchema = z.object(blogFields).strict().refine((value) => value.editorJson || value.content, 'Blog content is required.');
 export const updateBlogSchema = z.object({
   ...Object.fromEntries(Object.entries(blogFields).map(([key, schema]) => [key, schema.optional()])),
   expectedVersion: z.number().int().min(1),

@@ -14,6 +14,7 @@ const titles: Record<string, string> = {
   dashboard: 'Dashboard', analytics: 'Analytics', products: 'Products', categories: 'Categories',
   inventory: 'Inventory', orders: 'Orders', transactions: 'Transactions', coupons: 'Coupons',
   customers: 'Customers', reviews: 'Reviews', blogs: 'Blogs',
+  'invoice-master': 'Invoice Master', 'email-master': 'Email Master', campaigns: 'Campaigns', 'email-logs': 'Email Logs',
 };
 
 export const AdminHeader = () => {

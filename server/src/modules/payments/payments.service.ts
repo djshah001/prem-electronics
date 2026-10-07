@@ -22,10 +22,11 @@ import {
   verifyPaymentSignature,
   verifyWebhookSignature,
 } from '../../infrastructure/payment/razorpay.js';
-import { sendOrderConfirmationEmail } from '../../infrastructure/mail/mailer.js';
 import { AppError, ForbiddenError, NotFoundError } from '../../core/errors/appError.js';
 import logger from '../../core/logger/logger.js';
 import { env } from '../../config/env.js';
+import { emailMasterService } from '../communications/email.service.js';
+import { invoiceMasterService } from '../invoiceMaster/invoice.service.js';
 
 type PaymentInput = {
   razorpay_order_id: string;
@@ -88,7 +89,12 @@ const deliverOrderEmail = async (outboxId: string) => {
   if (!entry) return;
 
   try {
-    await sendOrderConfirmationEmail(entry.recipient, entry.payload as any);
+    const payload = entry.payload as Record<string, any>;
+    const delivery = await emailMasterService.enqueueAndAttempt('order_confirmed', entry.recipient, {
+      customerName: payload.customerName ?? 'Customer', orderNumber: payload.orderNumber ?? 'Order',
+      orderTotal: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payload.total ?? 0)),
+    }, `legacy-order-confirmed:${entry.orderId ?? entry.id}`, { orderId: entry.orderId ?? undefined, priority: 20 });
+    if (!delivery || !['smtp_accepted', 'unknown'].includes(delivery.status)) throw new Error(delivery?.lastError ?? 'Versioned email delivery remains queued for retry.');
     await db.update(emailOutbox).set({
       status: 'sent',
       sentAt: new Date(),
@@ -131,6 +137,10 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
         failureReason: String(error?.message ?? error).slice(0, 500),
         updatedAt: new Date(),
       }).where(eq(paymentAttempts.providerOrderId, input.razorpay_order_id));
+      if (existingOrder.userId) {
+        const [user] = await db.select().from(users).where(eq(users.id, existingOrder.userId)).limit(1);
+        if (user) await emailMasterService.enqueue('payment_failed', user.email, { customerName: user.name, orderNumber: existingOrder.orderNumber }, `payment-failed:${existingOrder.id}:${input.razorpay_payment_id}`, { orderId: existingOrder.id, priority: 20 }).catch((queueError) => logger.error('Payment failure email could not be queued.', queueError));
+      }
       throw error;
     }
   }
@@ -237,38 +247,33 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
       }
     }
 
-    let outboxId: string | undefined;
+    let emailRequest: { recipient: string; variables: Record<string, unknown> } | undefined;
     if (order.userId) {
       const [user] = await tx.select().from(users).where(eq(users.id, order.userId)).limit(1);
       if (user) {
-        const [outbox] = await tx.insert(emailOutbox).values({
-          orderId: order.id,
-          kind: 'order_confirmation',
+        emailRequest = {
           recipient: user.email,
-          payload: {
+          variables: {
             orderNumber: order.orderNumber,
             customerName: user.name,
-            items: items.map((item) => ({
-              title: item.productTitle ?? 'Product',
-              quantity: item.quantity,
-              price: Number(item.priceAtPurchase),
-            })),
-            subtotal: Number(order.subtotal),
-            discount: Number(order.discount ?? 0),
-            shipping: Number(order.shipping ?? 0),
-            tax: Number(order.tax ?? 0),
-            total: Number(order.total),
-            shippingAddress: order.shippingAddress,
+            orderTotal: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(order.total)),
           },
-        }).returning({ id: emailOutbox.id });
-        outboxId = outbox.id;
+        };
       }
     }
 
-    return { order: paidOrder, outboxId, idempotent: false };
+    return { order: paidOrder, emailRequest, idempotent: false };
   });
 
-  if (result.outboxId) void deliverOrderEmail(result.outboxId);
+  try {
+    await invoiceMasterService.issueForOrder(result.order.id);
+  } catch (error) {
+    logger.error('Invoice issuance will be retried on customer download.', { orderId: result.order.id, error });
+  }
+  if (result.emailRequest) {
+    void emailMasterService.enqueueAndAttempt('order_confirmed', result.emailRequest.recipient, result.emailRequest.variables, `order-confirmed:${result.order.id}`, { orderId: result.order.id, priority: 20 })
+      .catch((error) => logger.error('Order confirmation email queued for retry.', { orderId: result.order.id, error }));
+  }
   return {
     orderId: result.order.id,
     orderNumber: result.order.orderNumber,

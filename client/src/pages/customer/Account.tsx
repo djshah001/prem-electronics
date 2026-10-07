@@ -1,7 +1,7 @@
 import { useAtomValue } from 'jotai';
 import { userAtom } from '../../store/userAtom';
 import { Link } from 'react-router-dom';
-import { User, Package, MapPin, ArrowRight, Building2 } from 'lucide-react';
+import { User, Package, MapPin, ArrowRight, Building2, Mail } from 'lucide-react';
 
 export default function Account() {
   const user = useAtomValue(userAtom);
@@ -33,6 +33,7 @@ export default function Account() {
           { icon: MapPin, title: 'Saved Addresses', desc: 'Manage your delivery addresses', href: '/account/addresses' },
           { icon: User, title: 'Profile Settings', desc: 'Update your personal information', href: '/account/profile' },
           { icon: Building2, title: 'Business Profiles', desc: 'GST details and invoice billing', href: '/account/businesses' },
+          { icon: Mail, title: 'Marketing Preferences', desc: 'Choose whether to receive promotions', href: '/account/marketing-preferences' },
         ].map(({ icon: Icon, title, desc, href }) => (
           <Link key={href} to={href}
             className="group bg-card rounded-2xl border border-border p-6 card-glow flex flex-col gap-3 hover:border-primary/40 transition-all">

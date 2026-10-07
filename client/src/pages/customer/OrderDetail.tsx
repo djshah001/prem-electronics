@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import {
   Package, ArrowLeft, Clock, CheckCircle2, Truck, MapPin,
   RotateCcw, X, Star, AlertTriangle, Receipt, CreditCard,
-  ShieldCheck, ChevronRight, Printer,
+  ShieldCheck, ChevronRight, Printer, Download,
 } from 'lucide-react';
 import { useState } from 'react';
-import { api } from '../../api/axiosClient';
+import { api, axiosClient } from '../../api/axiosClient';
 import type { Order, OrderItem } from '../../types';
 import { clsx } from 'clsx';
 import { toast } from 'sonner';
@@ -131,6 +131,12 @@ export default function OrderDetail() {
   });
 
   const order = data?.data;
+  const downloadPdf = async () => {
+    try {
+      const response = await axiosClient.get(`/invoice-master/orders/${id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${order?.invoiceNumber ?? order?.orderNumber ?? 'invoice'}.pdf`; anchor.click(); URL.revokeObjectURL(url);
+    } catch (error: any) { toast.error(error?.message ?? 'Invoice PDF is not available yet.'); }
+  };
 
   if (isLoading) {
     return (
@@ -214,6 +220,7 @@ export default function OrderDetail() {
           >
             <Printer className="w-3.5 h-3.5 text-primary" /> Print Invoice
           </button>
+          {['paid', 'refunded'].includes(order.paymentStatus) && <button onClick={downloadPdf} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium print:hidden"><Download className="w-3.5 h-3.5 text-primary" /> PDF</button>}
           {canCancel && (
             <button
               disabled={cancelMutation.isPending}

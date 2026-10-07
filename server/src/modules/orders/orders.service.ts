@@ -13,12 +13,25 @@ import type { CreateOrderInput, UpdateOrderStatusInput, OrderQuery } from './ord
 import { businessesRepository } from '../businesses/businesses.repository.js';
 import { indiaStateCode } from '../pricing/stateCodes.js';
 import { isValidGstin } from '../../infrastructure/gst/gstin.js';
+import { emailMasterService } from '../communications/email.service.js';
+import type { EmailEventKey } from '../communications/emailCatalog.js';
 
 const ADMIN_TRANSITIONS: Record<string, Array<'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'>> = {
   processing: ['confirmed'],
   shipped: ['processing'],
   delivered: ['shipped'],
   cancelled: ['pending', 'confirmed', 'processing'],
+};
+
+const queueOrderCommunication = async (order: { id: string; userId: string | null; orderNumber: string }, eventKey: EmailEventKey, variables: Record<string, unknown> = {}) => {
+  if (!order.userId) return;
+  const user = await usersRepository.findById(order.userId);
+  if (!user) return;
+  try {
+    await emailMasterService.enqueue(eventKey, user.email, { customerName: user.name, orderNumber: order.orderNumber, ...variables }, `${eventKey}:${order.id}:${String(variables.returnStatus ?? 'once')}`, { orderId: order.id });
+  } catch (error) {
+    logger.error('Order communication could not be queued.', { orderId: order.id, eventKey, error });
+  }
 };
 
 export const ordersService = {
@@ -240,6 +253,8 @@ export const ordersService = {
         pricingPolicyVersion: order.pricingPolicyVersion,
         invoiceNumber: order.invoiceNumber,
         invoiceIssuedAt: order.invoiceIssuedAt,
+        amountMinor: order.amountMinor,
+        purchaseOrderReference: order.purchaseOrderReference,
         notes: order.notes,
         subtotal: Number(order.subtotal),
         discount: Number(order.discount ?? 0),
@@ -290,6 +305,8 @@ export const ordersService = {
     }
     const updated = await ordersRepository.transitionStatus(orderId, input.status, allowedFrom, actorUserId);
     if (!updated) throw new AppError('Order status changed in another request. Refresh and try again.', 409);
+    const eventKey = input.status === 'shipped' ? 'shipment' : input.status === 'delivered' ? 'delivery' : input.status === 'cancelled' ? 'cancellation' : undefined;
+    if (eventKey) await queueOrderCommunication(updated, eventKey);
     return updated;
   },
 
@@ -302,6 +319,7 @@ export const ordersService = {
     }
     const updated = await ordersRepository.transitionStatus(orderId, 'cancelled', ['pending', 'confirmed'], userId);
     if (!updated) throw new AppError('Order status changed in another request. Refresh and try again.', 409);
+    await queueOrderCommunication(updated, 'cancellation');
     return updated;
   },
 
@@ -313,6 +331,7 @@ export const ordersService = {
     if (order.returnStatus !== 'none') throw new AppError('A return request has already been submitted for this order.', 409);
     const updated = await ordersRepository.requestReturn(orderId, reason, userId);
     if (!updated) throw new AppError('Could not submit return request. Please try again.', 409);
+    await queueOrderCommunication(updated, 'return_update', { returnStatus: 'requested' });
     return updated;
   },
 
@@ -321,6 +340,7 @@ export const ordersService = {
     if (!order) throw new NotFoundError('Order not found.');
     const updated = await ordersRepository.updateReturnStatus(orderId, returnStatus, actorUserId);
     if (!updated) throw new AppError('Could not update return status.', 409);
+    await queueOrderCommunication(updated, 'return_update', { returnStatus });
     return updated;
   },
 
@@ -328,7 +348,9 @@ export const ordersService = {
     const order = await ordersRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found.');
     if (order.refundStatus === 'processed') throw new AppError('Refund has already been processed for this order.', 409);
-    return paymentsService.processFullRefund(orderId, actorUserId);
+    const refunded = await paymentsService.processFullRefund(orderId, actorUserId);
+    await queueOrderCommunication(order, 'refund');
+    return refunded;
   },
 
   async getOrdersAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {

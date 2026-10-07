@@ -43,6 +43,12 @@ const envSchema = z.object({
   MERCHANT_ADDRESS: z.string().optional(),
   MERCHANT_PHONE: z.string().optional(),
   MERCHANT_EMAIL: z.string().email().optional(),
+  MERCHANT_PAN: z.string().optional(),
+  MERCHANT_BANK_DETAILS: z.string().optional(),
+  MERCHANT_DECLARATION: z.string().optional(),
+  MERCHANT_SIGNATURE_LABEL: z.string().default('Authorised Signatory'),
+  CAMPAIGN_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  EMAIL_TEST_RECIPIENTS: z.string().default('').transform((value) => value.split(',').map((email) => email.trim().toLowerCase()).filter(Boolean)),
   BLOG_IMAGE_HOSTS: z.string().default('images.unsplash.com').transform((value) =>
     value.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean)
   ),

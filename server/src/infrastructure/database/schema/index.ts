@@ -18,3 +18,4 @@ export * from './carts.js';
 export * from './couponRedemptions.js';
 export * from './productVariants.js';
 export * from './businesses.js';
+export * from './contentMasters.js';

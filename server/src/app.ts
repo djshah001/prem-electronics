@@ -27,6 +27,9 @@ import wishlistsRoutes from './modules/wishlists/wishlists.routes.js';
 import blogsRoutes from './modules/blogs/blogs.routes.js';
 import uploadRoutes from './modules/upload/upload.routes.js';
 import businessesRoutes from './modules/businesses/businesses.routes.js';
+import invoiceMasterRoutes from './modules/invoiceMaster/invoice.routes.js';
+import emailMasterRoutes from './modules/communications/email.routes.js';
+import { campaignRouter, marketingRouter, unsubscribeRouter } from './modules/communications/campaign.routes.js';
 
 const app = express();
 
@@ -81,6 +84,11 @@ app.use('/api/v1/wishlists', wishlistsRoutes);
 app.use('/api/v1/blogs', blogsRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/businesses', businessesRoutes);
+app.use('/api/v1/invoice-master', invoiceMasterRoutes);
+app.use('/api/v1/email-master', emailMasterRoutes);
+app.use('/api/v1/campaigns', campaignRouter);
+app.use('/api/v1/marketing', marketingRouter);
+app.use('/api/v1/unsubscribe', unsubscribeRouter);
 
 // ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
 app.get('/favicon.ico', (_req, res) => {

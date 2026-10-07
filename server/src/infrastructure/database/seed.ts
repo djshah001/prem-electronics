@@ -27,6 +27,11 @@ import {
   paymentAttempts,
   paymentRefunds,
   orderStatusEvents,
+  invoiceTemplates,
+  issuedInvoices,
+  marketingPreferences,
+  campaigns,
+  campaignRecipients,
   type BusinessAddress,
 } from './schema/index.js';
 import { reviewsRepository } from '../../modules/reviews/reviews.repository.js';
@@ -35,6 +40,10 @@ import { sanitizeBlogHtml } from '../../modules/blogs/blogSanitizer.js';
 import bcrypt from 'bcryptjs';
 import logger from '../../core/logger/logger.js';
 import { and, eq, isNull, like, sql } from 'drizzle-orm';
+import { defaultInvoiceConfig, invoiceMasterService } from '../../modules/invoiceMaster/invoice.service.js';
+import { emailMasterService } from '../../modules/communications/email.service.js';
+import { EMAIL_EVENT_CATALOG } from '../../modules/communications/emailCatalog.js';
+import { documentFromPlainContent, renderStructuredDocument } from '../../modules/communications/contentDocument.js';
 
 /** Convert flat Record<string,string> attribute objects to the canonical {name,value}[] schema format. */
 const toAttrs = (obj: Record<string, string>): Array<{ name: string; value: string }> =>
@@ -1688,6 +1697,70 @@ async function seed() {
 
   logger.info('✅ Blog posts seeded across published, draft, and archived states');
 
+  // ─── P3 content masters, consent, campaign fixture, and durable invoices ───
+  let [invoiceTemplate] = await db.select().from(invoiceTemplates).where(eq(invoiceTemplates.name, 'Prem Electronics Reference Tax Invoice')).limit(1);
+  if (!invoiceTemplate && adminUser) {
+    const baseInvoiceConfig = defaultInvoiceConfig();
+    invoiceTemplate = await invoiceMasterService.create({
+      name: 'Prem Electronics Reference Tax Invoice',
+      documentType: 'tax_invoice',
+      config: {
+        ...baseInvoiceConfig,
+        merchant: {
+          ...baseInvoiceConfig.merchant,
+          // Legal identifiers remain environment-driven; the seed does not fabricate production values.
+          declaration: env.MERCHANT_DECLARATION ?? 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
+        },
+      },
+    }, adminUser.id);
+    await invoiceMasterService.publish(invoiceTemplate.id, adminUser.id, { changeNote: 'Initial reference-aligned A4 layout', makeDefault: true });
+  }
+
+  for (const eventKey of Object.keys(EMAIL_EVENT_CATALOG) as Array<keyof typeof EMAIL_EVENT_CATALOG>) {
+    const ensured = await emailMasterService.ensureSystemTemplate(eventKey);
+    const actionVariable = eventKey === 'password_reset' ? '{{resetUrl}}' : eventKey === 'promotion' ? '{{unsubscribeUrl}}' : undefined;
+    if (actionVariable && !ensured.version.plainText.includes(actionVariable) && adminUser) {
+      await emailMasterService.publish(ensured.template.id, adminUser.id, 'Include the required action URL in plain-text output');
+    }
+  }
+
+  const structuredBlogFixtures = [
+    ['best-smartphones-2024', 'Top Flagships', ['The smartphone market has reached new heights of performance, camera optics, and on-device AI.', 'Compare long-term software support, service availability, camera quality, and total value before choosing.']],
+    ['noise-cancelling-headphones-comparison-2024', 'The Battle of Premium Audio', ['Premium active noise cancellation now comes in both over-ear and pocketable designs.', 'Choose over-ear comfort and battery life or compact convenience based on how you listen.']],
+    ['gaming-laptop-buying-guide-2024', 'Choosing Your Gaming Laptop', ['Balance GPU power, cooling, display response time, memory, and serviceability.', 'A specification sheet is useful only when the cooling system can sustain that performance.']],
+    ['smart-home-starter-guide-draft', 'Start with a reliable network', ['This structured editorial draft remains private until an administrator publishes it.']],
+    ['archived-television-calibration-guide', 'Archived calibration guide', ['This structured article is retained for archive and restore testing.']],
+  ] as const;
+  for (const [slug, heading, paragraphs] of structuredBlogFixtures) {
+    const editorJson = documentFromPlainContent(heading, [...paragraphs]);
+    const content = renderStructuredDocument(editorJson, 'blog').html;
+    await db.update(blogs).set({ editorJson, editorSchemaVersion: 1, editorMigrationStatus: 'structured', content, updatedAt: new Date() }).where(eq(blogs.slug, slug));
+  }
+
+  const consentFixtures = [customerUser, secondCustomer].filter(Boolean) as Array<{ id: string; email: string }>;
+  for (const user of consentFixtures) {
+    await db.insert(marketingPreferences).values({ userId: user.id, email: user.email.toLowerCase(), optedIn: true, provenance: 'development_seed_explicit_consent', consentedAt: new Date('2026-10-05T04:30:00.000Z') })
+      .onConflictDoUpdate({ target: marketingPreferences.email, set: { userId: user.id, optedIn: true, provenance: 'development_seed_explicit_consent', consentedAt: new Date('2026-10-05T04:30:00.000Z'), withdrawnAt: null, updatedAt: new Date() } });
+  }
+
+  const { version: promotionVersion } = await emailMasterService.ensureSystemTemplate('promotion');
+  let [campaign] = await db.select().from(campaigns).where(eq(campaigns.name, 'October Preview — Delivery Disabled')).limit(1);
+  if (!campaign && adminUser) {
+    [campaign] = await db.insert(campaigns).values({ name: 'October Preview — Delivery Disabled', templateVersionId: promotionVersion.id, status: 'draft', audienceDefinition: { optedIn: true, fixture: true }, recipientSnapshotAt: new Date('2026-10-05T04:30:00.000Z'), createdBy: adminUser.id, updatedBy: adminUser.id }).returning();
+  }
+  if (campaign) {
+    for (const user of consentFixtures) await db.insert(campaignRecipients).values({ campaignId: campaign.id, userId: user.id, email: user.email.toLowerCase(), variables: { customerName: user.email.split('@')[0] }, status: 'pending' }).onConflictDoNothing();
+  }
+
+  for (const order of reportingOrders.filter((entry) => ['paid', 'refunded'].includes(entry.paymentStatus) && entry.invoiceNumber)) {
+    const issued = await invoiceMasterService.issueForOrder(order.id);
+    if (order.invoiceIssuedAt && order.invoiceIssuedAt < new Date('2026-10-05T00:00:00.000Z') && !issued.isLegacy) {
+      await db.update(issuedInvoices).set({ templateVersionId: null, isLegacy: true }).where(eq(issuedInvoices.id, issued.id));
+    }
+  }
+
+  logger.info('✅ P3 seeded: invoice/email versions, structured blogs, explicit consent, non-sending campaign, and durable invoice PDFs');
+
   logger.success(`
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                🎉 Prem Electronics Database Seeded!                       ║
@@ -1707,6 +1780,8 @@ async function seed() {
 ║  🛒 Cart:        Active cart item with variant seeded for checkout        ║
 ║  📝 Blogs:       3 published + 1 draft + 1 archived sanitized article     ║
 ║  💳 Payments:    Captures, one partial refund, and one full refund ledger ║
+║  📄 P3 Masters:  Versioned invoice/email templates + durable PDF fixtures  ║
+║  📣 Campaigns:   Explicit-consent preview fixture (delivery disabled)      ║
 ║  📦 Orders:      7 lifecycle/company orders with variant references:      ║
 ║                  - PE-2026-DELIV1: Delivered (Test Return/Review/Invoice) ║
 ║                  - PE-2026-RETREQ: Return Requested (Test Admin Approve)  ║

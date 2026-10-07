@@ -137,6 +137,9 @@ try {
   };
 
   await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await navigate(`${baseUrl}/unsubscribe?token=invalid-token-for-browser-smoke`);
+  await waitUntil(`document.querySelector('h1')?.textContent.includes('Marketing email preference')`, 'unsubscribe confirmation route');
+  await waitUntil(`document.body.textContent.includes('invalid or expired')`, 'safe invalid unsubscribe state');
   await navigate(`${baseUrl}/login`);
   await evaluate(`Array.from(document.querySelectorAll('button')).find((button) => button.textContent.includes('Admin Login')).click()`);
   await sleep(100);
@@ -155,7 +158,7 @@ try {
   assert.equal(desktop.path, '/admin/dashboard');
   assert.equal(desktop.heading, 'Dashboard');
   assert.equal(desktop.overflow, false);
-  for (const label of ['Dashboard', 'Analytics', 'Products', 'Categories', 'Inventory', 'Orders', 'Transactions', 'Coupons', 'Customers', 'Reviews', 'Blogs']) {
+  for (const label of ['Dashboard', 'Analytics', 'Products', 'Categories', 'Inventory', 'Orders', 'Transactions', 'Coupons', 'Customers', 'Reviews', 'Blogs', 'Email Master', 'Campaigns', 'Email Logs', 'Invoice Master']) {
     assert.equal(desktop.links.includes(label), true, `Missing desktop navigation link: ${label}`);
   }
   await screenshot(desktopScreenshot);
@@ -164,11 +167,28 @@ try {
     ['/admin/analytics', 'Analytics'], ['/admin/products', 'Products'], ['/admin/categories', 'Categories'],
     ['/admin/inventory', 'Inventory'], ['/admin/orders', 'Orders'], ['/admin/transactions', 'Transactions'],
     ['/admin/coupons', 'Coupons'], ['/admin/customers', 'Customers'], ['/admin/reviews', 'Reviews'], ['/admin/blogs', 'Blogs'],
+    ['/admin/invoice-master', 'Invoice Master'], ['/admin/email-master', 'Email Master'], ['/admin/campaigns', 'Campaigns'], ['/admin/email-logs', 'Email Logs'],
   ]) {
     await navigate(`${baseUrl}${path}`);
     await waitUntil(`location.pathname === ${JSON.stringify(path)} && document.querySelector('header h1')?.textContent.trim() === ${JSON.stringify(title)}`, `${title} route`);
     assert.equal(await evaluate(`document.body.textContent.includes('Admin page not found')`), false);
   }
+
+  await navigate(`${baseUrl}/admin/email-master`);
+  await waitUntil(`document.querySelectorAll('main aside button').length > 1 && Boolean(document.querySelector('[contenteditable="true"]'))`, 'email template visual editor');
+  const emailTemplateBefore = await evaluate(`(() => ({
+    name: document.querySelector('main main input')?.value,
+    content: document.querySelector('[contenteditable="true"]')?.textContent.trim()
+  }))()`);
+  await evaluate(`document.querySelectorAll('main aside button')[1].click()`);
+  await waitUntil(`Boolean(document.querySelector('main main input')?.value) && document.querySelector('main main input').value !== ${JSON.stringify(emailTemplateBefore.name)}`, 'second email template details');
+  await waitUntil(`Boolean(document.querySelector('[contenteditable="true"]')?.textContent.trim()) && document.querySelector('[contenteditable="true"]').textContent.trim() !== ${JSON.stringify(emailTemplateBefore.content)}`, 'second email template visual content');
+  const emailTemplateAfter = await evaluate(`(() => ({
+    name: document.querySelector('main main input')?.value,
+    content: document.querySelector('[contenteditable="true"]')?.textContent.trim()
+  }))()`);
+  assert.notEqual(emailTemplateAfter.name, emailTemplateBefore.name);
+  assert.notEqual(emailTemplateAfter.content, emailTemplateBefore.content);
 
   const initialTheme = desktop.theme;
   await evaluate(`document.querySelector('[aria-label="Toggle theme"]').click()`);
@@ -210,7 +230,7 @@ try {
   assert.deepEqual(exceptions, []);
   assert.deepEqual(failedRequests, []);
 
-  console.log(JSON.stringify({ desktop, toggledTheme, desktopScreenshot, mobileScreenshot, browserExceptions: exceptions.length, serverErrors: failedRequests.length }, null, 2));
+  console.log(JSON.stringify({ desktop, toggledTheme, emailTemplateSwitch: { before: emailTemplateBefore.name, after: emailTemplateAfter.name }, desktopScreenshot, mobileScreenshot, browserExceptions: exceptions.length, serverErrors: failedRequests.length }, null, 2));
 } finally {
   client?.close();
   edge.kill();
