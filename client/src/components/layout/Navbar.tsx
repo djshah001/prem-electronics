@@ -10,6 +10,17 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/axiosClient';
 import type { Product } from '../../types';
+import { ThemeToggle } from '../ui/ThemeToggle';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 const formatPrice = (p: string | number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
@@ -18,7 +29,6 @@ export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const cartCount = useAtomValue(cartCountAtom);
   const [, setCartOpen] = useAtom(cartDrawerOpenAtom);
   const user = useAtomValue(userAtom);
@@ -200,7 +210,10 @@ export const Navbar = () => {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <ThemeToggle className="hidden sm:flex" />
+
             {/* Wishlist */}
             <Link
               to="/wishlist"
@@ -236,56 +249,66 @@ export const Navbar = () => {
 
             {/* Profile */}
             {user ? (
-              <div className="relative">
-                <button
-                  id="profile-menu-btn"
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-card transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-sm font-bold text-white">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                </button>
-                <AnimatePresence>
-                  {profileOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-48 glass rounded-xl border border-border shadow-xl p-1 z-50"
-                    >
-                      <div className="px-3 py-2 border-b border-border mb-1">
-                        <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <button
+                    id="profile-menu-btn"
+                    className="flex items-center gap-2 p-1 rounded-full hover:bg-card transition-colors focus:outline-none"
+                  >
+                    <Avatar className="w-9 h-9 border border-border">
+                      <AvatarImage src={user.avatarUrl || ''} alt={user.name} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-semibold leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                       </div>
-                      {(user.role === 'admin' || user.role === 'superadmin') && (
-                        <Link to="/admin" onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
-                          <LayoutDashboard className="w-4 h-4" /> Admin Panel
-                        </Link>
-                      )}
-                      <Link to="/account" onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
-                        <User className="w-4 h-4" /> My Account
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  {(user.role === 'admin' || user.role === 'superadmin') && (
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Link to="/admin" className="flex w-full items-center">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Admin Panel</span>
                       </Link>
-                      <Link to="/wishlist" onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
-                        <Heart className="w-4 h-4" /> My Wishlist
-                      </Link>
-                      <Link to="/account/orders" onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
-                        <Package className="w-4 h-4" /> My Orders
-                      </Link>
-                      <button
-                        onClick={() => { setProfileOpen(false); logout.mutate(); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" /> Logout
-                      </button>
-                    </motion.div>
+                    </DropdownMenuItem>
                   )}
-                </AnimatePresence>
-              </div>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Link to="/account" className="flex w-full items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>My Account</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Link to="/wishlist" className="flex w-full items-center">
+                      <Heart className="mr-2 h-4 w-4" />
+                      <span>My Wishlist</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Link to="/account/orders" className="flex w-full items-center">
+                      <Package className="mr-2 h-4 w-4" />
+                      <span>My Orders</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => logout.mutate()}
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <Link to="/login"
                 className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">

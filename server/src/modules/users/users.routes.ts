@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import { usersController } from './users.controller';
 import { asyncHandler } from '../../core/middlewares/asyncHandler';
-import { authenticate } from '../../core/middlewares/authGuard';
+import { authenticate, adminOnly } from '../../core/middlewares/authGuard';
 
 const router = Router();
+
+// Admin routes
+router.get('/admin/all', authenticate, ...adminOnly, asyncHandler(usersController.getUsersAdmin));
+router.post('/bulk-delete', authenticate, ...adminOnly, asyncHandler(usersController.bulkDelete));
 
 // All user routes require authentication
 router.use(authenticate);

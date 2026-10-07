@@ -12,7 +12,7 @@ const formatPrice = (p: string | number) =>
 
 export default function Wishlist() {
   const qc = useQueryClient();
-  const { addItem } = useCart();
+  const { addToCart } = useCart();
 
   const { data, isLoading } = useQuery({
     queryKey: ['wishlist'],
@@ -28,15 +28,7 @@ export default function Wishlist() {
   });
 
   const handleMoveToCart = (item: WishlistItem) => {
-    addItem({
-      productId: item.product.id,
-      title: item.product.title,
-      slug: item.product.slug,
-      price: item.product.price,
-      salePrice: item.product.salePrice,
-      image: item.product.images[0],
-      quantity: 1,
-    });
+    addToCart(item.product as any, 1);
     removeMutation.mutate(item.productId);
     toast.success('Moved to cart!');
   };

@@ -259,3 +259,8 @@ export interface CustomerAdmin {
   orderCount: number;
   totalSpent: number;
 }
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+export interface UploadResponse {
+  urls: string[];
+}

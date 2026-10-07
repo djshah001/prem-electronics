@@ -1,5 +1,6 @@
 import { categoriesRepository } from './categories.repository';
 import { NotFoundError, ConflictError } from '../../core/errors/appError';
+import { buildPaginationMeta } from '../../core/utils/responseHandler';
 import type { CreateCategoryInput, UpdateCategoryInput } from './categories.schema';
 import type { Category } from '../../infrastructure/database/schema/index';
 
@@ -53,5 +54,15 @@ export const categoriesService = {
     const existing = await categoriesRepository.findById(id);
     if (!existing) throw new NotFoundError('Category not found.');
     await categoriesRepository.delete(id);
+  },
+
+  async getCategoriesAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {
+    const { data, total } = await categoriesRepository.findAllAdmin(query.page, query.limit, query.search, query.sortBy, query.sortOrder as 'asc' | 'desc');
+    const meta = buildPaginationMeta(query.page, query.limit, total);
+    return { data, meta };
+  },
+
+  async bulkDelete(ids: string[]) {
+    return categoriesRepository.bulkDelete(ids);
   },
 };

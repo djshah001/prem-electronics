@@ -7,8 +7,10 @@ export const transporter = nodemailer.createTransport({
   secure: env.SMTP_PORT === 465,
   auth: {
     user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
+    pass: env.SMTP_PASS.replace(/\s+/g, ''),
   },
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
 });
 
 const baseEmailTemplate = (content: string) => `

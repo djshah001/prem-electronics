@@ -5,8 +5,10 @@ import { Navbar } from './components/layout/Navbar';
 import { CartDrawer } from './components/layout/CartDrawer';
 import { Footer } from './components/layout/Footer';
 import { AdminSidebar } from './components/layout/AdminSidebar';
+import { AdminHeader } from './components/layout/AdminHeader';
 import { ProtectedRoute, AdminRoute } from './routes/ProtectedRoute';
 import { PromoPopup } from './components/ui/PromoPopup';
+import { ThemeProvider } from './components/ui/ThemeProvider';
 
 // Pages — Storefront (eager)
 import Home from './pages/storefront/Home';
@@ -38,6 +40,7 @@ const BlogDetails = lazy(() => import('./pages/blog/BlogDetails'));
 const ProductManager = lazy(() => import('./pages/admin/ProductManager'));
 const OrderManager = lazy(() => import('./pages/admin/OrderManager'));
 const CouponManager = lazy(() => import('./pages/admin/CouponManager'));
+const CategoryManager = lazy(() => import('./pages/admin/CategoryManager'));
 const LowStock = lazy(() => import('./pages/admin/LowStock'));
 const CustomerManager = lazy(() => import('./pages/admin/CustomerManager'));
 const ReviewModeration = lazy(() => import('./pages/admin/ReviewModeration'));
@@ -80,9 +83,14 @@ const AuthLayout = () => (
 const AdminLayout = () => (
   <div className="min-h-screen bg-background flex">
     <AdminSidebar />
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner /></div>}>
-      <Outlet />
-    </Suspense>
+    <div className="flex-1 flex flex-col min-w-0">
+      <AdminHeader />
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Spinner /></div>}>
+        <main className="flex-1 overflow-y-auto bg-muted/20">
+          <Outlet />
+        </main>
+      </Suspense>
+    </div>
   </div>
 );
 
@@ -135,6 +143,7 @@ const router = createBrowserRouter([
           { path: '/admin/products', element: <ProductManager /> },
           { path: '/admin/orders', element: <OrderManager /> },
           { path: '/admin/coupons', element: <CouponManager /> },
+          { path: '/admin/categories', element: <CategoryManager /> },
           { path: '/admin/inventory', element: <LowStock /> },
           { path: '/admin/customers', element: <CustomerManager /> },
           { path: '/admin/reviews', element: <ReviewModeration /> },
@@ -147,8 +156,10 @@ const router = createBrowserRouter([
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster richColors position="top-right" closeButton />
+      <ThemeProvider>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-right" closeButton />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

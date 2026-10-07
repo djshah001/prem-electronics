@@ -17,6 +17,12 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
+const CLEAR_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+};
+
 export const authController = {
   async register(req: Request, res: Response) {
     const input = registerSchema.parse(req.body);
@@ -62,7 +68,7 @@ export const authController = {
   },
 
   async logout(_req: Request, res: Response) {
-    res.clearCookie('accessToken', COOKIE_OPTIONS);
+    res.clearCookie('accessToken', CLEAR_COOKIE_OPTIONS);
     sendSuccess(res, null, 'Logged out successfully.');
   },
 };

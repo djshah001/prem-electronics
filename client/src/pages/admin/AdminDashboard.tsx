@@ -76,7 +76,7 @@ export default function AdminDashboard() {
           className="lg:col-span-2 bg-card rounded-2xl border border-border p-6">
           <h2 className="font-bold font-['Outfit'] mb-4">Revenue (Last 30 Days)</h2>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={analytics?.revenue ?? metrics?.revenue.byDay ?? []}>
+            <AreaChart data={(analytics?.revenue ?? metrics?.revenue.byDay ?? []) as any[]}>
               <defs>
                 <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -88,8 +88,8 @@ export default function AdminDashboard() {
               <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
               <Tooltip
                 contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, color: '#f1f5f9' }}
-                formatter={(value: number) => [formatPrice(value), 'Revenue']}
-                labelFormatter={(label) => new Date(label).toLocaleDateString('en-IN')}
+                formatter={(value: any) => [formatPrice(Number(value)), 'Revenue']}
+                labelFormatter={(label: any) => new Date(label).toLocaleDateString('en-IN')}
               />
               <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
             </AreaChart>
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
           className="bg-card rounded-2xl border border-border p-6 mb-6">
           <h2 className="font-bold font-['Outfit'] mb-4">Daily Orders (Last 30 Days)</h2>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={analytics?.revenue ?? []}>
+            <BarChart data={(analytics?.revenue ?? []) as any[]}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={(d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
               <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
