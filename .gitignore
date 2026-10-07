@@ -100,3 +100,4 @@ Desktop.ini
 *.sublime-workspace
 *.swp
 *~
+server/.test-dist
