@@ -1,7 +1,7 @@
 import { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '../errors/appError';
-import logger from '../logger/logger';
+import { AppError } from '../errors/appError.js';
+import logger from '../logger/logger.js';
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // 1. Zod Validation Errors

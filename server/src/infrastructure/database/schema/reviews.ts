@@ -1,8 +1,8 @@
 import { pgTable, uuid, integer, text, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
-import { products } from './products';
+import { users } from './users.js';
+import { products } from './products.js';
 
 export const reviews = pgTable('reviews', {
   id: uuid('id').primaryKey().defaultRandom(),

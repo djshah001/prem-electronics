@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "addresses_one_default_per_user" ON "addresses" USING btree ("user_id") WHERE "addresses"."is_default" = true;--> statement-breakpoint
+ALTER TABLE "cart_items" ADD CONSTRAINT "cart_items_positive_quantity" CHECK ("cart_items"."quantity" > 0);

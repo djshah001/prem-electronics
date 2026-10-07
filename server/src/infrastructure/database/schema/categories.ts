@@ -1,7 +1,7 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, timestamp, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { products } from './products';
+import { products } from './products.js';
 
 export const categories = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -9,7 +9,7 @@ export const categories = pgTable('categories', {
   slug: varchar('slug', { length: 120 }).notNull().unique(),
   description: text('description'),
   bannerImage: text('banner_image'),
-  parentId: uuid('parent_id'),
+  parentId: uuid('parent_id').references((): AnyPgColumn => categories.id, { onDelete: 'restrict' }),
   isActive: boolean('is_active').default(true).notNull(),
   sortOrder: uuid('sort_order').default(sql`gen_random_uuid()`),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

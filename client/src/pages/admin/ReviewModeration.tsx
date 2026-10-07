@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { MessageSquare, ThumbsUp, ThumbsDown, Star, CheckCircle } from 'lucide-react';
+import { MessageSquare, ThumbsUp, ThumbsDown, Star, CheckCircle, Search, RefreshCw } from 'lucide-react';
 import { api } from '../../api/axiosClient';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { Review, PaginationMeta } from '../../types';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
@@ -10,10 +12,17 @@ import { clsx } from 'clsx';
 export default function ReviewModeration() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [rating, setRating] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-pending-reviews', page],
-    queryFn: () => api.get<Review[]>('/admin/reviews/pending', { page, limit: 15 } as Record<string, unknown>),
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ['admin-pending-reviews', page, debouncedSearch, rating],
+    queryFn: () => api.get<Review[]>('/admin/reviews/pending', {
+      page, limit: 15,
+      ...(debouncedSearch && { search: debouncedSearch }),
+      ...(rating && { rating }),
+    } as Record<string, unknown>),
     placeholderData: (prev) => prev,
   });
 
@@ -22,13 +31,23 @@ export default function ReviewModeration() {
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/admin/reviews/${id}/approve`, {}),
-    onSuccess: () => { toast.success('Review approved!'); qc.invalidateQueries({ queryKey: ['admin-pending-reviews'] }); },
+    onSuccess: () => {
+      toast.success('Review approved!');
+      if (reviews.length === 1 && page > 1) setPage((value) => value - 1);
+      qc.invalidateQueries({ queryKey: ['admin-pending-reviews'] });
+      qc.invalidateQueries({ queryKey: ['admin-module-stats'] });
+    },
     onError: (e: any) => toast.error(e?.message || 'Failed to approve'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/reviews/${id}/reject`),
-    onSuccess: () => { toast.success('Review rejected and removed.'); qc.invalidateQueries({ queryKey: ['admin-pending-reviews'] }); },
+    onSuccess: () => {
+      toast.success('Review rejected and removed.');
+      if (reviews.length === 1 && page > 1) setPage((value) => value - 1);
+      qc.invalidateQueries({ queryKey: ['admin-pending-reviews'] });
+      qc.invalidateQueries({ queryKey: ['admin-module-stats'] });
+    },
     onError: (e: any) => toast.error(e?.message || 'Failed to reject'),
   });
 
@@ -43,7 +62,30 @@ export default function ReviewModeration() {
         </p>
       </div>
 
-      {isLoading ? (
+      <div className="mb-6"><ModuleStatsCards module="reviews" /></div>
+
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label className="relative flex-1">
+          <span className="sr-only">Search pending reviews</span>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Search customer, product, title or body"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm" />
+        </label>
+        <select aria-label="Filter reviews by rating" value={rating}
+          onChange={(event) => { setRating(event.target.value); setPage(1); }}
+          className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm">
+          <option value="">All ratings</option>{[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} stars</option>)}
+        </select>
+        {isFetching && !isLoading && <span className="text-xs text-muted-foreground">Refreshing…</span>}
+      </div>
+
+      {isError ? (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-8 text-center">
+          <p className="mb-3 text-sm text-red-400">Pending reviews could not be loaded.</p>
+          <button onClick={() => refetch()} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm"><RefreshCw className="h-4 w-4" /> Retry</button>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => <div key={i} className="h-36 bg-card rounded-2xl border border-border animate-pulse" />)}
         </div>

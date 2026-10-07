@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Shield, Tag, Truck, ChevronRight } from 'lucide-react';
+import { Shield, Tag, Truck, ChevronRight, Building2 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import { useCart } from '../../hooks/useCart';
 import { useAtomValue } from 'jotai';
 import { userAtom } from '../../store/userAtom';
-import type { Address, CartValidationResult } from '../../types';
+import type { Address, BusinessProfile, CartValidationResult } from '../../types';
+import { BusinessProfileForm } from '../../components/shared/BusinessProfileForm';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
 
@@ -44,6 +45,12 @@ export default function Checkout() {
     country: 'India',
   });
   const [useNewAddress, setUseNewAddress] = useState(false);
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
+  const [purchaseType, setPurchaseType] = useState<'personal' | 'company'>('personal');
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [authorizedRepresentative, setAuthorizedRepresentative] = useState(false);
+  const [purchaseOrderReference, setPurchaseOrderReference] = useState('');
+  const [showBusinessForm, setShowBusinessForm] = useState(false);
 
   // Fetch saved addresses
   const { data: addressesRes } = useQuery({
@@ -51,14 +58,29 @@ export default function Checkout() {
     queryFn: () => api.get<Address[]>('/users/addresses'),
     enabled: !!user,
   });
-  const addresses = addressesRes?.data ?? [];
+  const addresses = useMemo(() => addressesRes?.data ?? [], [addressesRes?.data]);
+  const { data: businessesRes } = useQuery({
+    queryKey: ['businesses'],
+    queryFn: () => api.get<BusinessProfile[]>('/businesses'),
+    enabled: !!user,
+  });
+  const businesses = useMemo(() => businessesRes?.data ?? [], [businessesRes?.data]);
+  useEffect(() => {
+    if (!selectedAddressId && addresses.length > 0 && !useNewAddress) {
+      setSelectedAddressId(addresses.find((address) => address.isDefault)?.id ?? addresses[0].id);
+    }
+  }, [addresses, selectedAddressId, useNewAddress]);
+  useEffect(() => {
+    if (!selectedBusinessId && businesses.length > 0) setSelectedBusinessId(businesses.find((business) => business.isDefault)?.id ?? businesses[0].id);
+  }, [businesses, selectedBusinessId]);
 
   // Cart validation
   const validateMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (code?: string) =>
       api.post<CartValidationResult>('/cart/validate', {
-        items: cartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        couponCode: appliedCoupon || undefined,
+        items: cartItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
+        couponCode: code || undefined,
+        purchaseType,
       }),
   });
 
@@ -66,53 +88,77 @@ export default function Checkout() {
 
   // Apply coupon
   const handleApplyCoupon = () => {
-    setAppliedCoupon(couponCode.toUpperCase());
-    validateMutation.mutate();
-    toast.success(`Coupon "${couponCode.toUpperCase()}" applied!`);
+    const code = couponCode.trim().toUpperCase();
+    validateMutation.mutate(code, {
+      onSuccess: () => { setAppliedCoupon(code); toast.success(`Coupon "${code}" applied!`); },
+      onError: (error: { message?: string }) => toast.error(error.message ?? 'Coupon could not be applied.'),
+    });
   };
 
-  // Refresh validation on mount
-  useState(() => { validateMutation.mutate(); });
+  useEffect(() => {
+    if (cartItems.length > 0) validateMutation.mutate(appliedCoupon || undefined);
+    // Recalculate whenever the authoritative cart changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItems, appliedCoupon, purchaseType]);
 
   const handleCheckout = async () => {
     if (!user) { navigate('/login'); return; }
     if (!cart) { toast.error('Please validate your cart first.'); return; }
 
-    const shippingAddress =
+    let shippingAddress =
       useNewAddress || !selectedAddressId
         ? newAddress
         : undefined;
 
-    const shippingAddressId = !useNewAddress && selectedAddressId ? selectedAddressId : undefined;
+    let shippingAddressId = !useNewAddress && selectedAddressId ? selectedAddressId : undefined;
 
     if (!shippingAddress && !shippingAddressId) {
       toast.error('Please select or enter a shipping address.');
       return;
     }
+    if (purchaseType === 'company' && !selectedBusinessId) {
+      toast.error('Select or add a verified business profile.');
+      return;
+    }
+    if (purchaseType === 'company' && !authorizedRepresentative) {
+      toast.error('Confirm that you are authorized to purchase for this business.');
+      return;
+    }
 
     try {
+      if (shippingAddress && saveNewAddress) {
+        const saved = await api.post<Address>('/users/addresses', { ...shippingAddress, type: 'shipping', isDefault: addresses.length === 0 });
+        shippingAddressId = saved.data.id;
+        shippingAddress = undefined;
+      }
       // Create order
       const orderRes = await api.post<{
         orderId: string;
         orderNumber: string;
         razorpayOrderId: string;
         amount: number;
+        mockPayment: boolean;
       }>('/orders', {
-        items: cartItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: cartItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         shippingAddressId,
         shippingAddress: shippingAddress ? shippingAddress : undefined,
         couponCode: appliedCoupon || undefined,
+        purchaseType,
+        businessProfileId: purchaseType === 'company' ? selectedBusinessId : undefined,
+        authorizedRepresentative: purchaseType === 'company' ? true : undefined,
+        purchaseOrderReference: purchaseType === 'company' && purchaseOrderReference.trim() ? purchaseOrderReference.trim() : undefined,
+        taxScenario: 'ordinary_goods_movement',
       });
 
-      const { razorpayOrderId, amount, orderId, orderNumber } = orderRes.data;
+      const { razorpayOrderId, amount, orderId, orderNumber, mockPayment } = orderRes.data;
 
-      // In development / test mode with placeholder credentials
-      if (RAZORPAY_KEY === 'rzp_test_example' || razorpayOrderId.startsWith('order_')) {
+      // Mock checkout is available only when the server explicitly enables it outside production.
+      if (mockPayment) {
         toast.info('Simulating payment (development test mode)...');
         try {
           await api.post('/payments/verify', {
             razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: `pay_test_${Date.now()}`,
+            razorpay_payment_id: `mock_payment_${Date.now()}`,
             razorpay_signature: 'mock_signature',
           });
           clearCart();
@@ -190,6 +236,24 @@ export default function Checkout() {
       <div className="grid lg:grid-cols-5 gap-8">
         {/* Left: Address & Coupon */}
         <div className="lg:col-span-3 space-y-6">
+          <div className="bg-card rounded-2xl border border-border p-6">
+            <h2 className="text-lg font-bold font-['Outfit'] mb-4">Purchase type</h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <button type="button" onClick={() => setPurchaseType('personal')} className={clsx('text-left p-4 rounded-xl border', purchaseType === 'personal' ? 'border-primary bg-primary/5' : 'border-border')}><span className="font-semibold block">Personal purchase</span><span className="text-xs text-muted-foreground">No GSTIN required</span></button>
+              <button type="button" onClick={() => setPurchaseType('company')} className={clsx('text-left p-4 rounded-xl border', purchaseType === 'company' ? 'border-primary bg-primary/5' : 'border-border')}><span className="font-semibold flex items-center gap-2"><Building2 className="w-4 h-4" /> Company purchase</span><span className="text-xs text-muted-foreground">Invoice to a verified GST registration</span></button>
+            </div>
+            {purchaseType === 'company' && <div className="mt-4 space-y-3">
+              {businesses.map((business) => <label key={business.id} className={clsx('block p-4 rounded-xl border cursor-pointer', selectedBusinessId === business.id ? 'border-primary bg-primary/5' : 'border-border')}>
+                <div className="flex gap-3"><input type="radio" name="business" checked={selectedBusinessId === business.id} onChange={() => setSelectedBusinessId(business.id)} /><div><p className="font-semibold text-sm">{business.nickname || business.tradeName || business.legalName}</p><p className="text-xs text-muted-foreground">{business.legalName} · <span className="font-mono">{business.gstin}</span></p><p className="text-xs text-muted-foreground mt-1">Bill to: {business.billingAddress.city}, {business.billingAddress.state} – {business.billingAddress.pincode}</p></div></div>
+              </label>)}
+              <button type="button" onClick={() => setShowBusinessForm((value) => !value)} className="text-sm text-primary font-medium">+ Fetch and save another GSTIN</button>
+              {showBusinessForm && <div className="rounded-xl border border-border p-4"><BusinessProfileForm onSaved={(profile) => { setSelectedBusinessId(profile.id); setShowBusinessForm(false); }} /></div>}
+              <input value={purchaseOrderReference} onChange={(e) => setPurchaseOrderReference(e.target.value)} placeholder="Purchase order / reference (optional)" className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm" />
+              <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={authorizedRepresentative} onChange={(e) => setAuthorizedRepresentative(e.target.checked)} className="mt-1" /><span>I confirm the business and billing details and acknowledge that I am authorized to purchase on its behalf.</span></label>
+              <p className="text-xs text-muted-foreground">Registered identity, invoice billing address, and delivery address remain separate. This flow supports ordinary domestic goods movement only.</p>
+            </div>}
+          </div>
+
           {/* Shipping Address */}
           <div className="bg-card rounded-2xl border border-border p-6">
             <h2 className="text-lg font-bold font-['Outfit'] mb-4">Shipping Address</h2>
@@ -231,13 +295,14 @@ export default function Checkout() {
                   { key: 'city', label: 'City', span: 1 },
                   { key: 'state', label: 'State', span: 1 },
                 ].map(({ key, label, span }) => (
-                  <div key={key} className={`col-span-${span}`}>
+                  <div key={key} className={span === 2 ? 'col-span-2' : 'col-span-1'}>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
                     <input type="text" value={newAddress[key as keyof typeof newAddress]}
                       onChange={(e) => setNewAddress({ ...newAddress, [key]: e.target.value })}
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
                   </div>
                 ))}
+                <label className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={saveNewAddress} onChange={(event) => setSaveNewAddress(event.target.checked)} /> Save this address to my account</label>
               </div>
             )}
           </div>
@@ -267,7 +332,7 @@ export default function Checkout() {
 
             <div className="space-y-3 mb-4">
               {cartItems.map((item) => (
-                <div key={item.productId} className="flex items-center gap-3">
+                <div key={item.variantId ?? item.productId} className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                     {item.image && <img src={item.image} alt={item.title} className="w-full h-full object-cover" />}
                   </div>
@@ -288,7 +353,10 @@ export default function Checkout() {
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>{formatPrice(cart.subtotal)}</span></div>
                   {cart.discount > 0 && <div className="flex justify-between text-sm text-green-400"><span>Discount</span><span>-{formatPrice(cart.discount)}</span></div>}
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Shipping</span><span>{cart.shipping === 0 ? <span className="text-green-400">FREE</span> : formatPrice(cart.shipping)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (18%)</span><span>{formatPrice(cart.tax)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST ({cart.taxBreakdown.mode})</span><span>{formatPrice(cart.tax)}</span></div>
+                  {cart.taxBreakdown.cgstMinor > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>CGST</span><span>{formatPrice(cart.taxBreakdown.cgstMinor / 100)}</span></div>}
+                  {cart.taxBreakdown.sgstMinor > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>SGST / UTGST</span><span>{formatPrice(cart.taxBreakdown.sgstMinor / 100)}</span></div>}
+                  {cart.taxBreakdown.igstMinor > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>IGST</span><span>{formatPrice(cart.taxBreakdown.igstMinor / 100)}</span></div>}
                   <div className="flex justify-between text-base font-bold pt-2 border-t border-border mt-2">
                     <span>Total</span>
                     <span className="gradient-text text-lg">{formatPrice(cart.total)}</span>
@@ -310,7 +378,7 @@ export default function Checkout() {
               className="w-full mt-4 py-4 gradient-primary text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-blue-500/20"
             >
               <Shield className="w-4 h-4" />
-              Pay Securely with Razorpay
+              {purchaseType === 'company' ? 'Pay for Company Order' : 'Pay Securely with Razorpay'}
               <ChevronRight className="w-4 h-4" />
             </motion.button>
 

@@ -1,12 +1,12 @@
 import { eq, and, sql, inArray, ilike, or, desc, asc } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
+import { db } from '../../infrastructure/database/db.js';
 import {
   users,
   addresses,
   type User,
   type Address,
   type NewAddress,
-} from '../../infrastructure/database/schema/index';
+} from '../../infrastructure/database/schema/index.js';
 
 export const usersRepository = {
   async findById(id: string): Promise<User | undefined> {
@@ -44,6 +44,18 @@ export const usersRepository = {
     return result[0];
   },
 
+  async createAddressWithDefault(data: NewAddress): Promise<Address> {
+    return db.transaction(async (tx) => {
+      const existing = await tx.select({ id: addresses.id }).from(addresses).where(eq(addresses.userId, data.userId));
+      const makeDefault = data.isDefault || existing.length === 0;
+      if (makeDefault) {
+        await tx.update(addresses).set({ isDefault: false, updatedAt: new Date() }).where(eq(addresses.userId, data.userId));
+      }
+      const [address] = await tx.insert(addresses).values({ ...data, isDefault: makeDefault }).returning();
+      return address;
+    });
+  },
+
   async updateAddress(
     id: string,
     userId: string,
@@ -55,6 +67,20 @@ export const usersRepository = {
       .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
       .returning();
     return result[0];
+  },
+
+  async updateAddressWithDefault(id: string, userId: string, data: Partial<NewAddress>): Promise<Address | undefined> {
+    return db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(addresses)
+        .where(and(eq(addresses.id, id), eq(addresses.userId, userId))).limit(1);
+      if (!existing) return undefined;
+      if (data.isDefault) {
+        await tx.update(addresses).set({ isDefault: false, updatedAt: new Date() }).where(eq(addresses.userId, userId));
+      }
+      const [address] = await tx.update(addresses).set({ ...data, updatedAt: new Date() })
+        .where(and(eq(addresses.id, id), eq(addresses.userId, userId))).returning();
+      return address;
+    });
   },
 
   async deleteAddress(id: string, userId: string): Promise<void> {
@@ -93,6 +119,25 @@ export const usersRepository = {
 
   async bulkDelete(ids: string[]): Promise<void> {
     if (!ids || ids.length === 0) return;
-    await db.delete(users).where(inArray(users.id, ids));
+    await db.update(users)
+      .set({ isBlocked: true, updatedAt: new Date() })
+      .where(and(inArray(users.id, ids), eq(users.role, 'customer')));
+  },
+
+  async deleteAddressAndPromote(id: string, userId: string): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(addresses)
+        .where(and(eq(addresses.id, id), eq(addresses.userId, userId))).limit(1);
+      if (!existing) return false;
+      await tx.delete(addresses).where(eq(addresses.id, id));
+      if (existing.isDefault) {
+        const [replacement] = await tx.select({ id: addresses.id }).from(addresses)
+          .where(eq(addresses.userId, userId)).orderBy(asc(addresses.createdAt)).limit(1);
+        if (replacement) {
+          await tx.update(addresses).set({ isDefault: true, updatedAt: new Date() }).where(eq(addresses.id, replacement.id));
+        }
+      }
+      return true;
+    });
   },
 };

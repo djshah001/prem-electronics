@@ -1,7 +1,8 @@
 import { pgTable, uuid, varchar, numeric, integer, boolean, timestamp, pgEnum } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { orders } from './orders';
+import { orders } from './orders.js';
+import { couponRedemptions } from './couponRedemptions.js';
 
 export const discountTypeEnum = pgEnum('discount_type', ['flat', 'percentage']);
 
@@ -14,6 +15,8 @@ export const coupons = pgTable('coupons', {
   minPurchase: numeric('min_purchase', { precision: 10, scale: 2 }).default('0'),
   maxDiscount: numeric('max_discount', { precision: 10, scale: 2 }),
   usageLimit: integer('usage_limit'),
+  perUserLimit: integer('per_user_limit'),
+  firstOrderOnly: boolean('first_order_only').default(false).notNull(),
   usedCount: integer('used_count').default(0).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
@@ -23,6 +26,7 @@ export const coupons = pgTable('coupons', {
 
 export const couponsRelations = relations(coupons, ({ many }) => ({
   orders: many(orders),
+  redemptions: many(couponRedemptions),
 }));
 
 export const insertCouponSchema = createInsertSchema(coupons);

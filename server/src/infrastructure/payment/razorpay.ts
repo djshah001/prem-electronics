@@ -1,6 +1,6 @@
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
-import { env } from '../../config/env';
+import { env } from '../../config/env.js';
+import { verifyHmacSha256 } from './signature.js';
 
 export const razorpay = new Razorpay({
   key_id: env.RAZORPAY_KEY_ID,
@@ -18,15 +18,10 @@ export const verifyPaymentSignature = (
   razorpayPaymentId: string,
   razorpaySignature: string
 ): boolean => {
-  const body = `${razorpayOrderId}|${razorpayPaymentId}`;
-  const expectedSignature = crypto
-    .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
-    .update(body)
-    .digest('hex');
-
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature, 'hex'),
-    Buffer.from(razorpaySignature, 'hex')
+  return verifyHmacSha256(
+    env.RAZORPAY_KEY_SECRET,
+    `${razorpayOrderId}|${razorpayPaymentId}`,
+    razorpaySignature
   );
 };
 
@@ -37,12 +32,5 @@ export const verifyPaymentSignature = (
  */
 export const verifyWebhookSignature = (body: string, signature: string): boolean => {
   if (!env.RAZORPAY_WEBHOOK_SECRET) return false;
-  const expectedSignature = crypto
-    .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
-    .update(body)
-    .digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature, 'hex'),
-    Buffer.from(signature, 'hex')
-  );
+  return verifyHmacSha256(env.RAZORPAY_WEBHOOK_SECRET, body, signature);
 };

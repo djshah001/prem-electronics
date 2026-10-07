@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Edit, Trash2, X, FolderTree, CheckSquare, Square
+  Plus, Edit, Trash2, X, FolderTree, CheckSquare, Square,
+  Upload, Loader2, Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import type { Category, PaginationMeta } from '../../types';
@@ -10,6 +11,7 @@ import { toast } from 'sonner';
 import { clsx } from 'clsx';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
 
 const EMPTY_FORM = { name: '', slug: '', description: '', bannerImage: '', parentId: '', isActive: true };
 
@@ -25,6 +27,8 @@ export default function CategoryManager() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [uploading, setUploading] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch (paginated admin view)
   const { data, isLoading } = useQuery({
@@ -50,6 +54,28 @@ export default function CategoryManager() {
   };
   if (allCatsRes?.data) flatten(Array.isArray(allCatsRes.data) ? allCatsRes.data : [allCatsRes.data as any]);
 
+  // File upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('images', file);
+    try {
+      const res = await api.postForm<{ urls: string[] }>('/upload', formData);
+      const url = res.data?.urls?.[0];
+      if (url) {
+        setForm((f) => ({ ...f, bannerImage: url }));
+        toast.success('Banner image uploaded!');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = '';
+    }
+  };
+
   // Mutations
   const createMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.post<Category>('/categories', payload),
@@ -65,13 +91,13 @@ export default function CategoryManager() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/categories/${id}`),
-    onSuccess: () => { toast.success('Category deleted'); invalidate(); },
+    onSuccess: () => { toast.success('Category archived'); invalidate(); },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message || e?.message || 'Failed to delete'),
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) => api.post('/admin/categories/bulk-delete', { ids }),
-    onSuccess: () => { toast.success(`${selected.size} categories deleted`); setSelected(new Set()); invalidate(); },
+    onSuccess: () => { toast.success(`${selected.size} categories archived`); setSelected(new Set()); invalidate(); },
     onError: (e: any) => toast.error(e?.errors?.[0]?.message || e?.message || 'Bulk delete failed'),
   });
 
@@ -144,6 +170,22 @@ export default function CategoryManager() {
       },
     },
     {
+      id: 'image',
+      header: 'Banner',
+      cell: ({ row }) => {
+        const img = row.original.bannerImage;
+        return (
+          <div className="w-10 h-10 rounded-lg bg-muted border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+            {img ? (
+              <img src={img} alt={row.original.name} className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
+            )}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>,
@@ -188,7 +230,7 @@ export default function CategoryManager() {
               <Edit className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => { if (confirm(`Delete "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
+              onClick={() => { if (confirm(`Archive "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
               id={`delete-cat-${cat.id}`}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all"
             >
@@ -223,6 +265,7 @@ export default function CategoryManager() {
       </div>
 
       {/* Table */}
+      <div className="mb-6"><ModuleStatsCards module="categories" /></div>
       <DataTable
         columns={columns}
         data={tableData}
@@ -242,7 +285,7 @@ export default function CategoryManager() {
               className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl font-medium text-sm hover:bg-red-500/20 transition-all"
             >
               <Trash2 className="w-4 h-4" />
-              Delete ({selected.size})
+              Archive ({selected.size})
             </motion.button>
           )
         }
@@ -262,7 +305,7 @@ export default function CategoryManager() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold font-['Outfit']">
@@ -306,13 +349,58 @@ export default function CategoryManager() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Banner Image URL</label>
-                  <input
-                    value={form.bannerImage}
-                    onChange={(e) => setForm((f) => ({ ...f, bannerImage: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary/50"
-                    placeholder="https://..."
-                  />
+                  <label className="block text-sm font-medium mb-1.5">Banner Image</label>
+                  <div className="space-y-2">
+                    {form.bannerImage && (
+                      <div className="relative w-full h-32 rounded-xl overflow-hidden border border-border group bg-muted/30">
+                        <img
+                          src={form.bannerImage}
+                          alt="Banner preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, bannerImage: '' }))}
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500 transition-colors"
+                          title="Remove image"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        value={form.bannerImage}
+                        onChange={(e) => setForm((f) => ({ ...f, bannerImage: e.target.value }))}
+                        className="flex-1 px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary/50"
+                        placeholder="Image URL or upload..."
+                      />
+                      <input
+                        ref={bannerInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="cat-banner-file"
+                      />
+                      <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => bannerInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" /> Upload
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Parent Category</label>
@@ -349,7 +437,7 @@ export default function CategoryManager() {
                   <button
                     type="submit"
                     id="cat-submit-btn"
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending || uploading}
                     className="flex-1 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-60"
                   >
                     {createMutation.isPending || updateMutation.isPending ? 'Saving…' : editing ? 'Update' : 'Create'}

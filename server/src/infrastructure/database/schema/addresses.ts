@@ -1,7 +1,7 @@
-import { pgTable, uuid, varchar, boolean, pgEnum, timestamp } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, uuid, varchar, boolean, pgEnum, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
+import { users } from './users.js';
 
 export const addressTypeEnum = pgEnum('address_type', ['shipping', 'billing', 'both']);
 
@@ -21,7 +21,9 @@ export const addresses = pgTable('addresses', {
   isDefault: boolean('is_default').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  oneDefaultPerUser: uniqueIndex('addresses_one_default_per_user').on(table.userId).where(sql`${table.isDefault} = true`),
+}));
 
 export const addressesRelations = relations(addresses, ({ one }) => ({
   user: one(users, { fields: [addresses.userId], references: [users.id] }),

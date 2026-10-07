@@ -1,17 +1,20 @@
 import { Router } from 'express';
-import { blogsController } from './blogs.controller';
-import { asyncHandler } from '../../core/middlewares/asyncHandler';
-import { adminOnly } from '../../core/middlewares/authGuard';
+import { blogsController } from './blogs.controller.js';
+import { asyncHandler } from '../../core/middlewares/asyncHandler.js';
+import { adminOnly } from '../../core/middlewares/authGuard.js';
 
 const router = Router();
 
-// Public
-router.get('/', asyncHandler(blogsController.getBlogs));
-router.get('/:slug', asyncHandler(blogsController.getBySlug));
+router.get('/admin', ...adminOnly, asyncHandler(blogsController.getAdmin));
+router.get('/admin/stats', ...adminOnly, asyncHandler(blogsController.getStats));
+router.post('/admin/preview', ...adminOnly, asyncHandler(blogsController.preview));
+router.get('/admin/:id', ...adminOnly, asyncHandler(blogsController.getAdminById));
+router.post('/admin', ...adminOnly, asyncHandler(blogsController.create));
+router.put('/admin/:id', ...adminOnly, asyncHandler(blogsController.update));
+router.patch('/admin/:id/state', ...adminOnly, asyncHandler(blogsController.changeState));
+router.post('/admin/bulk-archive', ...adminOnly, asyncHandler(blogsController.bulkArchive));
 
-// Admin only
-router.post('/', ...adminOnly, asyncHandler(blogsController.create));
-router.put('/:id', ...adminOnly, asyncHandler(blogsController.update));
-router.delete('/:id', ...adminOnly, asyncHandler(blogsController.delete));
+router.get('/', asyncHandler(blogsController.getPublic));
+router.get('/:slug', asyncHandler(blogsController.getPublishedBySlug));
 
 export default router;

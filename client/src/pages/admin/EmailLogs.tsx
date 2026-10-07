@@ -1,0 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
+import { MailCheck } from 'lucide-react';
+import { api } from '../../api/axiosClient';
+
+type EmailLog = { id: string; eventKey: string; recipient: string; status: string; attempts: number; providerMessageId?: string; lastError?: string; acceptedAt?: string; createdAt: string };
+export default function EmailLogs() {
+  const logs = useQuery({ queryKey: ['email-logs'], queryFn: () => api.get<EmailLog[]>('/email-master/logs', { limit: 200 }), refetchInterval: 30_000 });
+  return <div className="p-4 sm:p-8 space-y-6"><div><h1 className="text-3xl font-black">Email Logs</h1><p className="text-sm text-muted-foreground">Truthful transport states. “SMTP accepted” is not an inbox-delivery claim.</p></div><div className="rounded-xl border border-border bg-card overflow-x-auto"><table className="w-full text-sm"><thead className="bg-muted/50"><tr><th className="p-3 text-left">Event</th><th className="p-3 text-left">Recipient</th><th className="p-3 text-left">Status</th><th className="p-3 text-left">Attempts</th><th className="p-3 text-left">Created</th><th className="p-3 text-left">Details</th></tr></thead><tbody>{(logs.data?.data ?? []).map((log) => <tr key={log.id} className="border-t border-border"><td className="p-3 font-mono">{log.eventKey}</td><td className="p-3">{log.recipient}</td><td className="p-3 uppercase text-xs">{log.status.replace('_',' ')}</td><td className="p-3">{log.attempts}</td><td className="p-3">{new Date(log.createdAt).toLocaleString()}</td><td className="p-3 max-w-xs truncate" title={log.lastError ?? log.providerMessageId}>{log.lastError ?? log.providerMessageId ?? '—'}</td></tr>)}</tbody></table>{!logs.data?.data.length && <div className="grid min-h-48 place-items-center text-muted-foreground"><MailCheck className="w-10 h-10" /></div>}</div></div>;
+}

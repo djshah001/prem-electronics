@@ -1,13 +1,15 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, User, Link2 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import type { Blog } from '../../types';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export default function BlogDetails() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['blog', slug],
@@ -16,6 +18,22 @@ export default function BlogDetails() {
   });
 
   const blog = data?.data;
+  useEffect(() => {
+    if (blog?.redirectedFrom && blog.slug !== slug) {
+      navigate(`/blog/${blog.slug}`, { replace: true });
+    }
+  }, [blog?.redirectedFrom, blog?.slug, navigate, slug]);
+  useEffect(() => {
+    if (!blog) return;
+    const previousTitle = document.title;
+    document.title = blog.seoTitle || `${blog.title} | Prem Electronics`;
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const created = !meta;
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.appendChild(meta); }
+    const previousDescription = meta.content;
+    meta.content = blog.seoDescription || blog.excerpt || '';
+    return () => { document.title = previousTitle; if (created) meta?.remove(); else if (meta) meta.content = previousDescription; };
+  }, [blog]);
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
   const title = blog?.title ?? '';
 
@@ -53,7 +71,7 @@ export default function BlogDetails() {
       {/* Hero */}
       {blog.imageUrl && (
         <div className="relative h-72 md:h-96 overflow-hidden">
-          <img src={blog.imageUrl} alt={blog.title} className="w-full h-full object-cover" />
+          <img src={blog.imageUrl} alt={blog.coverAlt ?? blog.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         </div>
       )}
@@ -70,7 +88,7 @@ export default function BlogDetails() {
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-8">
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              {new Date(blog.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+              {new Date(blog.publishedAt ?? blog.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
             {blog.authorName && (
               <div className="flex items-center gap-1.5">
@@ -82,7 +100,7 @@ export default function BlogDetails() {
 
           {/* Content */}
           <div className="prose prose-invert max-w-none prose-headings:font-['Outfit'] prose-a:text-primary"
-            dangerouslySetInnerHTML={{ __html: blog.content.replace(/\n/g, '<br />') }} />
+            dangerouslySetInnerHTML={{ __html: blog.content }} />
 
           {/* Share */}
           <div className="mt-12 pt-8 border-t border-border">

@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { authController } from './auth.controller';
-import { asyncHandler } from '../../core/middlewares/asyncHandler';
-import { authenticate } from '../../core/middlewares/authGuard';
-import { authLimiter } from '../../core/middlewares/rateLimiter';
+import { authController } from './auth.controller.js';
+import { asyncHandler } from '../../core/middlewares/asyncHandler.js';
+import { authenticate } from '../../core/middlewares/authGuard.js';
+import { authLimiter } from '../../core/middlewares/rateLimiter.js';
 
 const router = Router();
 
@@ -13,9 +13,10 @@ router.post('/verify-otp', authLimiter, asyncHandler(authController.verifyOTP));
 router.post('/resend-otp', authLimiter, asyncHandler(authController.resendOTP));
 router.post('/forgot-password', authLimiter, asyncHandler(authController.forgotPassword));
 router.post('/reset-password', authLimiter, asyncHandler(authController.resetPassword));
+router.post('/refresh', authLimiter, asyncHandler(authController.refresh));
 
 // Protected routes
 router.get('/me', authenticate, asyncHandler(authController.getMe));
-router.post('/logout', authenticate, asyncHandler(authController.logout));
+router.post('/logout', asyncHandler(authController.logout));
 
 export default router;

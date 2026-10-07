@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, ShieldOff, ShieldCheck, CheckCircle, XCircle } from 'lucide-react';
+import { Users, ShieldOff, ShieldCheck, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/axiosClient';
 import type { CustomerAdmin, PaginationMeta } from '../../types';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
+import { useDebounce } from '../../hooks/useDebounce';
+import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
 
 const formatPrice = (p: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p);
@@ -15,10 +18,11 @@ export default function CustomerManager() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-customers', page, search],
-    queryFn: () => api.get<CustomerAdmin[]>('/admin/customers', { page, limit: 20, ...(search && { search }) } as Record<string, unknown>),
+    queryKey: ['admin-customers', page, debouncedSearch],
+    queryFn: () => api.get<CustomerAdmin[]>('/admin/customers', { page, limit: 20, ...(debouncedSearch && { search: debouncedSearch }) } as Record<string, unknown>),
     placeholderData: (prev) => prev,
   });
 
@@ -74,9 +78,9 @@ export default function CustomerManager() {
       cell: ({ row }) => <div className="text-center font-semibold">{Number(row.original.orderCount)}</div>,
     },
     {
-      accessorKey: 'totalSpent',
-      header: () => <div className="text-center">Total Spent</div>,
-      cell: ({ row }) => <div className="text-center font-semibold">{formatPrice(Number(row.original.totalSpent))}</div>,
+      accessorKey: 'netPaidMinor',
+      header: () => <div className="text-center">Net Paid</div>,
+      cell: ({ row }) => <div className="text-center font-semibold">{formatPrice(Number(row.original.netPaidMinor) / 100)}</div>,
     },
     {
       accessorKey: 'createdAt',
@@ -104,7 +108,8 @@ export default function CustomerManager() {
       cell: ({ row }) => {
         const c = row.original;
         return (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Link aria-label={`View ${c.name}`} to={`/admin/customers/${c.id}`} className="rounded-lg border border-border p-2 hover:bg-muted"><Eye className="w-3.5 h-3.5" /></Link>
             <button
               onClick={() => toggleBlockMutation.mutate({ userId: c.id, block: !c.isBlocked })}
               disabled={toggleBlockMutation.isPending}
@@ -133,6 +138,7 @@ export default function CustomerManager() {
         </div>
       </div>
 
+      <div className="mb-6"><ModuleStatsCards module="customers" /></div>
       <DataTable
         columns={columns}
         data={customers}

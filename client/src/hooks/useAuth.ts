@@ -1,29 +1,56 @@
-import { useAtom, useSetAtom } from 'jotai';
-import { userAtom, authTokenAtom } from '../store/userAtom';
+import { useAtom } from 'jotai';
+import { userAtom } from '../store/userAtom';
 import { api } from '../api/axiosClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { User, AuthResponse } from '../types';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { cartItemsAtom } from '../store/cartAtom';
+import {
+  beginLogout,
+  broadcastLogout,
+  clearLocalAuthState,
+  markSessionStarted,
+} from '../auth/session';
 
 export const useAuth = () => {
   const [user, setUser] = useAtom(userAtom);
-  const setToken = useSetAtom(authTokenAtom);
+  const [guestCart, setGuestCart] = useAtom(cartItemsAtom);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const mergeGuestCart = async () => {
+    if (guestCart.length === 0) return;
+    const tokenKey = 'prem_cart_merge_token';
+    const token = localStorage.getItem(tokenKey) ?? crypto.randomUUID();
+    localStorage.setItem(tokenKey, token);
+    await api.post('/cart/merge', {
+      idempotencyToken: token,
+      items: guestCart.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })),
+    });
+    setGuestCart([]);
+    localStorage.removeItem(tokenKey);
+    await queryClient.invalidateQueries({ queryKey: ['cart'] });
+  };
 
   const loginMutation = useMutation({
     mutationFn: (data: { email: string; password: string }) =>
       api.post<AuthResponse>('/auth/login', data),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
+      markSessionStarted();
       setUser(res.data.user);
-      setToken(res.data.token);
-      localStorage.setItem('prem_token', res.data.token);
+      if (guestCart.length > 0) {
+        try {
+          await mergeGuestCart();
+        } catch {
+          toast.warning('Signed in, but your guest cart could not be merged. It remains saved on this device.');
+        }
+      }
       toast.success(`Welcome back, ${res.data.user.name}! 👋`);
       if (res.data.user.role === 'admin' || res.data.user.role === 'superadmin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/');
+        navigate('/', { replace: true });
       }
     },
     onError: (err: any) => {
@@ -44,15 +71,36 @@ export const useAuth = () => {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => api.post('/auth/logout'),
-    onSuccess: () => {
+    mutationFn: async () => {
+      beginLogout();
+      await queryClient.cancelQueries();
+      try {
+        await api.post('/auth/logout');
+        return { serverRevoked: true };
+      } catch (error) {
+        return { serverRevoked: false, error };
+      } finally {
+        clearLocalAuthState();
+        setUser(null);
+        queryClient.clear();
+        broadcastLogout();
+        navigate('/login', { replace: true });
+      }
+    },
+    onSuccess: ({ serverRevoked }) => {
+      if (serverRevoked) {
+        toast.success('Logged out successfully.');
+      } else {
+        toast.error('Local session cleared, but the server could not confirm logout. Please retry when online.', {
+          action: {
+            label: 'Retry',
+            onClick: () => logoutMutation.mutate(),
+          },
+        });
+      }
+    },
+    onSettled: () => {
       setUser(null);
-      setToken(null);
-      localStorage.removeItem('prem_token');
-      localStorage.removeItem('prem_user');
-      queryClient.clear();
-      toast.success('Logged out successfully.');
-      navigate('/');
     },
   });
 
@@ -69,12 +117,24 @@ export const useAuth = () => {
   const verifyOTPMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
       api.post<AuthResponse>('/auth/verify-otp', data),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
+      markSessionStarted();
       setUser(res.data.user);
-      setToken(res.data.token);
-      localStorage.setItem('prem_token', res.data.token);
+      if (guestCart.length > 0) {
+        try {
+          await mergeGuestCart();
+        } catch {
+          toast.warning('Your account is verified, but the guest cart could not be merged yet.');
+        }
+      }
       toast.success('Email verified! Welcome to Prem Electronics ⚡');
-      navigate('/');
+      const pendingGstin = sessionStorage.getItem('pending_business_gstin');
+      if (pendingGstin) {
+        sessionStorage.removeItem('pending_business_gstin');
+        navigate(`/account/businesses?setup=1&gstin=${encodeURIComponent(pendingGstin)}`);
+      } else {
+        navigate('/');
+      }
     },
     onError: (err: any) => {
       toast.error(err?.message || 'OTP verification failed.');

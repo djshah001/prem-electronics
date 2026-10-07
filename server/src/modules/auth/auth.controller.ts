@@ -1,26 +1,42 @@
 import { Request, Response } from 'express';
-import { authService } from './auth.service';
+import { authService } from './auth.service.js';
 import {
   registerSchema,
   loginSchema,
   verifyOTPSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from './auth.schema';
-import { sendSuccess, sendCreated } from '../../core/utils/responseHandler';
-import { env } from '../../config/env';
+} from './auth.schema.js';
+import { sendSuccess, sendCreated } from '../../core/utils/responseHandler.js';
+import { env } from '../../config/env.js';
 
-const COOKIE_OPTIONS = {
+const ACCESS_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 15 * 60 * 1000,
+  path: '/',
+};
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
+  path: '/api/v1/auth',
 };
 
 const CLEAR_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
+  path: '/',
+};
+
+const setSessionCookies = (res: Response, accessToken: string, refreshToken: string) => {
+  res.cookie('accessToken', accessToken, ACCESS_COOKIE_OPTIONS);
+  res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+  res.setHeader('Cache-Control', 'no-store');
 };
 
 export const authController = {
@@ -32,16 +48,16 @@ export const authController = {
 
   async login(req: Request, res: Response) {
     const input = loginSchema.parse(req.body);
-    const { token, user } = await authService.login(input);
-    res.cookie('accessToken', token, COOKIE_OPTIONS);
-    sendSuccess(res, { user, token }, 'Logged in successfully.');
+    const { accessToken, refreshToken, user } = await authService.login(input);
+    setSessionCookies(res, accessToken, refreshToken);
+    sendSuccess(res, { user }, 'Logged in successfully.');
   },
 
   async verifyOTP(req: Request, res: Response) {
     const input = verifyOTPSchema.parse(req.body);
-    const { token, user } = await authService.verifyOTP(input);
-    res.cookie('accessToken', token, COOKIE_OPTIONS);
-    sendSuccess(res, { user, token }, 'Email verified successfully! Welcome to Prem Electronics.');
+    const { accessToken, refreshToken, user } = await authService.verifyOTP(input);
+    setSessionCookies(res, accessToken, refreshToken);
+    sendSuccess(res, { user }, 'Email verified successfully! Welcome to Prem Electronics.');
   },
 
   async resendOTP(req: Request, res: Response) {
@@ -67,8 +83,21 @@ export const authController = {
     sendSuccess(res, user);
   },
 
-  async logout(_req: Request, res: Response) {
+  async refresh(req: Request, res: Response) {
+    const refreshToken = req.cookies?.refreshToken as string | undefined;
+    if (!refreshToken) return res.status(401).json({ success: false, message: 'No refresh session provided.' });
+    const session = await authService.refresh(refreshToken);
+    setSessionCookies(res, session.accessToken, session.refreshToken);
+    sendSuccess(res, { user: session.user }, 'Session refreshed.');
+  },
+
+  async logout(req: Request, res: Response) {
+    await authService.logout(
+      req.cookies?.refreshToken as string | undefined,
+      req.cookies?.accessToken as string | undefined
+    );
     res.clearCookie('accessToken', CLEAR_COOKIE_OPTIONS);
+    res.clearCookie('refreshToken', { ...CLEAR_COOKIE_OPTIONS, path: '/api/v1/auth' });
     sendSuccess(res, null, 'Logged out successfully.');
   },
 };

@@ -15,10 +15,14 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [addBusiness, setAddBusiness] = useState(false);
+  const [gstin, setGstin] = useState('');
   const { register } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (addBusiness && gstin.trim()) sessionStorage.setItem('pending_business_gstin', gstin.replace(/\s+/g, '').toUpperCase());
+    else sessionStorage.removeItem('pending_business_gstin');
     register.mutate({ name, email, password });
   };
 
@@ -79,6 +83,16 @@ export default function Register() {
                 </div>
               )}
             </div>
+
+            <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-sm">
+              <input type="checkbox" checked={addBusiness} onChange={(e) => setAddBusiness(e.target.checked)} className="mt-1" />
+              <span><span className="font-medium block">Set up a company after verification</span><span className="text-xs text-muted-foreground">Your account is created first; GST verification is a separate resumable step.</span></span>
+            </label>
+            {addBusiness && <div>
+              <label htmlFor="signup-gstin" className="block text-sm font-medium mb-1.5">GSTIN (optional)</label>
+              <input id="signup-gstin" value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} maxLength={18} placeholder="27AAPFU0939F1ZV"
+                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            </div>}
 
             <button id="register-submit-btn" type="submit" disabled={register.isPending}
               className="w-full flex items-center justify-center gap-2 py-3 gradient-primary text-white rounded-xl font-bold text-sm hover:opacity-90 transition-all disabled:opacity-60 mt-2">

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { ordersService } from './orders.service';
-import { createOrderSchema, updateOrderStatusSchema, orderQuerySchema } from './orders.schema';
-import { sendSuccess, sendCreated, buildPaginationMeta } from '../../core/utils/responseHandler';
+import { ordersService } from './orders.service.js';
+import { createOrderSchema, updateOrderStatusSchema, orderQuerySchema } from './orders.schema.js';
+import { sendSuccess, sendCreated } from '../../core/utils/responseHandler.js';
 
 export const ordersController = {
   async createOrder(req: Request, res: Response) {
@@ -17,9 +17,27 @@ export const ordersController = {
   },
 
   async getMyOrderById(req: Request, res: Response) {
-    const order = await ordersService.getMyOrderById(req.user!.id, (req.params.id as string));
+    const order = await ordersService.getMyOrderById(req.user!.id, req.params.id as string);
     sendSuccess(res, order);
   },
+
+  async getMyInvoice(req: Request, res: Response) {
+    const invoice = await ordersService.getInvoice(req.params.id as string, req.user!.id);
+    sendSuccess(res, invoice, 'Invoice fetched.');
+  },
+
+  async cancelMyOrder(req: Request, res: Response) {
+    const order = await ordersService.cancelMyOrder(req.user!.id, req.params.id as string);
+    sendSuccess(res, order, order.refundStatus === 'pending' ? 'Order cancelled. Refund is pending.' : 'Order cancelled.');
+  },
+
+  async requestReturn(req: Request, res: Response) {
+    const { reason } = req.body;
+    const order = await ordersService.requestReturn(req.user!.id, req.params.id as string, String(reason ?? ''));
+    sendSuccess(res, order, 'Return request submitted successfully.');
+  },
+
+  // ─── Admin ─────────────────────────────────────────────────────────────────
 
   async getAllOrders(req: Request, res: Response) {
     const query = orderQuerySchema.parse(req.query);
@@ -27,10 +45,29 @@ export const ordersController = {
     sendSuccess(res, data, 'All orders fetched.', 200, meta);
   },
 
+  async getInvoiceAdmin(req: Request, res: Response) {
+    const invoice = await ordersService.getInvoice(req.params.id as string);
+    sendSuccess(res, invoice, 'Invoice fetched.');
+  },
+
   async updateStatus(req: Request, res: Response) {
     const input = updateOrderStatusSchema.parse(req.body);
-    const order = await ordersService.updateStatus((req.params.id as string), input);
+    const order = await ordersService.updateStatus(req.params.id as string, input, req.user!.id);
     sendSuccess(res, order, 'Order status updated.');
+  },
+
+  async updateReturnStatus(req: Request, res: Response) {
+    const { returnStatus } = req.body as { returnStatus: 'approved' | 'rejected' | 'completed' };
+    if (!['approved', 'rejected', 'completed'].includes(returnStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid returnStatus value.' });
+    }
+    const order = await ordersService.updateReturnStatus(req.params.id as string, returnStatus, req.user!.id);
+    sendSuccess(res, order, `Return status updated to ${returnStatus}.`);
+  },
+
+  async processRefund(req: Request, res: Response) {
+    const order = await ordersService.processRefund(req.params.id as string, req.user!.id);
+    sendSuccess(res, order, 'Refund marked as processed.');
   },
 
   async getOrdersAdmin(req: Request, res: Response) {

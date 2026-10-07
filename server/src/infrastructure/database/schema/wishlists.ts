@@ -1,8 +1,8 @@
 import { pgTable, uuid, timestamp, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
-import { products } from './products';
+import { users } from './users.js';
+import { products } from './products.js';
 
 export const wishlists = pgTable(
   'wishlists',
@@ -16,9 +16,9 @@ export const wishlists = pgTable(
       .references(() => products.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => ({
-    userProductUnique: unique().on(table.userId, table.productId),
-  })
+  (table) => [
+    unique().on(table.userId, table.productId),
+  ]
 );
 
 export const wishlistsRelations = relations(wishlists, ({ one }) => ({

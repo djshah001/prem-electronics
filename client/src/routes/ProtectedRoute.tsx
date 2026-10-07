@@ -12,7 +12,7 @@ export const AdminRoute = () => {
   const user = useAtomValue(userAtom);
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'admin' && user.role !== 'superadmin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/access-denied" replace />;
   }
   return <Outlet />;
 };

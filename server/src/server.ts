@@ -1,8 +1,12 @@
 import './config/env.js'; // Validates environment variables — exits on failure
-import app from './app';
-import { pool } from './infrastructure/database/db';
-import logger from './core/logger/logger';
-import { env } from './config/env';
+import app from './app.js';
+import { pool } from './infrastructure/database/db.js';
+import logger from './core/logger/logger.js';
+import { env } from './config/env.js';
+import { paymentsService } from './modules/payments/payments.service.js';
+import { ordersRepository } from './modules/orders/orders.repository.js';
+import { emailMasterService } from './modules/communications/email.service.js';
+import { campaignService } from './modules/communications/campaign.service.js';
 
 const startServer = async () => {
   // Test database connectivity
@@ -21,9 +25,26 @@ const startServer = async () => {
     logger.info(`🔗 CORS allowed from: ${env.CLIENT_URL}`);
   });
 
+  // Retry durable post-commit email jobs without affecting successful payments.
+  void paymentsService.processEmailOutbox().catch((error) => {
+    logger.error('Initial email outbox processing failed.', error);
+  });
+  const maintenanceTimer = setInterval(() => {
+    void paymentsService.processEmailOutbox().catch((error) => {
+      logger.error('Email outbox processing failed.', error);
+    });
+    void ordersRepository.releaseExpiredReservations().catch((error) => {
+      logger.error('Expired inventory reservation cleanup failed.', error);
+    });
+    void campaignService.processScheduled().catch((error) => logger.error('Scheduled campaign processing failed.', error));
+    void emailMasterService.processQueue().catch((error) => logger.error('Email delivery queue processing failed.', error));
+  }, 60_000);
+  maintenanceTimer.unref();
+
   // Graceful shutdown
   const gracefulShutdown = async (signal: string) => {
     logger.warn(`⚠️ Received ${signal}. Initiating graceful shutdown...`);
+    clearInterval(maintenanceTimer);
     server.close(async () => {
       await pool.end();
       logger.info('💤 Server and DB pool closed. Goodbye!');

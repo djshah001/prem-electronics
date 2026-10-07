@@ -1,182 +1,108 @@
-import { useState } from 'react';
+import { useAtom, useSetAtom } from 'jotai';
 import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
-  LayoutDashboard, Package, ShoppingBag, Tag, Users, BarChart3,
-  Zap, MessageSquare, ChevronDown, ChevronLeft, ChevronRight
+  BarChart3, BookOpen, Boxes, ChevronLeft, ChevronRight, CreditCard,
+  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, Zap, ReceiptText, Mail, Megaphone, ScrollText,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { adminMobileNavOpenAtom, adminSidebarCollapsedAtom } from '../../store/adminLayoutAtom';
 
-interface NavItemDef {
-  icon: React.ElementType;
-  label: string;
-  href?: string;
-  children?: { label: string; href: string }[];
-}
-
-const NAV_ITEMS: NavItemDef[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
-  {
-    icon: Package,
-    label: 'Catalogue',
-    children: [
-      { label: 'Products', href: '/admin/products' },
-      { label: 'Categories', href: '/admin/categories' },
-      { label: 'Low Stock', href: '/admin/inventory' },
-    ],
-  },
-  { icon: ShoppingBag, label: 'Orders', href: '/admin/orders' },
-  { icon: Tag, label: 'Coupons', href: '/admin/coupons' },
-  { icon: Users, label: 'Customers', href: '/admin/customers' },
-  { icon: MessageSquare, label: 'Reviews', href: '/admin/reviews' },
-  { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+const groups = [
+  { label: 'Overview', items: [
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
+    { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+  ] },
+  { label: 'Catalog', items: [
+    { icon: Package, label: 'Products', href: '/admin/products' },
+    { icon: Tag, label: 'Categories', href: '/admin/categories' },
+    { icon: Boxes, label: 'Inventory', href: '/admin/inventory' },
+  ] },
+  { label: 'Sales', items: [
+    { icon: ShoppingBag, label: 'Orders', href: '/admin/orders' },
+    { icon: CreditCard, label: 'Transactions', href: '/admin/transactions' },
+    { icon: Tag, label: 'Coupons', href: '/admin/coupons' },
+  ] },
+  { label: 'Customers', items: [
+    { icon: Users, label: 'Customers', href: '/admin/customers' },
+    { icon: MessageSquare, label: 'Reviews', href: '/admin/reviews' },
+  ] },
+  { label: 'Content', items: [
+    { icon: BookOpen, label: 'Blogs', href: '/admin/blogs' },
+  ] },
+  { label: 'Communications', items: [
+    { icon: Mail, label: 'Email Master', href: '/admin/email-master' },
+    { icon: Megaphone, label: 'Campaigns', href: '/admin/campaigns' },
+    { icon: ScrollText, label: 'Email Logs', href: '/admin/email-logs' },
+  ] },
+  { label: 'Settings / Documents', items: [
+    { icon: ReceiptText, label: 'Invoice Master', href: '/admin/invoice-master' },
+  ] },
 ];
 
-interface SubMenuProps {
-  item: NavItemDef;
-  collapsed: boolean;
-}
-
-const SubMenu = ({ item, collapsed }: SubMenuProps) => {
-  const [open, setOpen] = useState(true);
-  const Icon = item.icon;
-
-  if (collapsed) {
-    return (
-      <div className="relative group">
-        <button className="w-full flex items-center justify-center p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-all">
-          <Icon className="w-4 h-4 flex-shrink-0" />
-        </button>
-        {/* Tooltip sub-menu */}
-        <div className="absolute left-full top-0 ml-2 bg-card border border-border rounded-xl shadow-2xl p-2 w-40 hidden group-hover:block z-50">
-          <p className="text-xs font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wide">{item.label}</p>
-          {item.children?.map((c) => (
-            <NavLink
-              key={c.href}
-              to={c.href}
-              className={({ isActive }) =>
-                clsx('block px-3 py-2 rounded-lg text-sm transition-all',
-                  isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                )
-              }
-            >
-              {c.label}
-            </NavLink>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-muted-foreground hover:text-foreground hover:bg-card"
-      >
-        <Icon className="w-4 h-4 flex-shrink-0" />
-        <span className="flex-1 text-left">{item.label}</span>
-        <motion.div animate={{ rotate: open ? 0 : -90 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-3 h-3" />
-        </motion.div>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden ml-3 pl-4 border-l border-border"
-          >
-            {item.children?.map((c) => (
-              <NavLink
-                key={c.href}
-                to={c.href}
-                className={({ isActive }) =>
-                  clsx('flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all my-0.5',
-                    isActive ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground hover:bg-card'
-                  )
-                }
-              >
-                {c.label}
+const SidebarContent = ({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) => (
+  <>
+    <div className={clsx('h-16 border-b border-border flex items-center gap-3 px-4', collapsed && 'justify-center px-2')}>
+      <span className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0"><Zap className="w-5 h-5 text-white" /></span>
+      {!collapsed && <div><p className="font-bold text-sm">Prem Electronics</p><p className="text-xs text-muted-foreground">Admin panel</p></div>}
+    </div>
+    <nav aria-label="Admin navigation" className="flex-1 overflow-y-auto p-3 space-y-5">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <p className={clsx('px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground', collapsed && 'sr-only')}>{group.label}</p>
+          <div className="space-y-1">
+            {group.items.map(({ icon: Icon, label, href }) => (
+              <NavLink key={href} to={href} onClick={onNavigate} title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
+                className={({ isActive }) => clsx(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  collapsed && 'justify-center px-2',
+                  isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}>
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                {!collapsed && <span>{label}</span>}
+                {collapsed && <span className="sr-only">{label}</span>}
               </NavLink>
             ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
+          </div>
+        </div>
+      ))}
+    </nav>
+  </>
+);
 
 export const AdminSidebar = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useAtom(adminSidebarCollapsedAtom);
+  const [mobileOpen, setMobileOpen] = useAtom(adminMobileNavOpenAtom);
+  const closeMobile = useSetAtom(adminMobileNavOpenAtom);
+
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 64 : 256 }}
-      transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="flex-shrink-0 glass border-r border-white/5 min-h-screen flex flex-col sticky top-0 h-screen overflow-hidden"
-    >
-      {/* Header */}
-      <div className={clsx('p-4 border-b border-border flex items-center gap-3', collapsed ? 'justify-center' : 'justify-between')}>
-        {!collapsed && (
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-sm font-['Outfit'] truncate">Prem Electronics</p>
-              <p className="text-xs text-muted-foreground">Admin Panel</p>
-            </div>
-          </div>
-        )}
-        {collapsed && (
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          id="sidebar-collapse-btn"
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-all border border-border"
-        >
-          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+    <>
+      <aside className={clsx('hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200', collapsed ? 'w-16' : 'w-64')}>
+        <SidebarContent collapsed={collapsed} />
+        <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand admin sidebar' : 'Collapse admin sidebar'} aria-expanded={!collapsed}
+          className="m-3 flex items-center justify-center rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span className="ml-2 text-xs">Collapse</span></>}
         </button>
-      </div>
+      </aside>
 
-      {/* Sidebar Top Spacing / Actions removed to AdminHeader */}
-
-      {/* Nav Items */}
-      <nav className={clsx('flex-1 overflow-y-auto', collapsed ? 'p-2 space-y-1' : 'p-4 space-y-1')}>
-        {NAV_ITEMS.map((item) => {
-          if (item.children) {
-            return <SubMenu key={item.label} item={item} collapsed={collapsed} />;
-          }
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href!}
-              end={item.href === '/admin'}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-                  collapsed ? 'justify-center' : '',
-                  isActive
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-card'
-                )
-              }
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && item.label}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer removed to AdminHeader */}
-    </motion.aside>
+      <DialogPrimitive.Root open={mobileOpen} onOpenChange={setMobileOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 md:hidden" />
+          <DialogPrimitive.Content id="admin-mobile-navigation" aria-describedby={undefined}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              document.querySelector<HTMLButtonElement>('[aria-label="Open admin menu"]')?.focus();
+            }}
+            className="fixed inset-y-0 left-0 z-50 flex w-[min(85vw,18rem)] flex-col border-r border-border bg-card shadow-2xl md:hidden">
+            <DialogPrimitive.Title className="sr-only">Admin navigation</DialogPrimitive.Title>
+            <DialogPrimitive.Close aria-label="Close admin menu" className="absolute right-3 top-3 z-10 rounded-lg p-2 text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">
+              <X className="w-5 h-5" />
+            </DialogPrimitive.Close>
+            <SidebarContent onNavigate={() => closeMobile(false)} />
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    </>
   );
 };

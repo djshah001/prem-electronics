@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/axiosClient';
 import type { Order, PaginationMeta } from '../../types';
 import { Package, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
+import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-500/20 text-amber-400',
@@ -20,6 +21,7 @@ const formatPrice = (p: string) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
 
 export default function Orders() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
     queryKey: ['my-orders', page],
@@ -28,6 +30,14 @@ export default function Orders() {
 
   const orders = data?.data ?? [];
   const meta = data?.meta as PaginationMeta | undefined;
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => api.patch<Order>(`/orders/my/${id}/cancel`),
+    onSuccess: async (response) => {
+      toast.success(response.message);
+      await queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+    },
+    onError: (error: { message?: string }) => toast.error(error.message ?? 'Could not cancel this order.'),
+  });
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -54,8 +64,8 @@ export default function Orders() {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <Link key={order.id} to={`/account/orders/${order.id}`}
-              className="block bg-card rounded-2xl border border-border p-6 card-glow hover:border-primary/40 transition-all group">
+            <article key={order.id} className="bg-card rounded-2xl border border-border p-6 card-glow hover:border-primary/40 transition-all group">
+              <Link to={`/account/orders/${order.id}`} className="block">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <p className="font-bold font-mono text-primary">#{order.orderNumber}</p>
@@ -71,7 +81,10 @@ export default function Orders() {
                   <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </div>
               </div>
-            </Link>
+              </Link>
+              {['pending', 'confirmed'].includes(order.status) && <div className="mt-4 pt-4 border-t border-border flex justify-end"><button disabled={cancelMutation.isPending} onClick={() => { if (window.confirm('Cancel this order?')) cancelMutation.mutate(order.id); }} className="text-sm font-semibold text-destructive disabled:opacity-50">Cancel order</button></div>}
+              {order.refundStatus === 'pending' && <p className="mt-3 text-xs text-amber-500 text-right">Refund pending</p>}
+            </article>
           ))}
 
           {meta && meta.totalPages > 1 && (

@@ -1,6 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
-import { db } from '../../infrastructure/database/db';
-import { wishlists, products } from '../../infrastructure/database/schema/index';
+import { db } from '../../infrastructure/database/db.js';
+import { wishlists, products } from '../../infrastructure/database/schema/index.js';
 
 export const wishlistsRepository = {
   async findByUser(userId: string) {
@@ -20,6 +20,7 @@ export const wishlistsRepository = {
           stock: products.stock,
           avgRating: products.avgRating,
           reviewCount: products.reviewCount,
+          isActive: products.isActive,
         },
       })
       .from(wishlists)

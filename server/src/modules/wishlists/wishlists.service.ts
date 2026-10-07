@@ -1,5 +1,6 @@
-import { wishlistsRepository } from './wishlists.repository';
-import { NotFoundError } from '../../core/errors/appError';
+import { wishlistsRepository } from './wishlists.repository.js';
+import { NotFoundError } from '../../core/errors/appError.js';
+import { productsRepository } from '../products/products.repository.js';
 
 export const wishlistsService = {
   async getWishlist(userId: string) {
@@ -7,6 +8,8 @@ export const wishlistsService = {
   },
 
   async addToWishlist(userId: string, productId: string) {
+    const product = await productsRepository.findById(productId, true);
+    if (!product) throw new NotFoundError('Product is not available.');
     return wishlistsRepository.add(userId, productId);
   },
 

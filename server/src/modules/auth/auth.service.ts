@@ -1,39 +1,59 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { env } from '../../config/env';
-import logger from '../../core/logger/logger';
-import { authRepository } from './auth.repository';
-import { sendOTPEmail, sendPasswordResetEmail } from '../../infrastructure/mail/mailer';
+import { env } from '../../config/env.js';
+import logger from '../../core/logger/logger.js';
+import { authRepository } from './auth.repository.js';
+import { emailMasterService } from '../communications/email.service.js';
 import {
   AppError,
   UnauthorizedError,
   NotFoundError,
   ConflictError,
-} from '../../core/errors/appError';
+} from '../../core/errors/appError.js';
 import type {
   RegisterInput,
   LoginInput,
   VerifyOTPInput,
   ForgotPasswordInput,
   ResetPasswordInput,
-} from './auth.schema';
-import type { User } from '../../infrastructure/database/schema/index';
+} from './auth.schema.js';
+import type { User } from '../../infrastructure/database/schema/index.js';
 
 const SALT_ROUNDS = 12;
 const OTP_EXPIRY_MINUTES = 10;
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
 const generateOTP = (): string =>
-  Math.floor(100000 + Math.random() * 900000).toString();
+  crypto.randomInt(100000, 1000000).toString();
 
-const generateJWT = (user: User): string => {
+const hashToken = (value: string): string =>
+  crypto.createHash('sha256').update(value).digest('hex');
+
+const generateAccessToken = (user: User, sessionId: string): string => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, sid: sessionId },
     env.JWT_SECRET,
-    { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
+    { expiresIn: env.ACCESS_TOKEN_EXPIRES_IN } as jwt.SignOptions
   );
 };
+
+const createSession = async (user: User) => {
+  const refreshToken = crypto.randomBytes(48).toString('hex');
+  const refreshExpiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  const session = await authRepository.createSession(user.id, hashToken(refreshToken), refreshExpiresAt);
+  return { accessToken: generateAccessToken(user, session.id), refreshToken, refreshExpiresAt };
+};
+
+const logDevelopmentSecret = (message: string) => {
+  if (env.NODE_ENV === 'development') logger.info(message);
+};
+
+const sendOTPEmail = (to: string, name: string, otp: string, userId?: string) =>
+  emailMasterService.enqueueAndAttempt('otp_verification', to, { customerName: name, otp }, `otp:${userId ?? to}:${hashToken(otp)}`, { priority: 1, expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60_000) });
+
+const sendPasswordResetEmail = (to: string, name: string, resetLink: string, userId?: string) =>
+  emailMasterService.enqueueAndAttempt('password_reset', to, { customerName: name, resetUrl: resetLink }, `password-reset:${userId ?? to}:${hashToken(resetLink)}`, { priority: 1, expiresAt: new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60_000) });
 
 const sanitizeUser = (user: User) => {
   const { passwordHash, otpToken, otpExpiry, resetToken, resetTokenExpiry, ...safe } = user;
@@ -55,15 +75,15 @@ export const authService = {
       const updated = await authRepository.updateUser(existing.id, {
         name: input.name,
         passwordHash,
-        otpToken: otp,
+        otpToken: hashToken(otp),
         otpExpiry,
       });
 
       try {
-        await sendOTPEmail(updated.email, updated.name, otp);
+        await sendOTPEmail(updated.email, updated.name, otp, updated.id);
       } catch (err: any) {
         logger.error(`Failed to send OTP email to ${updated.email}: ${err?.message || err}`);
-        logger.info(`[DEV OTP]: Verification code for ${updated.email} is ${otp}`);
+        logDevelopmentSecret(`[DEV OTP]: Verification code for ${updated.email} is ${otp}`);
       }
 
       return sanitizeUser(updated);
@@ -77,15 +97,15 @@ export const authService = {
       name: input.name,
       email: input.email,
       passwordHash,
-      otpToken: otp,
+      otpToken: hashToken(otp),
       otpExpiry,
     });
 
     try {
-      await sendOTPEmail(user.email, user.name, otp);
+      await sendOTPEmail(user.email, user.name, otp, user.id);
     } catch (err: any) {
       logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
-      logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+      logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
     }
 
     return sanitizeUser(user);
@@ -94,6 +114,7 @@ export const authService = {
   async login(input: LoginInput) {
     const user = await authRepository.findByEmail(input.email);
     if (!user) throw new UnauthorizedError('Invalid email or password.');
+    if (user.isBlocked) throw new AppError('This account has been blocked.', 403);
 
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
     if (!isPasswordValid) throw new UnauthorizedError('Invalid email or password.');
@@ -102,12 +123,12 @@ export const authService = {
       // Resend OTP
       const otp = generateOTP();
       const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-      await authRepository.updateOTP(user.id, otp, otpExpiry);
+      await authRepository.updateOTP(user.id, hashToken(otp), otpExpiry);
       try {
-        await sendOTPEmail(user.email, user.name, otp);
+        await sendOTPEmail(user.email, user.name, otp, user.id);
       } catch (err: any) {
         logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
-        logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+        logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
       }
       throw new AppError(
         'Email not verified. A new OTP has been sent to your email.',
@@ -115,8 +136,8 @@ export const authService = {
       );
     }
 
-    const token = generateJWT(user);
-    return { token, user: sanitizeUser(user) };
+    const session = await createSession(user);
+    return { ...session, user: sanitizeUser(user) };
   },
 
   async verifyOTP(input: VerifyOTPInput) {
@@ -124,7 +145,7 @@ export const authService = {
     if (!user) throw new NotFoundError('User not found.');
     if (user.isVerified) throw new AppError('Account is already verified.', 400);
 
-    if (!user.otpToken || user.otpToken !== input.otp) {
+    if (!user.otpToken || user.otpToken !== hashToken(input.otp)) {
       throw new AppError('Invalid OTP.', 400);
     }
 
@@ -133,8 +154,11 @@ export const authService = {
     }
 
     await authRepository.verifyUser(user.id);
-    const token = generateJWT({ ...user, isVerified: true });
-    return { token, user: sanitizeUser({ ...user, isVerified: true }) };
+    const verifiedUser = { ...user, isVerified: true };
+    void emailMasterService.enqueueAndAttempt('welcome', user.email, { customerName: user.name }, `welcome:${user.id}`, { priority: 20 })
+      .catch((error) => logger.error('Welcome email remains available for queue retry.', { userId: user.id, error }));
+    const session = await createSession(verifiedUser);
+    return { ...session, user: sanitizeUser(verifiedUser) };
   },
 
   async forgotPassword(input: ForgotPasswordInput) {
@@ -150,10 +174,10 @@ export const authService = {
 
     const resetLink = `${env.CLIENT_URL}/reset-password?token=${resetToken}`;
     try {
-      await sendPasswordResetEmail(user.email, user.name, resetLink);
+      await sendPasswordResetEmail(user.email, user.name, resetLink, user.id);
     } catch (err: any) {
       logger.error(`Failed to send password reset email to ${user.email}: ${err?.message || err}`);
-      logger.info(`[DEV RESET LINK]: Reset link for ${user.email} is ${resetLink}`);
+      logDevelopmentSecret(`[DEV RESET LINK]: Reset link for ${user.email} is ${resetLink}`);
     }
   },
 
@@ -168,11 +192,13 @@ export const authService = {
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
     await authRepository.updatePassword(user.id, passwordHash);
+    await authRepository.revokeAllSessions(user.id);
   },
 
   async getMe(userId: string) {
     const user = await authRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found.');
+    if (user.isBlocked) throw new AppError('This account has been blocked.', 403);
     return sanitizeUser(user);
   },
 
@@ -183,12 +209,44 @@ export const authService = {
 
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-    await authRepository.updateOTP(user.id, otp, otpExpiry);
+    await authRepository.updateOTP(user.id, hashToken(otp), otpExpiry);
     try {
-      await sendOTPEmail(user.email, user.name, otp);
+      await sendOTPEmail(user.email, user.name, otp, user.id);
     } catch (err: any) {
       logger.error(`Failed to send OTP email to ${user.email}: ${err?.message || err}`);
-      logger.info(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
+      logDevelopmentSecret(`[DEV OTP]: Verification code for ${user.email} is ${otp}`);
     }
+  },
+
+  async refresh(refreshToken: string) {
+    const nextRefreshToken = crypto.randomBytes(48).toString('hex');
+    const refreshExpiresAt = new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+    const rotated = await authRepository.rotateSession(
+      hashToken(refreshToken),
+      hashToken(nextRefreshToken),
+      refreshExpiresAt
+    );
+    if (!rotated) throw new UnauthorizedError('Refresh session is invalid or expired.');
+    return {
+      accessToken: generateAccessToken(rotated.user, rotated.sessionId),
+      refreshToken: nextRefreshToken,
+      refreshExpiresAt,
+      user: sanitizeUser(rotated.user),
+    };
+  },
+
+  async logout(refreshToken?: string, accessToken?: string) {
+    let sessionId: string | undefined;
+    if (accessToken) {
+      try {
+        sessionId = (jwt.verify(accessToken, env.JWT_SECRET) as { sid?: string }).sid;
+      } catch {
+        // An expired access token may accompany a valid refresh cookie.
+      }
+    }
+    await authRepository.revokeSessionFamily({
+      tokenHash: refreshToken ? hashToken(refreshToken) : undefined,
+      sessionId,
+    });
   },
 };
