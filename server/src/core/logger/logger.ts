@@ -1,7 +1,34 @@
-const formatMessage = (level: string, message: string, meta?: unknown) => {
+type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
+
+const formatMessage = (
+  level: LogLevel,
+  message: string,
+  meta?: unknown,
+): string => {
   const timestamp = new Date().toISOString();
-  const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-  return `[${timestamp}] [${level.toUpperCase()}]: ${message}${metaStr}`;
+  const header = `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+
+  if (meta === undefined) return header;
+
+  const json = JSON.stringify(
+    meta,
+    (_key, value) => {
+      // Error properties are normally omitted by JSON.stringify.
+      if (value instanceof Error) {
+        return {
+          name: value.name,
+          message: value.message,
+          stack: value.stack,
+        };
+      }
+
+      // JSON does not support BigInt directly.
+      return typeof value === 'bigint' ? value.toString() : value;
+    },
+    2,
+  );
+
+  return `${header}\n${json}`;
 };
 
 const logger = {
