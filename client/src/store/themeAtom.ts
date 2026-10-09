@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 
 // Persisted theme preference
-export const themeAtom = atomWithStorage<'light' | 'dark'>('theme', 'dark');
+export const themeAtom = atomWithStorage<'light' | 'dark'>('theme', 'light');
 
 // Derived: apply class to document root
 export const themeEffectAtom = atom(
