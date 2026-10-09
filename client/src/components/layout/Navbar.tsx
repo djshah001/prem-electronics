@@ -5,7 +5,6 @@ import {
   Search,
   Menu,
   X,
-  Zap,
   User,
   LogOut,
   Package,
