@@ -1,17 +1,29 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAtom, useAtomValue } from 'jotai';
-import { ShoppingCart, Search, Menu, X, Zap, User, LogOut, Package, LayoutDashboard, Heart, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
-import { cartCountAtom, cartDrawerOpenAtom } from '../../store/cartAtom';
-import { userAtom } from '../../store/userAtom';
-import { useAuth } from '../../hooks/useAuth';
-import { useDebounce } from '../../hooks/useDebounce';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../api/axiosClient';
-import type { Product } from '../../types';
-import { ThemeToggle } from '../ui/ThemeToggle';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Link, useNavigate } from "react-router-dom";
+import { useAtom, useAtomValue } from "jotai";
+import {
+  ShoppingCart,
+  Search,
+  Menu,
+  X,
+  Zap,
+  User,
+  LogOut,
+  Package,
+  LayoutDashboard,
+  Heart,
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { cartCountAtom, cartDrawerOpenAtom } from "../../store/cartAtom";
+import { userAtom } from "../../store/userAtom";
+import { useAuth } from "../../hooks/useAuth";
+import { useDebounce } from "../../hooks/useDebounce";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../api/axiosClient";
+import type { Product } from "../../types";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,14 +32,18 @@ import {
   DropdownMenuGroup,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
+} from "../ui/dropdown-menu";
 
 const formatPrice = (p: string | number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(p));
 
 export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const cartCount = useAtomValue(cartCountAtom);
   const [, setCartOpen] = useAtom(cartDrawerOpenAtom);
@@ -39,8 +55,12 @@ export const Navbar = () => {
 
   // Auto-suggest query
   const { data: suggestionsData, isFetching: isSearching } = useQuery({
-    queryKey: ['search-suggestions', debouncedSearch],
-    queryFn: () => api.get<Product[]>('/products', { search: debouncedSearch.trim(), limit: 5 } as Record<string, unknown>),
+    queryKey: ["search-suggestions", debouncedSearch],
+    queryFn: () =>
+      api.get<Product[]>("/products", {
+        search: debouncedSearch.trim(),
+        limit: 5,
+      } as Record<string, unknown>),
     enabled: debouncedSearch.trim().length >= 2,
     staleTime: 30000,
   });
@@ -51,12 +71,15 @@ export const Navbar = () => {
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
         setSearchFocused(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -69,17 +92,17 @@ export const Navbar = () => {
 
   const handleSelectProduct = (slug: string) => {
     setSearchFocused(false);
-    setSearch('');
+    setSearch("");
     navigate(`/products/${slug}`);
   };
 
   const navLinks = [
-    { label: 'Shop', href: '/shop' },
-    { label: 'Smartphones', href: '/shop?categorySlug=smartphones' },
-    { label: 'Laptops', href: '/shop?categorySlug=laptops' },
-    { label: 'Audio', href: '/shop?categorySlug=audio' },
-    { label: 'TVs', href: '/shop?categorySlug=televisions' },
-    { label: 'Blog', href: '/blog' },
+    { label: "Shop", href: "/shop" },
+    { label: "Smartphones", href: "/shop?categorySlug=smartphones" },
+    { label: "Laptops", href: "/shop?categorySlug=laptops" },
+    { label: "Audio", href: "/shop?categorySlug=audio" },
+    { label: "TVs", href: "/shop?categorySlug=televisions" },
+    { label: "Blog", href: "/blog" },
   ];
 
   return (
@@ -88,15 +111,19 @@ export const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg font-['Outfit']">
-              <span className="gradient-text">Prem</span>
-              <span className="text-foreground"> Electronics</span>
-            </span>
+            {/* Symbol Image */}
+            <img
+              src="/Symbol.jpg"
+              alt="Prem Electronics Symbol"
+              className="w-9 h-9 object-contain"
+            />
+            {/* Brand Logo / Title Image */}
+            <img
+              src="/logo.png"
+              alt="Prem Electronics"
+              className="h-8 w-auto object-contain"
+            />
           </Link>
-
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
@@ -111,7 +138,10 @@ export const Navbar = () => {
           </nav>
 
           {/* Desktop Search with Smart Auto-Suggest */}
-          <div ref={searchContainerRef} className="hidden md:block relative flex-1 max-w-xs mx-6">
+          <div
+            ref={searchContainerRef}
+            className="hidden md:block relative flex-1 max-w-xs mx-6"
+          >
             <form onSubmit={handleSearch} className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -129,7 +159,10 @@ export const Navbar = () => {
               ) : search ? (
                 <button
                   type="button"
-                  onClick={() => { setSearch(''); setSearchFocused(false); }}
+                  onClick={() => {
+                    setSearch("");
+                    setSearchFocused(false);
+                  }}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -161,7 +194,11 @@ export const Navbar = () => {
                           >
                             <div className="w-10 h-10 rounded-lg bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
                               {item.images?.[0] ? (
-                                <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
+                                <img
+                                  src={item.images[0]}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover"
+                                />
                               ) : (
                                 <Package className="w-4 h-4 text-muted-foreground" />
                               )}
@@ -175,7 +212,9 @@ export const Navbar = () => {
                                   {formatPrice(item.salePrice ?? item.price)}
                                 </span>
                                 {item.brand && (
-                                  <span className="text-[10px] text-muted-foreground">· {item.brand}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    · {item.brand}
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -194,7 +233,9 @@ export const Navbar = () => {
                     </div>
                   ) : !isSearching ? (
                     <div className="py-6 px-4 text-center">
-                      <p className="text-xs text-muted-foreground">No products found for &quot;{debouncedSearch}&quot;</p>
+                      <p className="text-xs text-muted-foreground">
+                        No products found for &quot;{debouncedSearch}&quot;
+                      </p>
                       <button
                         type="button"
                         onClick={handleSearch}
@@ -241,7 +282,7 @@ export const Navbar = () => {
                     exit={{ scale: 0 }}
                     className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center"
                   >
-                    {cartCount > 9 ? '9+' : cartCount}
+                    {cartCount > 9 ? "9+" : cartCount}
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -256,7 +297,7 @@ export const Navbar = () => {
                     className="flex items-center gap-2 p-1 rounded-full hover:bg-card transition-colors focus:outline-none"
                   >
                     <Avatar className="w-9 h-9 border border-border">
-                      <AvatarImage src={user.avatarUrl || ''} alt={user.name} />
+                      <AvatarImage src={user.avatarUrl || ""} alt={user.name} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
                         {user.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -267,13 +308,17 @@ export const Navbar = () => {
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-semibold leading-none">{user.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                        <p className="text-sm font-semibold leading-none">
+                          {user.name}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
                       </div>
                     </DropdownMenuLabel>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  {(user.role === 'admin' || user.role === 'superadmin') && (
+                  {(user.role === "admin" || user.role === "superadmin") && (
                     <DropdownMenuItem className="cursor-pointer">
                       <Link to="/admin" className="flex w-full items-center">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -294,7 +339,10 @@ export const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer">
-                    <Link to="/account/orders" className="flex w-full items-center">
+                    <Link
+                      to="/account/orders"
+                      className="flex w-full items-center"
+                    >
                       <Package className="mr-2 h-4 w-4" />
                       <span>My Orders</span>
                     </Link>
@@ -310,15 +358,24 @@ export const Navbar = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link to="/login"
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              <Link
+                to="/login"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
                 Sign In
               </Link>
             )}
 
             {/* Mobile menu */}
-            <button className="md:hidden p-2" onClick={() => setMenuOpen(!menuOpen)}>
-              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              {menuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -328,7 +385,7 @@ export const Navbar = () => {
           {menuOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
+              animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               className="md:hidden overflow-hidden border-t border-border"
             >
@@ -344,18 +401,28 @@ export const Navbar = () => {
                   />
                 </form>
                 {navLinks.map((link) => (
-                  <Link key={link.href} to={link.href} onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors"
+                  >
                     {link.label}
                   </Link>
                 ))}
-                <Link to="/wishlist" onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors">
+                <Link
+                  to="/wishlist"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors"
+                >
                   My Wishlist
                 </Link>
                 {!user && (
-                  <Link to="/login" onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2 text-sm font-medium text-primary">
+                  <Link
+                    to="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2 text-sm font-medium text-primary"
+                  >
                     Sign In / Register
                   </Link>
                 )}
