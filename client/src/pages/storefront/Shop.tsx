@@ -7,6 +7,7 @@ import { api } from '../../api/axiosClient';
 import { ProductCard } from '../../components/shared/ProductCard';
 import type { Product, Category, PaginationMeta } from '../../types';
 import { useDebounce } from '../../hooks/useDebounce';
+import { normalizeCategoryList } from '../../hooks/useCategories';
 import { clsx } from 'clsx';
 
 const SORT_OPTIONS = [
@@ -76,7 +77,74 @@ export default function Shop() {
 
   const products = data?.data ?? [];
   const meta = data?.meta as PaginationMeta | undefined;
-  const categories = categoriesRes?.data ?? [];
+  const categories = normalizeCategoryList(categoriesRes);
+
+  // Synchronize component state with URL searchParams (e.g. from navbar clicks)
+  useEffect(() => {
+    const urlCatId = searchParams.get('categoryId');
+    const urlCatSlug = searchParams.get('categorySlug');
+    const urlSearch = searchParams.get('search');
+    const urlBrand = searchParams.get('brand');
+    const urlFeatured = searchParams.get('isFeatured');
+
+    if (urlCatId) {
+      setCategoryId(urlCatId);
+    } else if (urlCatSlug && categories.length > 0) {
+      const findInTree = (items: Category[]): Category | undefined => {
+        for (const item of items) {
+          if (item.slug === urlCatSlug) return item;
+          if (item.children?.length) {
+            const found = findInTree(item.children);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      const match = findInTree(categories);
+      if (match) {
+        setCategoryId(match.id);
+      }
+    } else if (!searchParams.has('categoryId') && !searchParams.has('categorySlug')) {
+      setCategoryId('');
+    }
+
+    if (urlSearch !== null) setSearch(urlSearch);
+    if (urlBrand !== null) setSelectedBrand(urlBrand);
+    if (urlFeatured !== null) setIsFeatured(urlFeatured === 'true');
+  }, [searchParams, categories]);
+
+  // Find active category or subcategory
+  const findCategory = (id: string, list: Category[]): Category | undefined => {
+    for (const c of list) {
+      if (c.id === id) return c;
+      if (c.children?.length) {
+        const found = findCategory(id, c.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  const activeCategory = categoryId ? findCategory(categoryId, categories) : undefined;
+
+  const handleSelectCategory = (cat: Category | null) => {
+    if (!cat) {
+      setCategoryId('');
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('categoryId');
+        next.delete('categorySlug');
+        return next;
+      });
+    } else {
+      setCategoryId(cat.id);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('categoryId', cat.id);
+        next.set('categorySlug', cat.slug);
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -115,9 +183,9 @@ export default function Shop() {
       {/* Category */}
       <div>
         <h3 className="font-semibold text-sm text-foreground mb-3 font-['Outfit']">Category</h3>
-        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
           <button
-            onClick={() => setCategoryId('')}
+            onClick={() => handleSelectCategory(null)}
             className={clsx(
               'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between',
               !categoryId ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
@@ -126,19 +194,46 @@ export default function Shop() {
             <span>All Categories</span>
             {!categoryId && <Check className="w-3.5 h-3.5" />}
           </button>
-          {categories.filter((c) => !c.parentId).map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setCategoryId(cat.id)}
-              className={clsx(
-                'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between',
-                categoryId === cat.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
-              )}
-            >
-              <span>{cat.name}</span>
-              {categoryId === cat.id && <Check className="w-3.5 h-3.5" />}
-            </button>
-          ))}
+          {categories.filter((c) => !c.parentId).map((cat) => {
+            const isCatSelected = categoryId === cat.id;
+            const subcategories = (cat.children ?? []).filter((s) => s.isActive !== false);
+            return (
+              <div key={cat.id} className="space-y-0.5">
+                <button
+                  onClick={() => handleSelectCategory(cat)}
+                  className={clsx(
+                    'w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between font-medium',
+                    isCatSelected ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                  )}
+                >
+                  <span>{cat.name}</span>
+                  {isCatSelected && <Check className="w-3.5 h-3.5 text-primary" />}
+                </button>
+                {subcategories.length > 0 && (
+                  <div className="pl-3.5 ml-2 space-y-0.5 border-l border-border/50">
+                    {subcategories.map((sub) => {
+                      const isSubSelected = categoryId === sub.id;
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => handleSelectCategory(sub)}
+                          className={clsx(
+                            'w-full text-left px-2.5 py-1 rounded-md text-[11px] transition-colors flex items-center justify-between',
+                            isSubSelected
+                              ? 'bg-primary/10 text-primary font-semibold'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                          )}
+                        >
+                          <span className="truncate">{sub.name}</span>
+                          {isSubSelected && <Check className="w-3 h-3 text-primary flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -323,7 +418,11 @@ export default function Shop() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black font-['Outfit']">
-            {debouncedSearch ? `Results for "${debouncedSearch}"` : 'Shop Electronics'}
+            {debouncedSearch
+              ? `Results for "${debouncedSearch}"`
+              : activeCategory
+              ? activeCategory.name
+              : 'Shop Electronics'}
           </h1>
           {meta && (
             <p className="text-muted-foreground text-sm mt-1">
@@ -377,6 +476,18 @@ export default function Shop() {
       {hasFilters && (
         <div className="flex items-center gap-2 flex-wrap mb-6">
           <span className="text-xs text-muted-foreground">Active filters:</span>
+          {activeCategory && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+              Category: {activeCategory.name}
+              <button
+                type="button"
+                onClick={() => handleSelectCategory(null)}
+                aria-label={`Remove ${activeCategory.name} filter`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
           {selectedBrand && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
               Brand: {selectedBrand}

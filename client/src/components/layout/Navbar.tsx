@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Heart,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
@@ -18,11 +19,14 @@ import { cartCountAtom, cartDrawerOpenAtom } from "../../store/cartAtom";
 import { userAtom } from "../../store/userAtom";
 import { useAuth } from "../../hooks/useAuth";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useCategories } from "../../hooks/useCategories";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/axiosClient";
 import type { Product } from "../../types";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { NavCategoryDropdown } from "./NavCategoryDropdown";
+import { MobileNav } from "./MobileNav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +55,15 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(search, 300);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic Categories from backend via React Query
+  const {
+    categories,
+    rootCategories,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useCategories();
 
   // Auto-suggest query
   const { data: suggestionsData, isFetching: isSearching } = useQuery({
@@ -95,19 +108,10 @@ export const Navbar = () => {
     navigate(`/products/${slug}`);
   };
 
-  const navLinks = [
-    { label: "Shop", href: "/shop" },
-    { label: "Smartphones", href: "/shop?categorySlug=smartphones" },
-    { label: "Laptops", href: "/shop?categorySlug=laptops" },
-    { label: "Audio", href: "/shop?categorySlug=audio" },
-    { label: "TVs", href: "/shop?categorySlug=televisions" },
-    { label: "Blog", href: "/blog" },
-  ];
-
   return (
     <header className="sticky top-0 z-50 glass border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-2">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
             {/* Symbol Image */}
@@ -123,23 +127,67 @@ export const Navbar = () => {
               className="h-8 w-auto object-contain"
             />
           </Link>
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {link.label}
-              </Link>
-            ))}
+
+          {/* Desktop Nav with Dynamic Categories */}
+          <nav
+            aria-label="Main Navigation"
+            className="hidden md:flex items-center gap-1 lg:gap-2 flex-wrap"
+          >
+            <Link
+              to="/shop"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-2.5 py-1.5 rounded-lg hover:bg-card/70"
+            >
+              Shop
+            </Link>
+
+            {/* Dynamic Categories */}
+            {categoriesLoading ? (
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="h-7 w-20 bg-muted/40 rounded-lg animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : categoriesError ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Link
+                  to="/shop"
+                  className="hover:text-primary transition-colors underline"
+                >
+                  Catalog
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => refetchCategories()}
+                  title="Retry loading categories"
+                  className="p-1 hover:text-primary transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              rootCategories.map((category) => (
+                <NavCategoryDropdown
+                  key={category.id}
+                  category={category}
+                />
+              ))
+            )}
+
+            <Link
+              to="/blog"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-2.5 py-1.5 rounded-lg hover:bg-card/70"
+            >
+              Blog
+            </Link>
           </nav>
 
           {/* Desktop Search with Smart Auto-Suggest */}
           <div
             ref={searchContainerRef}
-            className="hidden md:block relative flex-1 max-w-xs mx-6"
+            className="hidden md:block relative flex-1 max-w-xs mx-4"
           >
             <form onSubmit={handleSearch} className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -294,6 +342,7 @@ export const Navbar = () => {
                   <button
                     id="profile-menu-btn"
                     className="flex items-center gap-2 p-1 rounded-full hover:bg-card transition-colors focus:outline-none"
+                    aria-label="User profile menu"
                   >
                     <Avatar className="w-9 h-9 border border-border">
                       <AvatarImage src={user.avatarUrl || ""} alt={user.name} />
@@ -365,70 +414,33 @@ export const Navbar = () => {
               </Link>
             )}
 
-            {/* Mobile menu */}
+            {/* Mobile menu toggle */}
             <button
-              className="md:hidden p-2"
+              className="md:hidden p-2 rounded-lg hover:bg-card transition-colors"
               onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Toggle mobile menu"
+              aria-expanded={menuOpen}
             >
               {menuOpen ? (
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-foreground" />
               ) : (
-                <Menu className="w-5 h-5" />
+                <Menu className="w-5 h-5 text-foreground" />
               )}
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {menuOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="md:hidden overflow-hidden border-t border-border"
-            >
-              <div className="py-4 space-y-1">
-                <form onSubmit={handleSearch} className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full pl-9 pr-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
-                  />
-                </form>
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    to={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                <Link
-                  to="/wishlist"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-card rounded-lg transition-colors"
-                >
-                  My Wishlist
-                </Link>
-                {!user && (
-                  <Link
-                    to="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2 text-sm font-medium text-primary"
-                  >
-                    Sign In / Register
-                  </Link>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Dynamic Mobile Navigation Drawer */}
+        <MobileNav
+          isOpen={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          categories={categories}
+          isLoading={categoriesLoading}
+          isError={categoriesError}
+          onRetry={refetchCategories}
+          user={user}
+          onLogout={() => logout.mutate()}
+        />
       </div>
     </header>
   );

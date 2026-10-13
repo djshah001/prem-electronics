@@ -5,6 +5,7 @@ import { ArrowRight, Zap, Shield, Truck, Headphones, Star } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import { ProductCard } from '../../components/shared/ProductCard';
 import type { Product, Category } from '../../types';
+import { normalizeCategoryList } from '../../hooks/useCategories';
 
 const FEATURES = [
   { icon: Shield, title: 'Authentic Products', desc: '100% genuine electronics from authorized dealers' },
@@ -25,7 +26,7 @@ export default function Home() {
   });
 
   const featured = featuredRes?.data ?? [];
-  const categories = (categoriesRes?.data ?? []).filter((c) => !c.parentId).slice(0, 6);
+  const categories = normalizeCategoryList(categoriesRes).filter((c) => c && !c.parentId).slice(0, 6);
 
   return (
     <main>
