@@ -49,7 +49,18 @@ export const productsRepository = {
         )!
       );
     }
-    if (categoryId) conditions.push(eq(products.categoryId, categoryId));
+    if (categoryId) {
+      const childCategories = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.parentId, categoryId));
+      if (childCategories.length > 0) {
+        const categoryIds = [categoryId, ...childCategories.map((c) => c.id)];
+        conditions.push(inArray(products.categoryId, categoryIds));
+      } else {
+        conditions.push(eq(products.categoryId, categoryId));
+      }
+    }
     if (minPrice !== undefined) conditions.push(gte(products.price, String(minPrice)));
     if (maxPrice !== undefined) conditions.push(lte(products.price, String(maxPrice)));
     if (brand) conditions.push(ilike(products.brand ?? sql`''`, `%${brand}%`));

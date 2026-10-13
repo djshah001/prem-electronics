@@ -115,10 +115,37 @@ const AdminLayout = () => (
 const AdminNotFound = () => <div className="p-8 min-h-[60vh] grid place-items-center"><div className="text-center"><p className="text-6xl font-black text-primary">404</p><h2 className="text-2xl font-bold mt-3">Admin page not found</h2><p className="text-muted-foreground mt-2">This route is not part of the authorized admin console.</p><Link to="/admin/dashboard" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Back to dashboard</Link></div></div>;
 const AccessDenied = () => <div className="min-h-screen grid place-items-center bg-background p-6"><div className="text-center"><p className="text-5xl font-black text-red-500">403</p><h1 className="text-2xl font-bold mt-3">Access denied</h1><p className="text-muted-foreground mt-2">Your account is signed in but does not have permission to open the admin console.</p><Link to="/" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Return to storefront</Link></div></div>;
 
+const StorefrontErrorBoundary = () => (
+  <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+    <div className="w-16 h-16 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4">
+      <span className="text-3xl">⚠️</span>
+    </div>
+    <h2 className="text-2xl font-bold font-['Outfit'] mb-2">Something went wrong</h2>
+    <p className="text-muted-foreground text-sm max-w-md mb-6">
+      We encountered an issue loading this view. You can return home or refresh the page.
+    </p>
+    <div className="flex items-center gap-3">
+      <button
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+      >
+        Reload Page
+      </button>
+      <Link
+        to="/"
+        className="px-4 py-2 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+      >
+        Go to Homepage
+      </Link>
+    </div>
+  </div>
+);
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
   {
     element: <StorefrontLayout />,
+    errorElement: <StorefrontErrorBoundary />,
     children: [
       { path: '/', element: <Home /> },
       { path: '/shop', element: <Shop /> },
