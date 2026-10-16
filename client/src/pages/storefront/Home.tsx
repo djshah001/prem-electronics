@@ -1,228 +1,238 @@
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Zap, Shield, Truck, Headphones, Star } from 'lucide-react';
-import { api } from '../../api/axiosClient';
-import { ProductCard } from '../../components/shared/ProductCard';
-import type { Product, Category } from '../../types';
-import { normalizeCategoryList } from '../../hooks/useCategories';
+import React, { useState } from "react";
+import {
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  type Variants,
+} from "framer-motion";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  Zap,
+  Shield,
+  Truck,
+  Headphones,
+  Sparkles,
+  Copy,
+  Check,
+  type LucideIcon,
+} from "lucide-react";
+import { api } from "../../api/axiosClient";
+import { ProductCard } from "../../components/shared/ProductCard";
+import type { Product } from "../../types";
+import { HeroBannerCarousel } from "../../components/banner/HeroBannerCarousel";
+import { HomeImageBento } from "../../components/home/HomeImageBento";
 
-const FEATURES = [
-  { icon: Shield, title: 'Authentic Products', desc: '100% genuine electronics from authorized dealers' },
-  { icon: Truck, title: 'Free Delivery', desc: 'Free shipping on orders above ₹999' },
-  { icon: Headphones, title: '24/7 Support', desc: 'Expert support for all your electronics needs' },
-  { icon: Zap, title: 'Fast Checkout', desc: 'Secure Razorpay payment in seconds' },
+interface FeatureItem {
+  icon: LucideIcon;
+  title: string;
+  desc: string;
+}
+
+const FEATURES: FeatureItem[] = [
+  {
+    icon: Shield,
+    title: "Authentic Products",
+    desc: "100% genuine electronics from authorized dealers",
+  },
+  {
+    icon: Truck,
+    title: "Free Delivery",
+    desc: "Free shipping on orders above ₹999",
+  },
+  {
+    icon: Headphones,
+    title: "24/7 Support",
+    desc: "Expert support for all your electronics needs",
+  },
+  {
+    icon: Zap,
+    title: "Fast Checkout",
+    desc: "Secure Razorpay payment in seconds",
+  },
 ];
 
-export default function Home() {
-  const { data: featuredRes } = useQuery({
-    queryKey: ['featured-products'],
-    queryFn: () => api.get<Product[]>('/products/featured'),
-  });
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.08,
+    },
+  },
+};
 
-  const { data: categoriesRes } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => api.get<Category[]>('/categories'),
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 32, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 220,
+      damping: 24,
+    },
+  },
+};
+
+function FeatureCard({
+  icon: Icon,
+  title,
+  desc,
+  index,
+}: FeatureItem & { index: number }) {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const handleMouseMove = ({
+    currentTarget,
+    clientX,
+    clientY,
+  }: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top } = currentTarget.getBoundingClientRect();
+    mouseX.set(clientX - left);
+    mouseY.set(clientY - top);
+  };
+
+  return (
+    <motion.div
+      variants={cardVariants}
+      onMouseMove={handleMouseMove}
+      whileHover={{ y: -6 }}
+      transition={{ type: "spring", stiffness: 350, damping: 26 }}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-card/80 via-card/50 to-card/20 p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
+    >
+      <motion.div
+        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          background: useMotionTemplate`
+            radial-gradient(
+              320px circle at ${mouseX}px ${mouseY}px,
+              hsl(var(--primary) / 0.14),
+              transparent 80%
+            )
+          `,
+        }}
+      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50 dark:via-white/10" />
+
+      <div className="relative flex items-center justify-between">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl bg-primary/25 blur-lg opacity-0 transition-all duration-500 group-hover:scale-150 group-hover:opacity-100" />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 shadow-inner transition-all duration-300 group-hover:border-primary/50 group-hover:bg-primary/20 group-hover:scale-105">
+            <Icon className="h-5 w-5 text-primary transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
+          </div>
+        </div>
+        <span className="font-mono text-xs font-semibold tracking-wider text-muted-foreground/40 transition-colors duration-300 group-hover:text-primary/60">
+          0{index + 1}
+        </span>
+      </div>
+
+      <div className="relative mt-8">
+        <h3 className="text-base font-semibold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
+          {title}
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          {desc}
+        </p>
+      </div>
+
+      <div className="mt-6 h-0.5 w-6 rounded-full bg-border/80 transition-all duration-300 group-hover:w-12 group-hover:bg-primary/60" />
+    </motion.div>
+  );
+}
+
+export default function Home() {
+  const [copied, setCopied] = useState(false);
+
+  const { data: featuredRes, isLoading: featuredLoading } = useQuery({
+    queryKey: ["featured-products"],
+    queryFn: () => api.get<Product[]>("/products/featured"),
   });
 
   const featured = featuredRes?.data ?? [];
-  const categories = normalizeCategoryList(categoriesRes).filter((c) => c && !c.parentId).slice(0, 6);
+
+  const copyCoupon = () => {
+    navigator.clipboard.writeText("WELCOME10");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
+  };
 
   return (
-    <main>
-      {/* ─── Hero ─────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden min-h-[85vh] flex items-center">
-        {/* Animated background orbs */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '-3s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
-        </div>
+    <main className="min-h-screen bg-background">
+      <h1 className="sr-only">Prem Electronics online electronics store</h1>
+      <HeroBannerCarousel />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-24 grid lg:grid-cols-2 gap-12 items-center">
+      {/* ─── Features Section ───────────────────────────────────── */}
+      <section className="relative overflow-hidden py-20 border-y border-border/60 bg-gradient-to-b from-background via-card/20 to-background">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[320px] bg-primary/5 blur-[120px] rounded-full" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
           <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-sm font-medium mb-6"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              Trusted by 50,000+ customers across India
-            </motion.div>
-
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight font-['Outfit'] mb-6">
-              Decrease Your{' '}
-              <span className="gradient-text">Digital</span>{' '}
-              Life
-            </h1>
-
-            <p className="text-lg text-muted-foreground mb-8 max-w-lg leading-relaxed">
-              Shop the latest smartphones, laptops, audio, and more — all authentic, all at the best prices in India.
-            </p>
-
-            <div className="flex flex-wrap gap-4">
-              <Link
-                to="/shop"
-                id="hero-shop-btn"
-                className="flex items-center gap-2 px-8 py-4 gradient-primary text-white rounded-2xl font-bold text-lg hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-500/20"
-              >
-                Shop Now <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                to="/shop?isFeatured=true"
-                className="flex items-center gap-2 px-8 py-4 bg-card border border-border text-foreground rounded-2xl font-bold text-lg hover:border-primary/50 transition-all"
-              >
-                Featured Deals
-              </Link>
-            </div>
-
-            <div className="flex items-center gap-6 mt-10">
-              <div className="flex -space-x-2">
-                {['A', 'R', 'P', 'M'].map((l, i) => (
-                  <div key={i} className="w-9 h-9 rounded-full gradient-primary border-2 border-background flex items-center justify-center text-white text-xs font-bold">{l}</div>
-                ))}
-              </div>
-              <div>
-                <div className="flex items-center gap-1">
-                  {[1,2,3,4,5].map((s) => <Star key={s} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
-                </div>
-                <p className="text-sm text-muted-foreground">4.9 rating • 12,000+ reviews</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Hero product showcase */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
-            className="relative hidden lg:block"
-          >
-            <div className="relative z-10 animate-float">
-              <img
-                src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&q=80"
-                alt="Featured electronics"
-                className="w-full max-w-md mx-auto rounded-3xl shadow-2xl shadow-blue-500/20"
-              />
-            </div>
-            {/* Floating cards */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-              className="absolute -left-8 top-1/3 glass rounded-2xl p-4 border border-border shadow-xl"
-            >
-              <p className="text-xs text-muted-foreground">Today's Deal</p>
-              <p className="font-bold text-primary text-sm">Up to 30% OFF</p>
-              <p className="text-xs text-muted-foreground">On all Samsung products</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 }}
-              className="absolute -right-4 bottom-1/3 glass rounded-2xl p-4 border border-border shadow-xl"
-            >
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-400" />
-                <div>
-                  <p className="font-bold text-xs">Verified Seller</p>
-                  <p className="text-xs text-muted-foreground">1-year warranty</p>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ─── Features ──────────────────────────────────────────── */}
-      <section className="py-16 border-y border-border bg-card/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {FEATURES.map(({ icon: Icon, title, desc }, i) => (
-              <motion.div
-                key={title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex gap-3 items-start"
-              >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm text-foreground">{title}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-                </div>
-              </motion.div>
+            {FEATURES.map((feature, i) => (
+              <FeatureCard key={feature.title} {...feature} index={i} />
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* ─── Categories ────────────────────────────────────────── */}
-      {categories.length > 0 && (
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-black font-['Outfit']">
-                Shop by <span className="gradient-text">Category</span>
-              </h2>
-              <Link to="/shop" className="text-sm text-primary hover:underline flex items-center gap-1">
-                All categories <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {categories.map((cat, i) => (
-                <motion.div
-                  key={cat.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.06 }}
-                >
-                  <Link
-                    to={`/shop?categoryId=${cat.id}`}
-                    className="group block bg-card rounded-2xl border border-border overflow-hidden card-glow text-center p-4 hover:border-primary/40 transition-all"
-                  >
-                    {cat.bannerImage ? (
-                      <div className="w-full aspect-square rounded-xl overflow-hidden mb-3">
-                        <img src={cat.bannerImage} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-                      </div>
-                    ) : (
-                      <div className="w-full aspect-square rounded-xl bg-muted mb-3 flex items-center justify-center">
-                        <Zap className="w-8 h-8 text-muted-foreground/30" />
-                      </div>
-                    )}
-                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{cat.name}</p>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ─── Bento Grid ─────────────────────────────────────────── */}
+      <HomeImageBento />
 
       {/* ─── Featured Products ─────────────────────────────────── */}
-      {featured.length > 0 && (
-        <section className="py-16 bg-card/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-3xl font-black font-['Outfit']">
-                  Featured <span className="gradient-text">Deals</span>
-                </h2>
-                <p className="text-muted-foreground mt-1">Hand-picked best sellers at exclusive prices</p>
+      <section className="relative overflow-hidden py-20 bg-card/20 border-t border-border/50">
+        <div className="pointer-events-none absolute left-10 top-20 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
+        <div className="pointer-events-none absolute right-10 bottom-20 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+            <div>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary mb-2.5">
+                <Sparkles className="h-3 w-3" />
+                Hand-picked Deals
               </div>
-              <Link to="/shop?isFeatured=true" className="text-sm text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+              <h2 className="text-3xl sm:text-4xl font-black font-['Outfit'] tracking-tight">
+                Featured <span className="gradient-text">Collection</span>
+              </h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Cutting-edge tech and exclusive prices backed by official
+                warranty
+              </p>
             </div>
+            <Link
+              to="/shop?isFeatured=true"
+              className="group inline-flex items-center gap-2 text-sm font-semibold text-primary transition-all hover:text-primary/80"
+            >
+              <span>Explore all deals</span>
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </Link>
+          </div>
+
+          {featuredLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className="h-[380px] rounded-[1.75rem] border border-border/50 bg-card/50 p-4 animate-pulse flex flex-col justify-between"
+                >
+                  <div className="h-52 w-full rounded-2xl bg-muted/60" />
+                  <div className="space-y-2 mt-4">
+                    <div className="h-4 w-2/3 rounded bg-muted/60" />
+                    <div className="h-4 w-1/3 rounded bg-muted/60" />
+                  </div>
+                  <div className="h-10 w-full rounded-xl bg-muted/60 mt-4" />
+                </div>
+              ))}
+            </div>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featured.map((product, i) => (
                 <motion.div
@@ -230,37 +240,77 @@ export default function Home() {
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
+                  transition={{
+                    delay: i * 0.08,
+                    type: "spring",
+                    stiffness: 220,
+                    damping: 24,
+                  }}
                 >
                   <ProductCard product={product} />
                 </motion.div>
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          )}
+        </div>
+      </section>
 
-      {/* ─── CTA Banner ────────────────────────────────────────── */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      {/* ─── Pink CTA Banner ────────────────────────────────────── */}
+      <section className="relative overflow-hidden py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true }}
-            className="relative overflow-hidden rounded-3xl gradient-primary p-12 text-center"
+            transition={{ type: "spring", stiffness: 220, damping: 22 }}
+            className="relative overflow-hidden rounded-[2.5rem] gradient-primary p-8 sm:p-14 lg:p-16 text-center shadow-2xl shadow-primary/25"
           >
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
+            {/* Ambient Background Light Effects */}
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-white/20 blur-3xl -translate-y-1/2 translate-x-1/3" />
+              <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-pink-950/40 blur-3xl translate-y-1/2 -translate-x-1/3" />
             </div>
-            <div className="relative z-10">
-              <h2 className="text-4xl font-black font-['Outfit'] text-white mb-4">
-                New User? Get 10% OFF 🎉
+
+            <div className="relative z-10 max-w-2xl mx-auto">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-md mb-6">
+                🎉 Special Welcome Offer
+              </span>
+
+              <h2 className="text-3xl sm:text-5xl font-black font-['Outfit'] text-white tracking-tight leading-tight">
+                Get 10% OFF Your First Gear
               </h2>
-              <p className="text-blue-100 mb-6 text-lg">Use code <strong className="text-white bg-white/20 px-2 py-0.5 rounded font-mono">WELCOME10</strong> on your first order</p>
-              <Link to="/register" className="inline-flex items-center gap-2 px-8 py-3 bg-white text-blue-900 rounded-2xl font-bold hover:bg-blue-50 transition-all hover:scale-105">
-                Register Now <ArrowRight className="w-4 h-4" />
-              </Link>
+
+              <p className="mt-4 text-base sm:text-lg text-pink-100/90 leading-relaxed">
+                Upgrade your creative setup today. Copy the coupon below and
+                apply at checkout for instant savings.
+              </p>
+
+              {/* Interactive Coupon Pill Button */}
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={copyCoupon}
+                  className="group flex items-center gap-2.5 rounded-2xl border border-white/30 bg-black/20 px-5 py-3 text-sm font-mono font-bold text-white backdrop-blur-md transition-all hover:bg-black/35 hover:scale-105 active:scale-95 shadow-inner"
+                  title="Click to copy coupon code"
+                >
+                  <span className="tracking-widest text-base">WELCOME10</span>
+                  <div className="grid h-6 w-6 place-items-center rounded-lg bg-white/15 text-white transition-colors group-hover:bg-white group-hover:text-primary">
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                </button>
+
+                <Link
+                  to="/register"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-3.5 text-sm font-bold text-slate-950 shadow-xl transition-all duration-300 hover:bg-pink-50 hover:shadow-2xl hover:scale-105 active:scale-95"
+                >
+                  <span>Claim & Register</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
           </motion.div>
         </div>

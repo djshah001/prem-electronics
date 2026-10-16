@@ -156,6 +156,7 @@ export interface Product {
   createdAt: string;
   options?: ProductOption[];
   variants?: ProductVariant[];
+  hasVariants?: boolean;
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────

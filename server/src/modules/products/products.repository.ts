@@ -12,6 +12,23 @@ import {
 } from '../../infrastructure/database/schema/index.js';
 import type { ProductQuery } from './products.schema.js';
 
+type ProductWithVariantFlag = Product & { hasVariants: boolean };
+
+const attachVariantFlags = async (productList: Product[]): Promise<ProductWithVariantFlag[]> => {
+  if (productList.length === 0) return [];
+
+  const optionOwners = await db
+    .selectDistinct({ productId: productOptions.productId })
+    .from(productOptions)
+    .where(inArray(productOptions.productId, productList.map((product) => product.id)));
+  const productsWithOptions = new Set(optionOwners.map(({ productId }) => productId));
+
+  return productList.map((product) => ({
+    ...product,
+    hasVariants: productsWithOptions.has(product.id),
+  }));
+};
+
 export const productsRepository = {
   async getCategorySnapshot(categoryId: string | null) {
     if (!categoryId) return { id: null, name: 'Unknown / uncategorized' };
@@ -20,7 +37,7 @@ export const productsRepository = {
     return category ?? { id: null, name: 'Unknown / uncategorized' };
   },
 
-  async findMany(query: ProductQuery): Promise<{ data: Product[]; total: number }> {
+  async findMany(query: ProductQuery): Promise<{ data: ProductWithVariantFlag[]; total: number }> {
     const {
       page,
       limit,
@@ -86,7 +103,7 @@ export const productsRepository = {
       db.select({ count: sql<number>`count(*)` }).from(products).where(whereClause),
     ]);
 
-    return { data, total: Number(countResult[0].count) };
+    return { data: await attachVariantFlags(data), total: Number(countResult[0].count) };
   },
 
   async findBySlug(slug: string, activeOnly = true): Promise<Product | undefined> {
@@ -226,11 +243,12 @@ export const productsRepository = {
     return { data, total: Number(countResult[0].count) };
   },
 
-  async findFeatured(limit = 8): Promise<Product[]> {
-    return db.select().from(products)
+  async findFeatured(limit = 8): Promise<ProductWithVariantFlag[]> {
+    const featuredProducts = await db.select().from(products)
       .where(and(eq(products.isFeatured, true), eq(products.isActive, true)))
       .orderBy(desc(products.createdAt))
       .limit(limit);
+    return attachVariantFlags(featuredProducts);
   },
 
   async findLowStock(threshold = 5): Promise<Product[]> {

@@ -60,6 +60,7 @@ const InvoiceMaster = lazy(() => import('./pages/admin/InvoiceMaster'));
 const EmailMaster = lazy(() => import('./pages/admin/EmailMaster'));
 const CampaignManager = lazy(() => import('./pages/admin/CampaignManager'));
 const EmailLogs = lazy(() => import('./pages/admin/EmailLogs'));
+const BannerManager = lazy(() => import('./pages/admin/BannerManager'));
 const Unsubscribe = lazy(() => import('./pages/storefront/Unsubscribe'));
 const MarketingPreferences = lazy(() => import('./pages/customer/MarketingPreferences'));
 
@@ -213,6 +214,7 @@ const router = createBrowserRouter([
           { path: '/admin/email-master', element: <EmailMaster /> },
           { path: '/admin/campaigns', element: <CampaignManager /> },
           { path: '/admin/email-logs', element: <EmailLogs /> },
+          { path: '/admin/banners', element: <BannerManager /> },
           { path: '/admin/*', element: <AdminNotFound /> },
         ],
       },

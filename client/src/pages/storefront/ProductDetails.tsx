@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Star, Shield, Truck, Package, Zap, ChevronLeft, ChevronRight, PenLine, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -108,6 +108,7 @@ export default function ProductDetails() {
   const { addToCart, isInCart } = useCart();
   const user = useAtomValue(userAtom);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data, isLoading } = useQuery({
     queryKey: ['product', slug],
@@ -152,6 +153,14 @@ export default function ProductDetails() {
       setSelectedOptions(initial);
     }
   }, [product?.id, hasOptions, options]);
+
+  useEffect(() => {
+    if (!hasOptions || location.hash !== '#product-options') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('product-options')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasOptions, location.hash, product?.id]);
 
   const selectedVariant = useMemo(() => {
     if (!hasOptions) {
@@ -283,7 +292,7 @@ export default function ProductDetails() {
 
           {/* Product Options (Variants: Color, Size, Storage, etc.) */}
           {hasOptions && (
-            <div className="space-y-4 mb-6 p-4 rounded-2xl bg-card border border-border">
+            <div id="product-options" className="scroll-mt-24 space-y-4 mb-6 p-4 rounded-2xl bg-card border border-border target:ring-2 target:ring-primary/40 target:ring-offset-4 target:ring-offset-background">
               {options.map((opt) => {
                 const isColor = opt.name.toLowerCase().includes('color');
                 const selectedValId = selectedOptions[opt.id];

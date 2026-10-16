@@ -101,14 +101,12 @@ export function DataTable({
             
             {filters.map((f) => (
               <DropdownMenu key={f.key}>
-                <DropdownMenuTrigger>
-                  <button className="flex items-center bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:outline-none">
-                    <Filter className="w-4 h-4 text-muted-foreground mr-2" />
-                    <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis mr-2 max-w-[120px]">
-                      {f.value ? (f.options.find(o => o.value === f.value)?.label || f.value) : f.label}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto opacity-50" />
-                  </button>
+                <DropdownMenuTrigger className="flex items-center bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors focus:outline-none">
+                  <Filter className="w-4 h-4 text-muted-foreground mr-2" />
+                  <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis mr-2 max-w-[120px]">
+                    {f.value ? (f.options.find(o => o.value === f.value)?.label || f.value) : f.label}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto opacity-50" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 max-h-[300px] overflow-y-auto">
                   <DropdownMenuItem onClick={() => f.onChange('')} className="cursor-pointer">

@@ -18,6 +18,7 @@ import type { Category } from "../../types";
 interface NavCategoryDropdownProps {
   category: Category;
   onNavigate?: () => void;
+  overlay?: boolean;
 }
 
 // Icon resolver based on category slug/name
@@ -48,12 +49,11 @@ export const getCategoryIcon = (slugOrName: string) => {
 export const NavCategoryDropdown = ({
   category,
   onNavigate,
+  overlay = false,
 }: NavCategoryDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  if (!category) return null;
 
   const subcategories = Array.isArray(category.children)
     ? category.children.filter((sub) => sub && sub.isActive !== false)
@@ -103,7 +103,11 @@ export const NavCategoryDropdown = ({
       <Link
         to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
         onClick={onNavigate}
-        className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-card/60"
+        className={`rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+          overlay
+            ? "text-white/80 hover:bg-white/10 hover:text-white"
+            : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+        }`}
       >
         {category.name}
       </Link>
@@ -126,10 +130,12 @@ export const NavCategoryDropdown = ({
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
-        className={`group flex items-center gap-1.5 text-sm font-medium transition-colors px-2.5 py-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+        className={`group flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
           isOpen
             ? "text-primary bg-primary/10"
-            : "text-muted-foreground hover:text-foreground hover:bg-card/70"
+            : overlay
+              ? "text-white/80 hover:bg-white/10 hover:text-white"
+              : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
         }`}
       >
         <span>{category.name}</span>
@@ -147,7 +153,7 @@ export const NavCategoryDropdown = ({
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
+            transition={{ type: "spring", stiffness: 360, damping: 28 }}
             className={`absolute top-full left-0 mt-1.5 z-50 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl p-4 overflow-hidden origin-top-left ${
               isWide ? "w-80 sm:w-96" : "w-72"
             }`}
