@@ -32,6 +32,7 @@ import {
   marketingPreferences,
   campaigns,
   campaignRecipients,
+  bannerSettings,
   type BusinessAddress,
 } from './schema/index.js';
 import { reviewsRepository } from '../../modules/reviews/reviews.repository.js';
@@ -65,7 +66,7 @@ async function seed() {
     }
     logger.warn(`Resetting explicitly confirmed disposable database: ${databaseName}`);
     await db.execute(
-      `TRUNCATE TABLE users, categories, products, product_options, product_option_values, product_variants, variant_option_values, coupons, blogs, blog_content_revisions, blog_slug_redirects, orders, order_items, order_status_events, payment_attempts, payment_refunds, addresses, reviews, wishlists, carts, cart_items, cart_merge_operations, coupon_redemptions, gst_verifications, business_profiles, webhook_events CASCADE;`
+      `TRUNCATE TABLE banners, banner_settings, media_assets, users, categories, products, product_options, product_option_values, product_variants, variant_option_values, coupons, blogs, blog_content_revisions, blog_slug_redirects, orders, order_items, order_status_events, payment_attempts, payment_refunds, addresses, reviews, wishlists, carts, cart_items, cart_merge_operations, coupon_redemptions, gst_verifications, business_profiles, webhook_events CASCADE;`
     );
   } else {
     logger.info('Non-destructive seed mode: existing business records will be preserved where unique.');
@@ -1760,6 +1761,12 @@ async function seed() {
   }
 
   logger.info('✅ P3 seeded: invoice/email versions, structured blogs, explicit consent, non-sending campaign, and durable invoice PDFs');
+
+  // Banner Master intentionally starts without fake live promotions. The public
+  // homepage uses its safe brand fallback until an administrator publishes one.
+  await db.insert(bannerSettings).values({ placement: 'home_hero', autoplayEnabled: true, autoplayIntervalMs: 6000, showNavigation: true, showIndicators: true })
+    .onConflictDoNothing();
+  logger.info('✅ Banner Master settings seeded (no fabricated live banners)');
 
   logger.success(`
 ╔═══════════════════════════════════════════════════════════════════════════╗

@@ -120,6 +120,13 @@
       "when": 1791230400000,
       "tag": "0016_p3_content_masters",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791849600000,
+      "tag": "0017_banner_master",
+      "breakpoints": true
     }
   ]
 }

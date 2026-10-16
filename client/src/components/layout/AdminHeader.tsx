@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 const titles: Record<string, string> = {
   dashboard: 'Dashboard', analytics: 'Analytics', products: 'Products', categories: 'Categories',
   inventory: 'Inventory', orders: 'Orders', transactions: 'Transactions', coupons: 'Coupons',
-  customers: 'Customers', reviews: 'Reviews', blogs: 'Blogs',
+  customers: 'Customers', reviews: 'Reviews', blogs: 'Blogs', banners: 'Banner Master',
   'invoice-master': 'Invoice Master', 'email-master': 'Email Master', campaigns: 'Campaigns', 'email-logs': 'Email Logs',
 };
 

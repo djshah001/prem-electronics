@@ -1,160 +1,156 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
 /* =========================================================
    PREM ELECTRONICS — BRAND DESIGN SYSTEM
-   Primary Brand: #D82D53
-   Secondary Brand: #696B6D
-   Supports: Light and Dark modes
+   Primary Signature: #D82D53 (Vibrant Pinkish Crimson)
+   Accent Highlights: #FF5A87, #FB7185, #FCE7ED
+   Dark Slate Undertone: Deep Charcoal with Rose Bloom
    ========================================================= */
 
 /* =========================================================
    LIGHT THEME — DEFAULT
    ========================================================= */
-
 :root {
   color-scheme: light;
 
   /* Base surfaces */
-  --background: 220 20% 98%;
-  --foreground: 220 10% 16%;
+  --background: 345 35% 99%;
+  --foreground: 340 22% 15%;
 
   --card: 0 0% 100%;
-  --card-foreground: 220 10% 16%;
+  --card-foreground: 340 22% 15%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 220 10% 16%;
+  --popover-foreground: 340 22% 15%;
 
-  /* Primary brand */
-  --primary: 344 69% 51%;
+  /* Signature Pink / Crimson */
+  --primary: 346 73% 51%;        /* #D82D53 */
+  --primary-hover: 346 76% 45%;  /* #C41F44 */
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary */
-  --secondary: 220 9% 95%;
-  --secondary-foreground: 220 7% 30%;
+  /* Subtle Rose Secondary */
+  --secondary: 345 30% 96%;
+  --secondary-foreground: 344 45% 25%;
 
   /* Muted */
-  --muted: 220 14% 95%;
-  --muted-foreground: 220 5% 43%;
+  --muted: 345 25% 95%;
+  --muted-foreground: 340 10% 46%;
 
-  /* Accent */
-  --accent: 344 75% 96%;
-  --accent-foreground: 344 69% 38%;
+  /* Pink Accents */
+  --accent: 345 92% 96%;
+  --accent-foreground: 346 78% 44%;
 
   /* Destructive */
-  --destructive: 0 72% 50%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Borders and inputs */
-  --border: 220 12% 90%;
-  --input: 220 12% 87%;
-  --ring: 344 69% 51%;
+  /* Borders and inputs with faint pink tint */
+  --border: 345 20% 91%;
+  --input: 345 20% 88%;
+  --ring: 346 73% 51%;
 
-  /* Brand palette */
-  --prem-blue: #696b6d;
-  --prem-purple: #b92346;
-  --prem-amber: #d97706;
-  --prem-green: #16845b;
-  --prem-dark: #25272a;
-  --prem-card: #ffffff;
+  /* Brand Palette Hex Tokens */
+  --prem-pink-50: #fff1f4;
+  --prem-pink-100: #ffe4e8;
+  --prem-pink-200: #fecdd6;
+  --prem-pink-300: #fda4b4;
+  --prem-pink-400: #fb7185;
+  --prem-pink-500: #f43f68;
+  --prem-pink-600: #d82d53;
+  --prem-pink-700: #be123c;
+  --prem-pink-800: #9f1239;
+  --prem-pink-900: #881337;
+  --prem-pink-950: #4c0519;
 
-  --prem-crimson: #d82d53;
-  --prem-crimson-hover: #bd2446;
-  --prem-crimson-soft: #fce9ee;
   --prem-grey: #696b6d;
-  --prem-grey-dark: #444648;
-  --prem-grey-light: #f1f2f3;
-  --prem-page: #f6f7f9;
+  --prem-grey-dark: #37393b;
+  --prem-grey-light: #f4f5f6;
 
   /* Radius */
-  --radius: 0.75rem;
+  --radius: 0.85rem;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(25, 30, 38, 0.04);
-  --shadow-sm:
-    0 2px 6px rgba(25, 30, 38, 0.05), 0 1px 2px rgba(25, 30, 38, 0.03);
-  --shadow-md:
-    0 4px 12px rgba(25, 30, 38, 0.06), 0 2px 4px rgba(25, 30, 38, 0.03);
-  --shadow-lg:
-    0 12px 28px rgba(25, 30, 38, 0.08), 0 4px 10px rgba(25, 30, 38, 0.03);
-  --shadow-xl: 0 20px 45px rgba(25, 30, 38, 0.1);
-  --shadow-brand:
-    0 5px 14px rgba(216, 45, 83, 0.2), 0 2px 5px rgba(216, 45, 83, 0.08);
+  /* Brand Shadows */
+  --shadow-xs: 0 1px 2px rgba(216, 45, 83, 0.04);
+  --shadow-sm: 0 2px 8px rgba(216, 45, 83, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 6px 16px rgba(216, 45, 83, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 14px 32px rgba(216, 45, 83, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 24px 52px rgba(216, 45, 83, 0.16);
+  --shadow-brand: 0 8px 24px rgba(216, 45, 83, 0.28), 0 2px 6px rgba(216, 45, 83, 0.12);
 }
 
 /* =========================================================
    DARK THEME
-   Applied when the html element has class="dark"
+   Applied when html has class="dark"
    ========================================================= */
-
 html.dark {
   color-scheme: dark;
 
-  /* Base surfaces */
-  --background: 225 18% 9%;
-  --foreground: 220 14% 93%;
+  /* Midnight surfaces with a subtle berry undertone */
+  --background: 340 22% 8%;
+  --foreground: 345 35% 95%;
 
-  --card: 225 16% 12%;
-  --card-foreground: 220 14% 93%;
+  --card: 340 20% 11%;
+  --card-foreground: 345 35% 95%;
 
-  --popover: 225 16% 12%;
-  --popover-foreground: 220 14% 93%;
+  --popover: 340 20% 11%;
+  --popover-foreground: 345 35% 95%;
 
-  /* Crimson adjusted for dark backgrounds */
-  --primary: 344 73% 59%;
+  /* High-contrast neon pink/rose for dark surfaces */
+  --primary: 346 84% 61%;        /* #f2456b */
+  --primary-hover: 346 88% 68%;
   --primary-foreground: 0 0% 100%;
 
   /* Secondary */
-  --secondary: 225 13% 17%;
-  --secondary-foreground: 220 12% 90%;
+  --secondary: 340 18% 16%;
+  --secondary-foreground: 345 25% 90%;
 
   /* Muted */
-  --muted: 225 13% 16%;
-  --muted-foreground: 220 7% 66%;
+  --muted: 340 16% 15%;
+  --muted-foreground: 345 15% 68%;
 
   /* Accent */
-  --accent: 344 35% 19%;
-  --accent-foreground: 344 85% 82%;
+  --accent: 346 45% 18%;
+  --accent-foreground: 345 95% 86%;
 
   /* Destructive */
-  --destructive: 0 65% 53%;
+  --destructive: 0 72% 58%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Borders and inputs */
-  --border: 225 11% 22%;
-  --input: 225 11% 24%;
-  --ring: 344 73% 59%;
+  /* Dark borders with rose highlight */
+  --border: 340 16% 20%;
+  --input: 340 16% 22%;
+  --ring: 346 84% 61%;
 
-  /* Brand palette */
-  --prem-blue: #aeb0b2;
-  --prem-purple: #f06a87;
-  --prem-amber: #fbbf24;
-  --prem-green: #34d399;
-  --prem-dark: #101116;
-  --prem-card: #1a1c24;
+  /* Brand Palette Hex Tokens (Dark Mode) */
+  --prem-pink-50: #320d18;
+  --prem-pink-100: #491322;
+  --prem-pink-200: #651a2f;
+  --prem-pink-300: #8b1f3e;
+  --prem-pink-400: #ba254f;
+  --prem-pink-500: #e83363;
+  --prem-pink-600: #f2456b;
+  --prem-pink-700: #fb6a8c;
+  --prem-pink-800: #fda1b6;
+  --prem-pink-900: #fed2dc;
+  --prem-pink-950: #fff0f4;
 
-  --prem-crimson: #e94a6c;
-  --prem-crimson-hover: #f06481;
-  --prem-crimson-soft: #3b2029;
-  --prem-grey: #aeb0b2;
-  --prem-grey-dark: #d2d4d6;
-  --prem-grey-light: #292b32;
-  --prem-page: #17191f;
+  --prem-grey: #a6a8aa;
+  --prem-grey-dark: #d5d7d9;
+  --prem-grey-light: #212226;
 
-  /* Dark shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.16);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.14);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.28);
-  --shadow-xl: 0 20px 45px rgba(0, 0, 0, 0.36);
-  --shadow-brand:
-    0 5px 18px rgba(233, 74, 108, 0.18), 0 2px 5px rgba(233, 74, 108, 0.08);
+  /* Dark Shadows with Pink Neon Bloom */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.65);
+  --shadow-xl: 0 26px 58px rgba(0, 0, 0, 0.75);
+  --shadow-brand: 0 8px 28px rgba(242, 69, 107, 0.32), 0 2px 8px rgba(242, 69, 107, 0.16);
 }
 
 /* =========================================================
    TAILWIND CSS v4 THEME MAPPING
    ========================================================= */
-
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -184,23 +180,28 @@ html.dark {
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
-  --color-prem-blue: var(--prem-blue);
-  --color-prem-purple: var(--prem-purple);
-  --color-prem-amber: var(--prem-amber);
-  --color-prem-green: var(--prem-green);
-  --color-prem-dark: var(--prem-dark);
-  --color-prem-card: var(--prem-card);
+  --color-pink-50: var(--prem-pink-50);
+  --color-pink-100: var(--prem-pink-100);
+  --color-pink-200: var(--prem-pink-200);
+  --color-pink-300: var(--prem-pink-300);
+  --color-pink-400: var(--prem-pink-400);
+  --color-pink-500: var(--prem-pink-500);
+  --color-pink-600: var(--prem-pink-600);
+  --color-pink-700: var(--prem-pink-700);
+  --color-pink-800: var(--prem-pink-800);
+  --color-pink-900: var(--prem-pink-900);
+  --color-pink-950: var(--prem-pink-950);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
 }
 
 /* =========================================================
    BASE STYLES
    ========================================================= */
-
 @layer base {
   *,
   *::before,
@@ -218,39 +219,28 @@ html.dark {
     margin: 0;
     background: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Inter", sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition:
-      background-color 200ms ease,
-      color 200ms ease;
+    transition: background-color 250ms ease, color 250ms ease;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: "Outfit", sans-serif;
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.028em;
   }
 
-  button,
-  input,
-  select,
-  textarea {
+  button, input, select, textarea {
     font: inherit;
   }
 
   button {
-    transition:
-      background-color 180ms ease,
-      border-color 180ms ease,
-      box-shadow 180ms ease,
-      color 180ms ease,
-      transform 180ms ease;
+    transition: background-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   button:focus-visible,
@@ -258,22 +248,19 @@ html.dark {
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 3px solid rgba(216, 45, 83, 0.32);
+    outline: 3px solid rgba(216, 45, 83, 0.45);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: rgba(216, 45, 83, 0.2);
+    background: rgba(216, 45, 83, 0.22);
     color: hsl(var(--foreground));
   }
 
+  /* Custom Pink-Accented Scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #c9cbcd transparent;
-  }
-
-  html.dark * {
-    scrollbar-color: #454750 transparent;
+    scrollbar-color: rgba(216, 45, 83, 0.3) transparent;
   }
 
   ::-webkit-scrollbar {
@@ -286,244 +273,104 @@ html.dark {
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #c9cbcd;
+    background: rgba(216, 45, 83, 0.25);
     border-radius: 999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #96999c;
+    background: rgba(216, 45, 83, 0.5);
+  }
+
+  html.dark * {
+    scrollbar-color: rgba(242, 69, 107, 0.35) transparent;
   }
 
   html.dark ::-webkit-scrollbar-thumb {
-    background: #454750;
+    background: rgba(242, 69, 107, 0.3);
   }
 
   html.dark ::-webkit-scrollbar-thumb:hover {
-    background: #666975;
+    background: rgba(242, 69, 107, 0.6);
   }
 }
 
 /* =========================================================
-   BRAND UTILITIES
+   BRAND UTILITIES & PINK EFFECTS
    ========================================================= */
-
 @layer utilities {
+  /* Rich Rose-Pink Gradients */
   .gradient-primary {
-    background: linear-gradient(135deg, #d82d53 0%, #b92346 100%);
+    background: linear-gradient(135deg, #f43f68 0%, #d82d53 45%, #a81739 100%);
   }
 
   html.dark .gradient-primary {
-    background: linear-gradient(135deg, #e94a6c 0%, #bd2446 100%);
+    background: linear-gradient(135deg, #fb5c81 0%, #f2456b 48%, #c21d43 100%);
   }
 
-  .gradient-card {
-    background: linear-gradient(145deg, #ffffff 0%, #f8f8fa 100%);
+  .gradient-pink-soft {
+    background: linear-gradient(135deg, rgba(254, 205, 214, 0.4) 0%, rgba(255, 241, 244, 0.7) 100%);
   }
 
-  html.dark .gradient-card {
-    background: linear-gradient(145deg, #20222b 0%, #17191f 100%);
+  html.dark .gradient-pink-soft {
+    background: linear-gradient(135deg, rgba(101, 26, 47, 0.35) 0%, rgba(50, 13, 24, 0.6) 100%);
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, #d82d53 0%, #a91f40 100%);
+    background: linear-gradient(135deg, #fb7185 0%, #d82d53 45%, #9f1239 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   html.dark .gradient-text {
-    background: linear-gradient(135deg, #f06a87 0%, #e94a6c 100%);
+    background: linear-gradient(135deg, #fda4b4 0%, #f2456b 50%, #fb7185 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .gradient-border {
-    border: 1px solid transparent;
-    background:
-      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
-      linear-gradient(135deg, #d82d53, #e98ba0) border-box;
-  }
-
+  /* Glassmorphism with Pink Sheen */
   .glass {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(105, 107, 109, 0.12);
-    box-shadow: var(--shadow-sm);
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(216, 45, 83, 0.12);
+    box-shadow: 0 8px 32px 0 rgba(216, 45, 83, 0.05);
   }
 
   html.dark .glass {
-    background: rgba(26, 28, 36, 0.88);
-    border-color: rgba(255, 255, 255, 0.07);
+    background: rgba(26, 17, 21, 0.82);
+    border: 1px solid rgba(242, 69, 107, 0.18);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   }
 
-  .card-glow {
+  /* Pink Glow States */
+  .glow-pink-sm {
+    box-shadow: 0 0 14px -2px rgba(216, 45, 83, 0.28);
+  }
+
+  .glow-pink-md {
+    box-shadow: 0 0 28px -4px rgba(216, 45, 83, 0.38);
+  }
+
+  .glow-pink-lg {
+    box-shadow: 0 0 48px -6px rgba(216, 45, 83, 0.48);
+  }
+
+  .card-pink-glow {
     border: 1px solid hsl(var(--border));
     box-shadow: var(--shadow-sm);
-    transition:
-      box-shadow 220ms ease,
-      border-color 220ms ease,
-      transform 220ms ease;
+    transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .card-glow:hover {
-    border-color: rgba(216, 45, 83, 0.3);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+  .card-pink-glow:hover {
+    border-color: rgba(216, 45, 83, 0.42);
+    box-shadow: 0 12px 30px -4px rgba(216, 45, 83, 0.18);
+    transform: translateY(-3px);
   }
 
-  html.dark .card-glow:hover {
-    border-color: rgba(233, 74, 108, 0.36);
-  }
-
-  .shadow-soft {
-    box-shadow: var(--shadow-sm);
-  }
-
-  .shadow-card {
-    box-shadow: var(--shadow-md);
-  }
-
-  .shadow-elevated {
-    box-shadow: var(--shadow-lg);
-  }
-
-  .shadow-brand {
-    box-shadow: var(--shadow-brand);
-  }
-
-  .bg-prem-page {
-    background-color: var(--prem-page);
-  }
-
-  .bg-prem-surface {
-    background-color: hsl(var(--card));
-  }
-
-  .border-prem {
-    border-color: hsl(var(--border));
-  }
-
-  .text-prem-brand {
-    color: var(--prem-crimson);
-  }
-
-  .text-prem-secondary {
-    color: var(--prem-grey);
-  }
-
-  .brand-glow {
-    background: radial-gradient(
-      circle at 50% 0%,
-      rgba(216, 45, 83, 0.09),
-      transparent 65%
-    );
-  }
-
-  html.dark .brand-glow {
-    background: radial-gradient(
-      circle at 50% 0%,
-      rgba(233, 74, 108, 0.13),
-      transparent 65%
-    );
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .animate-glow {
-    animation: glow 2.5s ease-in-out infinite alternate;
-  }
-}
-
-/* =========================================================
-   ANIMATIONS
-   ========================================================= */
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes glow {
-  from {
-    box-shadow: 0 0 12px rgba(216, 45, 83, 0.1);
-  }
-
-  to {
-    box-shadow: 0 0 24px rgba(216, 45, 83, 0.22);
-  }
-}
-
-/* =========================================================
-   RANGE INPUTS
-   ========================================================= */
-
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 5px;
-  background: hsl(var(--border));
-  border-radius: 999px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 17px;
-  height: 17px;
-  margin-top: -6px;
-  background: var(--prem-crimson);
-  border: 3px solid hsl(var(--card));
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 1px rgba(216, 45, 83, 0.28),
-    0 2px 5px rgba(25, 30, 38, 0.15);
-}
-
-input[type="range"]::-moz-range-track {
-  height: 5px;
-  background: hsl(var(--border));
-  border-radius: 999px;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--prem-crimson);
-  border: 3px solid hsl(var(--card));
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(216, 45, 83, 0.28);
-}
-
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+  html.dark .card-pink-glow:hover {
+    border-color: rgba(242, 69, 107, 0.5);
+    box-shadow: 0 12px 32px -4px rgba(242, 69, 107, 0.24);
   }
 }

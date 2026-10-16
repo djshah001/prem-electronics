@@ -1,8 +1,4 @@
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -11,6 +7,7 @@ import { errorHandler } from './core/middlewares/errorHandler.js';
 import { publicLimiter } from './core/middlewares/rateLimiter.js';
 import { originGuard } from './core/middlewares/originGuard.js';
 import { NotFoundError } from './core/errors/appError.js';
+import { serverUploadRoot } from './core/utils/uploadPaths.js';
 
 // Routers
 import authRoutes from './modules/auth/auth.routes.js';
@@ -30,6 +27,7 @@ import businessesRoutes from './modules/businesses/businesses.routes.js';
 import invoiceMasterRoutes from './modules/invoiceMaster/invoice.routes.js';
 import emailMasterRoutes from './modules/communications/email.routes.js';
 import { campaignRouter, marketingRouter, unsubscribeRouter } from './modules/communications/campaign.routes.js';
+import { bannerAdminRouter, bannerPublicRouter } from './modules/banners/banners.routes.js';
 
 const app = express();
 
@@ -61,7 +59,7 @@ app.use(
     res.setHeader('Access-Control-Allow-Origin', '*');
     next();
   },
-  express.static(path.join(__dirname, '..', 'uploads'))
+  express.static(serverUploadRoot)
 );
 
 // ─── Health Check ────────────────────────────────────────────────────────────
@@ -89,6 +87,8 @@ app.use('/api/v1/email-master', emailMasterRoutes);
 app.use('/api/v1/campaigns', campaignRouter);
 app.use('/api/v1/marketing', marketingRouter);
 app.use('/api/v1/unsubscribe', unsubscribeRouter);
+app.use('/api/v1/banners', bannerPublicRouter);
+app.use('/api/v1/admin/banners', bannerAdminRouter);
 
 // ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
 app.get('/favicon.ico', (_req, res) => {

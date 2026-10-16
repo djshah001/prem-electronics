@@ -1,96 +1,264 @@
-import { Link } from 'react-router-dom';
-import { Zap, Mail, Phone, MapPin, MessageCircle, Globe, Camera, Play } from 'lucide-react';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Send,
+  CheckCircle2,
+  Phone,
+  Mail,
+  MapPin,
+  ShieldCheck,
+  RotateCcw,
+  Headphones,
+  Heart,
+} from "lucide-react";
+import { toast } from "sonner";
 
 export const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !email.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setSubscribed(true);
+    toast.success("Thank you for subscribing to Prem Electronics!");
+    setEmail("");
+  };
+
   return (
-    <footer className="bg-card border-t border-border mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Brand */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg font-['Outfit']">
-                <span className="gradient-text">Prem</span> Electronics
-              </span>
+    <footer className="relative overflow-hidden border-t border-border/70 bg-card/40 pt-16 pb-8 backdrop-blur-md">
+      {/* Background Pink Ambient Light */}
+      <div className="pointer-events-none absolute left-1/2 -top-24 -translate-x-1/2 h-64 w-[650px] rounded-full bg-primary/5 blur-[120px]" />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Value Assurance Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pb-14 border-b border-border/60">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <ShieldCheck className="h-5 w-5" />
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Your trusted destination for premium electronics. Authentic products, competitive prices, and exceptional service.
-            </p>
-            <div className="flex gap-3">
-              {[MessageCircle, Globe, Camera, Play].map((Icon, i) => (
-                <a key={i} href="#" className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
+            <div>
+              <h4 className="text-sm font-bold text-foreground">
+                Official Warranty
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                100% manufacturer warranty included
+              </p>
             </div>
           </div>
 
-          {/* Categories */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4 font-['Outfit']">Categories</h4>
-            <ul className="space-y-2">
-              {['Smartphones', 'Laptops', 'Audio', 'Televisions', 'Cameras'].map((cat) => (
-                <li key={cat}>
-                  <Link to={`/shop?search=${cat.toLowerCase()}`} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                    {cat}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <RotateCcw className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-foreground">
+                7-Day Replacement
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Hassle-free defective replacements
+              </p>
+            </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4 font-['Outfit']">Quick Links</h4>
-            <ul className="space-y-2">
-              {[
-                { label: 'My Account', href: '/account' },
-                { label: 'Track Order', href: '/account/orders' },
-                { label: 'Return Policy', href: '#' },
-                { label: 'Warranty Info', href: '#' },
-                { label: 'EMI Options', href: '#' },
-              ].map((link) => (
-                <li key={link.label}>
-                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-semibold text-foreground mb-4 font-['Outfit']">Contact Us</h4>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <span>123 Electronics Hub, MG Road, Bengaluru, Karnataka 560001</span>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4 text-primary flex-shrink-0" />
-                <a href="tel:+918001234567" className="hover:text-primary transition-colors">+91 800 123 4567</a>
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4 text-primary flex-shrink-0" />
-                <a href="mailto:support@premelectronics.com" className="hover:text-primary transition-colors">support@premelectronics.com</a>
-              </li>
-            </ul>
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+              <Headphones className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-foreground">
+                Dedicated Support
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Live tech assistance for your gear
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
+        {/* Links & Brand Section */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 py-14 border-b border-border/60">
+          {/* Brand Info */}
+          <div className="md:col-span-4 space-y-4">
+            <Link to="/" className="inline-flex items-center gap-2">
+              <img
+                src="/Symbol.jpg"
+                alt="Prem Logo"
+                className="h-7 w-7 object-contain"
+              />
+              <img
+                src="/logo.png"
+                alt="Prem Electronics"
+                className="h-6 w-auto object-contain"
+              />
+            </Link>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
+              Prem Electronics delivers certified professional gear, creator
+              essentials, drones, audio units, and smart appliances straight
+              from authorized distributors.
+            </p>
+            <div className="space-y-2 pt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2.5">
+                <Phone className="h-3.5 w-3.5 text-primary" />
+                <span>+91 98765 43210</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="h-3.5 w-3.5 text-primary" />
+                <span>support@premelectronics.com</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <MapPin className="h-3.5 w-3.5 text-primary" />
+                <span>Vadodara, Gujarat, India</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Categories */}
+          <div className="md:col-span-2 space-y-3">
+            <h5 className="font-['Outfit'] text-sm font-bold tracking-tight text-foreground">
+              Shop Categories
+            </h5>
+            <ul className="space-y-2 text-xs text-muted-foreground">
+              <li>
+                <Link
+                  to="/shop?category=cameras"
+                  className="hover:text-primary transition-colors"
+                >
+                  Cameras & 360°
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/shop?category=drones"
+                  className="hover:text-primary transition-colors"
+                >
+                  Drones & Flight
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/shop?category=gimbals"
+                  className="hover:text-primary transition-colors"
+                >
+                  Stabilizers & Gimbals
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/shop?category=audio"
+                  className="hover:text-primary transition-colors"
+                >
+                  Wireless Audio
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/shop?isFeatured=true"
+                  className="hover:text-primary transition-colors"
+                >
+                  Special Deals
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support & Account */}
+          <div className="md:col-span-2 space-y-3">
+            <h5 className="font-['Outfit'] text-sm font-bold tracking-tight text-foreground">
+              Customer Care
+            </h5>
+            <ul className="space-y-2 text-xs text-muted-foreground">
+              <li>
+                <Link
+                  to="/account/orders"
+                  className="hover:text-primary transition-colors"
+                >
+                  Track Orders
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/wishlist"
+                  className="hover:text-primary transition-colors"
+                >
+                  My Wishlist
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/terms"
+                  className="hover:text-primary transition-colors"
+                >
+                  Warranty & Returns
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/privacy"
+                  className="hover:text-primary transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/contact"
+                  className="hover:text-primary transition-colors"
+                >
+                  Contact Us
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Newsletter Box */}
+          <div className="md:col-span-4 space-y-3">
+            <h5 className="font-['Outfit'] text-sm font-bold tracking-tight text-foreground">
+              Insider Deals
+            </h5>
+            <p className="text-xs text-muted-foreground">
+              Subscribe to get product launch updates and exclusive discount
+              drops.
+            </p>
+            <form onSubmit={handleSubscribe} className="space-y-2">
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="w-full rounded-xl border border-border bg-background/80 px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all pr-10"
+                />
+                <button
+                  type="submit"
+                  aria-label="Subscribe"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-lg bg-primary text-white transition-transform hover:scale-105 active:scale-95 shadow-sm"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {subscribed && (
+                <p className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-500">
+                  <CheckCircle2 className="h-3 w-3" /> Subscribed successfully!
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
+
+        {/* Bottom Credits & Copyright */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 text-xs text-muted-foreground">
+          <p>
             © {new Date().getFullYear()} Prem Electronics. All rights reserved.
           </p>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
-          </div>
+          <p className="flex items-center gap-1">
+            Engineered with{" "}
+            <Heart className="h-3.5 w-3.5 fill-primary text-primary" /> for
+            creators.
+          </p>
         </div>
       </div>
     </footer>

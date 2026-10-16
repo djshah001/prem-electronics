@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ShoppingCart,
@@ -13,7 +13,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { cartCountAtom, cartDrawerOpenAtom } from "../../store/cartAtom";
 import { userAtom } from "../../store/userAtom";
@@ -36,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { cn } from "../../lib/utils";
 
 const formatPrice = (p: string | number) =>
   new Intl.NumberFormat("en-IN", {
@@ -48,13 +49,20 @@ export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+
   const cartCount = useAtomValue(cartCountAtom);
   const [, setCartOpen] = useAtom(cartDrawerOpenAtom);
   const user = useAtomValue(userAtom);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const reduceMotion = Boolean(useReducedMotion());
+  const isHome = location.pathname === "/";
   const debouncedSearch = useDebounce(search, 300);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dynamic Categories from backend via React Query
   const {
@@ -79,6 +87,58 @@ export const Navbar = () => {
 
   const suggestions = suggestionsData?.data ?? [];
   const showSuggestions = searchFocused && debouncedSearch.trim().length >= 2;
+
+  // -------------------------------------------------------------
+  // Liquid Scroll Behavior: Hide on scroll, show when stopped
+  // -------------------------------------------------------------
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 20);
+
+      // Never hide navbar if user is actively searching or has mobile menu open
+      if (searchFocused || menuOpen) {
+        setIsVisible(true);
+        return;
+      }
+
+      // Always show when resting at the top of the page
+      if (currentScrollY <= 25) {
+        setIsVisible(true);
+        return;
+      }
+
+      // Hide immediately while scrolling
+      setIsVisible(false);
+
+      // Debounce reveal: trigger smooth spring entry when scrolling ceases
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsVisible(true);
+      }, 200);
+    };
+
+    const handleScrollEnd = () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      setIsVisible(true);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("scrollend", handleScrollEnd);
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scrollend", handleScrollEnd);
+    };
+  }, [searchFocused, menuOpen]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -108,50 +168,99 @@ export const Navbar = () => {
     navigate(`/products/${slug}`);
   };
 
+  // Keep visible if search or menu is actively open
+  const shouldShow = isVisible || searchFocused || menuOpen;
+  const isTransparentHero = isHome && !isScrolled;
+
+  const navLinkClass = cn(
+    "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5",
+    isTransparentHero
+      ? "text-white/80 hover:bg-white/10 hover:text-white"
+      : "text-muted-foreground hover:bg-card/70 hover:text-foreground",
+  );
+
   return (
-    <header className="sticky top-0 z-50 glass border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <motion.header
+      initial={reduceMotion ? false : { opacity: 0, y: -30 }}
+      animate={{
+        y: shouldShow ? 0 : -95,
+        opacity: shouldShow ? 1 : 0,
+        scale: shouldShow ? 1 : 0.985,
+      }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : {
+              type: "spring",
+              stiffness: 260,
+              damping: 25,
+              mass: 0.7,
+            }
+      }
+      className={cn("fixed inset-x-0 top-0 z-50 pointer-events-none")}
+    >
+      <div
+        className={cn(
+          "mx-auto max-w-8xl px-4 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 sm:px-6 pointer-events-auto",
+          isTransparentHero
+            ? "border-white/20 bg-slate-800/45 shadow-black/20"
+            : "border-border/80 bg-background/85 shadow-black/10 dark:bg-slate-100/70",
+        )}
+      >
         <div className="flex items-center justify-between h-16 gap-2">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            {/* Symbol Image */}
-            <img
-              src="/Symbol.jpg"
-              alt="Prem Electronics Symbol"
-              className="w-9 h-9 object-contain"
-            />
-            {/* Brand Logo / Title Image */}
-            <img
-              src="/logo.png"
-              alt="Prem Electronics"
-              className="h-8 w-auto object-contain"
-            />
-          </Link>
+          <motion.div
+            whileHover={reduceMotion ? undefined : { scale: 1.035 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+          >
+            <Link
+              to="/"
+              className={cn(
+                "flex items-center gap-2 flex-shrink-0 rounded-xl transition-all duration-300",
+                isTransparentHero && "px-2.5 py-2 shadow-sm",
+              )}
+            >
+              <img
+                src="/Symbol.jpg"
+                alt="Prem Electronics Symbol"
+                className="w-6 h-6 object-contain"
+              />
+              <img
+                src="/logo.png"
+                alt="Prem Electronics"
+                className="h-6 w-auto object-contain"
+              />
+            </Link>
+          </motion.div>
 
           {/* Desktop Nav with Dynamic Categories */}
           <nav
             aria-label="Main Navigation"
             className="hidden md:flex items-center gap-1 lg:gap-2 flex-wrap"
           >
-            <Link
-              to="/shop"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-2.5 py-1.5 rounded-lg hover:bg-card/70"
-            >
+            <Link to="/shop" className={navLinkClass}>
               Shop
             </Link>
 
-            {/* Dynamic Categories */}
             {categoriesLoading ? (
               <div className="flex items-center gap-2">
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="h-7 w-20 bg-muted/40 rounded-lg animate-pulse"
+                    className={cn(
+                      "h-7 w-20 rounded-lg animate-pulse",
+                      isTransparentHero ? "bg-white/15" : "bg-muted/40",
+                    )}
                   />
                 ))}
               </div>
             ) : categoriesError ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 text-xs",
+                  isTransparentHero ? "text-white/70" : "text-muted-foreground",
+                )}
+              >
                 <Link
                   to="/shop"
                   className="hover:text-primary transition-colors underline"
@@ -172,25 +281,30 @@ export const Navbar = () => {
                 <NavCategoryDropdown
                   key={category.id}
                   category={category}
+                  overlay={isTransparentHero}
                 />
               ))
             )}
 
-            <Link
-              to="/blog"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium px-2.5 py-1.5 rounded-lg hover:bg-card/70"
-            >
+            <Link to="/blog" className={navLinkClass}>
               Blog
             </Link>
           </nav>
 
           {/* Desktop Search with Smart Auto-Suggest */}
-          <div
+          <motion.div
             ref={searchContainerRef}
             className="hidden md:block relative flex-1 max-w-xs mx-4"
+            animate={{ scale: searchFocused && !reduceMotion ? 1.025 : 1 }}
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
           >
             <form onSubmit={handleSearch} className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search
+                className={cn(
+                  "absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors",
+                  isTransparentHero ? "text-white/65" : "text-muted-foreground",
+                )}
+              />
               <input
                 id="desktop-search-input"
                 type="text"
@@ -199,10 +313,22 @@ export const Navbar = () => {
                 onFocus={() => setSearchFocused(true)}
                 placeholder="Search products..."
                 autoComplete="off"
-                className="w-full pl-9 pr-8 py-2 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className={cn(
+                  "w-full rounded-xl border py-2 pl-9 pr-8 text-sm outline-none transition-all duration-300 focus:ring-2 focus:ring-primary/50",
+                  isTransparentHero
+                    ? "border-white/20 bg-black/20 text-white placeholder:text-white/55 hover:bg-black/30 focus:bg-black/35"
+                    : "border-border bg-card text-foreground placeholder:text-muted-foreground",
+                )}
               />
               {isSearching ? (
-                <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                <Loader2
+                  className={cn(
+                    "absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin",
+                    isTransparentHero
+                      ? "text-white/65"
+                      : "text-muted-foreground",
+                  )}
+                />
               ) : search ? (
                 <button
                   type="button"
@@ -210,7 +336,12 @@ export const Navbar = () => {
                     setSearch("");
                     setSearchFocused(false);
                   }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className={cn(
+                    "absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors",
+                    isTransparentHero
+                      ? "text-white/65 hover:text-white"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -224,6 +355,7 @@ export const Navbar = () => {
                   initial={{ opacity: 0, y: 8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
                   className="absolute left-0 right-0 mt-2 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 py-2"
                 >
                   {suggestions.length > 0 ? (
@@ -295,18 +427,28 @@ export const Navbar = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <ThemeToggle className="hidden sm:flex" />
+            <ThemeToggle
+              className={cn(
+                "hidden sm:flex",
+                isTransparentHero &&
+                  "!border-white/20 !bg-white/10 hover:!bg-white/20 text-white",
+              )}
+            />
 
             {/* Wishlist */}
             <Link
               to="/wishlist"
               id="nav-wishlist-btn"
-              className="relative p-2 rounded-lg hover:bg-card transition-colors text-muted-foreground hover:text-foreground"
+              className={cn(
+                "relative rounded-xl p-2 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105",
+                isTransparentHero
+                  ? "text-white/75 hover:bg-white/10 hover:text-white"
+                  : "text-muted-foreground hover:bg-card hover:text-foreground",
+              )}
               aria-label="Wishlist"
               title="My Wishlist"
             >
@@ -314,13 +456,25 @@ export const Navbar = () => {
             </Link>
 
             {/* Cart */}
-            <button
+            <motion.button
               id="cart-toggle-btn"
               onClick={() => setCartOpen(true)}
-              className="relative p-2 rounded-lg hover:bg-card transition-colors"
+              whileHover={reduceMotion ? undefined : { y: -2, scale: 1.06 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+              className={cn(
+                "relative rounded-xl p-2 transition-colors",
+                isTransparentHero
+                  ? "text-white/80 hover:bg-white/10 hover:text-white"
+                  : "hover:bg-card",
+              )}
               aria-label="Open cart"
             >
-              <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+              <ShoppingCart
+                className={cn(
+                  "w-5 h-5",
+                  isTransparentHero ? "text-current" : "text-muted-foreground",
+                )}
+              />
               <AnimatePresence>
                 {cartCount > 0 && (
                   <motion.span
@@ -333,24 +487,30 @@ export const Navbar = () => {
                   </motion.span>
                 )}
               </AnimatePresence>
-            </button>
+            </motion.button>
 
             {/* Profile */}
             {user ? (
               <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <button
-                    id="profile-menu-btn"
-                    className="flex items-center gap-2 p-1 rounded-full hover:bg-card transition-colors focus:outline-none"
-                    aria-label="User profile menu"
+                <DropdownMenuTrigger
+                  id="profile-menu-btn"
+                  className={cn(
+                    "flex items-center gap-2 rounded-full p-1 transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    isTransparentHero ? "hover:bg-white/10" : "hover:bg-card",
+                  )}
+                  aria-label="User profile menu"
+                >
+                  <Avatar
+                    className={cn(
+                      "h-9 w-9 border",
+                      isTransparentHero ? "border-white/30" : "border-border",
+                    )}
                   >
-                    <Avatar className="w-9 h-9 border border-border">
-                      <AvatarImage src={user.avatarUrl || ""} alt={user.name} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
+                    <AvatarImage src={user.avatarUrl || ""} alt={user.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
                   <DropdownMenuGroup>
@@ -408,25 +568,49 @@ export const Navbar = () => {
             ) : (
               <Link
                 to="/login"
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="hidden items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl sm:flex"
               >
                 Sign In
               </Link>
             )}
 
             {/* Mobile menu toggle */}
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-card transition-colors"
+            <motion.button
+              whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+              className={cn(
+                "rounded-xl p-2 transition-colors md:hidden",
+                isTransparentHero
+                  ? "text-white hover:bg-white/10"
+                  : "hover:bg-card",
+              )}
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle mobile menu"
               aria-expanded={menuOpen}
             >
-              {menuOpen ? (
-                <X className="w-5 h-5 text-foreground" />
-              ) : (
-                <Menu className="w-5 h-5 text-foreground" />
-              )}
-            </button>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={menuOpen ? "close" : "open"}
+                  initial={
+                    reduceMotion
+                      ? false
+                      : { opacity: 0, rotate: -70, scale: 0.7 }
+                  }
+                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                  exit={
+                    reduceMotion
+                      ? undefined
+                      : { opacity: 0, rotate: 70, scale: 0.7 }
+                  }
+                  transition={{ duration: reduceMotion ? 0 : 0.18 }}
+                >
+                  {menuOpen ? (
+                    <X className="h-5 w-5" />
+                  ) : (
+                    <Menu className="h-5 w-5" />
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </motion.button>
           </div>
         </div>
 
@@ -442,6 +626,6 @@ export const Navbar = () => {
           onLogout={() => logout.mutate()}
         />
       </div>
-    </header>
+    </motion.header>
   );
 };
