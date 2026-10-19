@@ -38,7 +38,9 @@ export const MobileNav = ({
   user,
   onLogout,
 }: MobileNavProps) => {
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
   const [mobileSearch, setMobileSearch] = useState("");
   const navigate = useNavigate();
 
@@ -59,7 +61,8 @@ export const MobileNav = ({
 
   const rootCategories = Array.isArray(categories)
     ? categories.filter(
-        (c) => c && c.isActive !== false && (!c.parentId || c.parentId === null)
+        (c) =>
+          c && c.isActive !== false && (!c.parentId || c.parentId === null),
       )
     : [];
 
@@ -67,13 +70,16 @@ export const MobileNav = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
-          className="md:hidden overflow-hidden border-t border-border bg-card/95 backdrop-blur-xl"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="absolute left-0 right-0 top-full z-[110] lg:hidden
+             max-h-[calc(100dvh-4rem)] overflow-y-auto
+             border border-gray-200 bg-white text-gray-900
+             shadow-2xl rounded-b-2xl"
         >
-          <div className="px-4 py-5 space-y-5 max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <div className="px-4 py-5 space-y-5">
             {/* Search Input */}
             <form onSubmit={handleSearchSubmit} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -149,12 +155,14 @@ export const MobileNav = ({
                 <div className="space-y-1">
                   {rootCategories.map((category) => {
                     const subcategories = Array.isArray(category?.children)
-                      ? category.children.filter((sub) => sub && sub.isActive !== false)
+                      ? category.children.filter(
+                          (sub) => sub && sub.isActive !== false,
+                        )
                       : [];
                     const hasSubcategories = subcategories.length > 0;
                     const isExpanded = !!expandedCategories[category.id];
                     const CategoryIcon = getCategoryIcon(
-                      category.slug || category.name
+                      category.slug || category.name,
                     );
 
                     if (!hasSubcategories) {

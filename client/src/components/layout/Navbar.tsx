@@ -23,7 +23,7 @@ import { useCategories } from "../../hooks/useCategories";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/axiosClient";
 import type { Product } from "../../types";
-import { ThemeToggle } from "../ui/ThemeToggle";
+// import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { NavCategoryDropdown } from "./NavCategoryDropdown";
 import { MobileNav } from "./MobileNav";
@@ -169,8 +169,8 @@ export const Navbar = () => {
   };
 
   // Keep visible if search or menu is actively open
-  const shouldShow = isVisible || searchFocused || menuOpen;
-  const isTransparentHero = isHome && !isScrolled;
+  const shouldShow = true;
+  const isTransparentHero = false;
 
   const navLinkClass = cn(
     "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5",
@@ -180,31 +180,11 @@ export const Navbar = () => {
   );
 
   return (
-    <motion.header
-      initial={reduceMotion ? false : { opacity: 0, y: -30 }}
-      animate={{
-        y: shouldShow ? 0 : -95,
-        opacity: shouldShow ? 1 : 0,
-        scale: shouldShow ? 1 : 0.985,
-      }}
-      transition={
-        reduceMotion
-          ? { duration: 0 }
-          : {
-              type: "spring",
-              stiffness: 260,
-              damping: 25,
-              mass: 0.7,
-            }
-      }
-      className={cn("fixed inset-x-0 top-0 z-50 pointer-events-none")}
-    >
+    <motion.header className="fixed inset-x-0 top-0 z-[100] pointer-events-none">
       <div
         className={cn(
-          "mx-auto max-w-8xl px-4 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 sm:px-6 pointer-events-auto",
-          isTransparentHero
-            ? "border-white/20 bg-slate-800/45 shadow-black/20"
-            : "border-border/80 bg-background/85 shadow-black/10 dark:bg-slate-100/70",
+          "relative mx-auto max-w-8xl px-4 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 sm:px-6 pointer-events-auto",
+          "border-border/80 bg-white shadow-black/10",
         )}
       >
         <div className="flex items-center justify-between h-16 gap-2">
@@ -236,7 +216,7 @@ export const Navbar = () => {
           {/* Desktop Nav with Dynamic Categories */}
           <nav
             aria-label="Main Navigation"
-            className="hidden md:flex items-center gap-1 lg:gap-2 flex-wrap"
+            className="hidden lg:flex items-center gap-1 xl:gap-2"
           >
             <Link to="/shop" className={navLinkClass}>
               Shop
@@ -294,7 +274,7 @@ export const Navbar = () => {
           {/* Desktop Search with Smart Auto-Suggest */}
           <motion.div
             ref={searchContainerRef}
-            className="hidden md:block relative flex-1 max-w-xs mx-4"
+            className="hidden lg:block relative flex-1 min-w-0 max-w-xs mx-2 xl:mx-4"
             animate={{ scale: searchFocused && !reduceMotion ? 1.025 : 1 }}
             transition={{ type: "spring", stiffness: 280, damping: 24 }}
           >
@@ -431,13 +411,13 @@ export const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <ThemeToggle
+            {/* <ThemeToggle
               className={cn(
                 "hidden sm:flex",
                 isTransparentHero &&
                   "!border-white/20 !bg-white/10 hover:!bg-white/20 text-white",
               )}
-            />
+            /> */}
 
             {/* Wishlist */}
             <Link
@@ -578,7 +558,7 @@ export const Navbar = () => {
             <motion.button
               whileTap={reduceMotion ? undefined : { scale: 0.9 }}
               className={cn(
-                "rounded-xl p-2 transition-colors md:hidden",
+                "rounded-xl p-2 transition-colors lg:hidden",
                 isTransparentHero
                   ? "text-white hover:bg-white/10"
                   : "hover:bg-card",
