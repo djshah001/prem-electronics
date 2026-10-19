@@ -1,40 +1,25 @@
-import { useAtom } from 'jotai';
-import { Sun, Moon } from 'lucide-react';
-import { themeAtom } from '../../store/themeAtom';
-import { clsx } from 'clsx';
+import { Sun } from "lucide-react";
+import { clsx } from "clsx";
 
 interface ThemeToggleProps {
   className?: string;
 }
 
 export const ThemeToggle = ({ className }: ThemeToggleProps) => {
-  const [theme, setTheme] = useAtom(themeAtom);
-
-  const toggle = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    const root = document.documentElement;
-    if (next === 'dark') root.classList.add('dark');
-    else root.classList.remove('dark');
-  };
-
   return (
     <button
       id="theme-toggle-btn"
-      onClick={toggle}
+      type="button"
       className={clsx(
-        'w-9 h-9 rounded-lg flex items-center justify-center transition-all',
-        'bg-card border border-border hover:bg-accent hover:border-primary/30',
-        className
+        "w-9 h-9 rounded-lg flex items-center justify-center",
+        "bg-card border border-border",
+        className,
       )}
-      aria-label="Toggle theme"
-      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      aria-label="Light theme enabled"
+      title="Light theme enabled"
+      disabled
     >
-      {theme === 'dark' ? (
-        <Sun className="w-4 h-4 text-amber-400" />
-      ) : (
-        <Moon className="w-4 h-4 text-indigo-400" />
-      )}
+      <Sun className="w-4 h-4 text-amber-400" />
     </button>
   );
 };
