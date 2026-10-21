@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ShoppingCart,
@@ -49,20 +49,15 @@ export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [isScrolled, setIsScrolled] = useState(false);
 
   const cartCount = useAtomValue(cartCountAtom);
   const [, setCartOpen] = useAtom(cartDrawerOpenAtom);
   const user = useAtomValue(userAtom);
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const reduceMotion = Boolean(useReducedMotion());
-  const isHome = location.pathname === "/";
   const debouncedSearch = useDebounce(search, 300);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dynamic Categories from backend via React Query
   const {
@@ -87,58 +82,6 @@ export const Navbar = () => {
 
   const suggestions = suggestionsData?.data ?? [];
   const showSuggestions = searchFocused && debouncedSearch.trim().length >= 2;
-
-  // -------------------------------------------------------------
-  // Liquid Scroll Behavior: Hide on scroll, show when stopped
-  // -------------------------------------------------------------
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      setIsScrolled(currentScrollY > 20);
-
-      // Never hide navbar if user is actively searching or has mobile menu open
-      if (searchFocused || menuOpen) {
-        setIsVisible(true);
-        return;
-      }
-
-      // Always show when resting at the top of the page
-      if (currentScrollY <= 25) {
-        setIsVisible(true);
-        return;
-      }
-
-      // Hide immediately while scrolling
-      setIsVisible(false);
-
-      // Debounce reveal: trigger smooth spring entry when scrolling ceases
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsVisible(true);
-      }, 200);
-    };
-
-    const handleScrollEnd = () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      setIsVisible(true);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("scrollend", handleScrollEnd);
-
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("scrollend", handleScrollEnd);
-    };
-  }, [searchFocused, menuOpen]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -168,8 +111,6 @@ export const Navbar = () => {
     navigate(`/products/${slug}`);
   };
 
-  // Keep visible if search or menu is actively open
-  const shouldShow = true;
   const isTransparentHero = false;
 
   const navLinkClass = cn(
