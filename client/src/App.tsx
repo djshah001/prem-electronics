@@ -61,6 +61,7 @@ const EmailMaster = lazy(() => import('./pages/admin/EmailMaster'));
 const CampaignManager = lazy(() => import('./pages/admin/CampaignManager'));
 const EmailLogs = lazy(() => import('./pages/admin/EmailLogs'));
 const BannerManager = lazy(() => import('./pages/admin/BannerManager'));
+const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const Unsubscribe = lazy(() => import('./pages/storefront/Unsubscribe'));
 const MarketingPreferences = lazy(() => import('./pages/customer/MarketingPreferences'));
 
@@ -197,6 +198,7 @@ const router = createBrowserRouter([
           { path: '/admin', element: <Navigate to="/admin/dashboard" replace /> },
           { path: '/admin/dashboard', element: <AdminDashboard /> },
           { path: '/admin/analytics', element: <Analytics /> },
+          { path: '/admin/notifications', element: <Notifications /> },
           { path: '/admin/products', element: <ProductManager /> },
           { path: '/admin/orders', element: <OrderManager /> },
           { path: '/admin/orders/:id', element: <AdminOrderDetail /> },

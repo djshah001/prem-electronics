@@ -83,7 +83,7 @@ export default function Orders() {
               </div>
               </Link>
               {['pending', 'confirmed'].includes(order.status) && <div className="mt-4 pt-4 border-t border-border flex justify-end"><button disabled={cancelMutation.isPending} onClick={() => { if (window.confirm('Cancel this order?')) cancelMutation.mutate(order.id); }} className="text-sm font-semibold text-destructive disabled:opacity-50">Cancel order</button></div>}
-              {order.refundStatus === 'pending' && <p className="mt-3 text-xs text-amber-500 text-right">Refund pending</p>}
+              {order.status === 'cancelled' && order.paymentStatus === 'paid' && <p className="mt-3 text-xs text-blue-500 text-right">Contact the store for refund assistance</p>}
             </article>
           ))}
 

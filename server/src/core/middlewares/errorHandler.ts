@@ -2,6 +2,7 @@ import { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../errors/appError.js';
 import logger from '../logger/logger.js';
+import { getDatabaseErrorCode, isTransientDatabaseError } from '../utils/databaseErrors.js';
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // 1. Zod Validation Errors
@@ -33,7 +34,8 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   // 2. PostgreSQL / Drizzle Errors
-  if (err.code === '23505') {
+  const databaseErrorCode = getDatabaseErrorCode(err);
+  if (databaseErrorCode === '23505') {
     logger.warn(`Duplicate key on ${req.method} ${req.path}: ${err.detail || err.message}`);
     res.status(409).json({
       success: false,
@@ -42,13 +44,18 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     });
     return;
   }
-  if (err.code === '23503') {
+  if (databaseErrorCode === '23503') {
     logger.warn(`Foreign key violation on ${req.method} ${req.path}: ${err.detail || err.message}`);
     res.status(400).json({
       success: false,
       message: 'Referenced entity does not exist.',
       detail: err.detail,
     });
+    return;
+  }
+  if (isTransientDatabaseError(err)) {
+    logger.error('Database connection is temporarily unavailable.', { error: err, code: databaseErrorCode, path: req.path, method: req.method });
+    res.status(503).json({ success: false, message: 'Database is temporarily unavailable. Please try again.' });
     return;
   }
 
@@ -86,7 +93,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     err?.description ||
     (typeof err === 'string' ? err : 'Unhandled server error');
   const errorStack = err?.stack || (typeof err === 'object' ? JSON.stringify(err) : undefined);
-  logger.error(errorMessage, { stack: errorStack, path: req.path, method: req.method });
+  logger.error(errorMessage, { error: err, stack: errorStack, path: req.path, method: req.method });
 
   const isDev = process.env.NODE_ENV === 'development';
   res.status(err?.statusCode && err.statusCode >= 400 && err.statusCode < 600 ? err.statusCode : 500).json({

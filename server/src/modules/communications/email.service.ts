@@ -10,6 +10,7 @@ import { env } from '../../config/env.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors/appError.js';
 import { EMAIL_EVENT_CATALOG, type EmailEventKey } from './emailCatalog.js';
 import { renderStructuredDocument, structuredDocumentSchema, substituteVariables } from './contentDocument.js';
+import { createAdminNotification } from '../notifications/notifications.service.js';
 
 type TemplateDraft = { name?: string; subject: string; preheader?: string | null; document: StructuredContent; requiredVariables?: string[]; expectedRevision: number };
 
@@ -24,7 +25,7 @@ const renderVersion = (version: typeof emailTemplateVersions.$inferSelect, varia
 
 const safeSamples: Record<string, unknown> = {
   customerName: 'Sample Customer', otp: '123456', resetUrl: `${env.CLIENT_URL}/reset-password?token=preview-token`,
-  orderNumber: 'PE-PREVIEW-001', orderTotal: 'INR 2,358.82', returnStatus: 'approved',
+  orderNumber: 'PE-PREVIEW-001', orderTotal: 'INR 2,358.82',
   campaignSubject: 'A sample Prem Electronics update', campaignMessage: 'Preview content is generated with safe example data.',
   unsubscribeUrl: `${env.CLIENT_URL}/unsubscribe?token=preview-token`,
 };
@@ -178,9 +179,18 @@ export const emailMasterService = {
     } catch (error: any) {
       const final = attemptNumber >= job.maxAttempts;
       const message = String(error?.message ?? error).slice(0, 1000);
-      await db.update(emailDeliveryJobs).set({ status: 'failed', attempts: attemptNumber, lastError: message, nextAttemptAt: new Date(Date.now() + Math.min(60, 2 ** attemptNumber) * 60_000), leaseOwner: null, leaseExpiresAt: null, updatedAt: new Date() }).where(eq(emailDeliveryJobs.id, id));
-      await db.update(emailSendAttempts).set({ status: 'failed', error: `${final ? 'Final attempt: ' : ''}${message}`, completedAt: new Date() }).where(eq(emailSendAttempts.id, attempt.id));
-      if (job.campaignRecipientId) await db.update(campaignRecipients).set({ status: final ? 'failed' : 'queued', updatedAt: new Date() }).where(eq(campaignRecipients.id, job.campaignRecipientId));
+      await db.transaction(async (tx) => {
+        await tx.update(emailDeliveryJobs).set({ status: 'failed', attempts: attemptNumber, lastError: message, nextAttemptAt: new Date(Date.now() + Math.min(60, 2 ** attemptNumber) * 60_000), leaseOwner: null, leaseExpiresAt: null, updatedAt: new Date() }).where(eq(emailDeliveryJobs.id, id));
+        await tx.update(emailSendAttempts).set({ status: 'failed', error: `${final ? 'Final attempt: ' : ''}${message}`, completedAt: new Date() }).where(eq(emailSendAttempts.id, attempt.id));
+        if (job.campaignRecipientId) await tx.update(campaignRecipients).set({ status: final ? 'failed' : 'queued', updatedAt: new Date() }).where(eq(campaignRecipients.id, job.campaignRecipientId));
+        if (final) await createAdminNotification(tx, {
+          eventKey: `email.delivery.failed:${job.id}`, type: 'email_delivery_failed', severity: 'error',
+          title: 'Email delivery failed permanently',
+          message: `The ${job.eventKey.replaceAll('_', ' ')} email exhausted all delivery attempts.`,
+          entityType: 'email_delivery_job', entityId: job.id, destination: '/admin/email-logs',
+          metadata: { eventKey: job.eventKey, attempts: attemptNumber },
+        });
+      });
     }
     if (job.campaignRecipientId) {
       const [recipient] = await db.select({ campaignId: campaignRecipients.campaignId }).from(campaignRecipients).where(eq(campaignRecipients.id, job.campaignRecipientId)).limit(1);

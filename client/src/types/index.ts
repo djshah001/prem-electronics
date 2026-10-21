@@ -220,7 +220,7 @@ export interface Order {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   returnStatus: 'none' | 'requested' | 'approved' | 'rejected' | 'completed';
-  refundStatus: 'none' | 'pending' | 'processed';
+  refundStatus: 'none' | 'pending' | 'partial' | 'processed';
   subtotal: string;
   discount: string;
   tax: string;

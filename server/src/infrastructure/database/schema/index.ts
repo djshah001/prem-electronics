@@ -20,3 +20,4 @@ export * from './productVariants.js';
 export * from './businesses.js';
 export * from './contentMasters.js';
 export * from './banners.js';
+export * from './adminNotifications.js';

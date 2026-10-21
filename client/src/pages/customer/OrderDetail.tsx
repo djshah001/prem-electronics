@@ -1,12 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Package, ArrowLeft, Clock, CheckCircle2, Truck, MapPin,
-  RotateCcw, X, Star, AlertTriangle, Receipt, CreditCard,
+  RotateCcw, X, Star, Receipt, CreditCard,
   ShieldCheck, ChevronRight, Printer, Download,
 } from 'lucide-react';
-import { useState } from 'react';
 import { api, axiosClient } from '../../api/axiosClient';
 import type { Order, OrderItem } from '../../types';
 import { clsx } from 'clsx';
@@ -45,74 +43,10 @@ const formatPrice = (p: string | number) =>
 const formatDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-function ReturnRequestModal({ order, onClose }: { order: OrderDetail; onClose: () => void }) {
-  const [reason, setReason] = useState('');
-  const qc = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: () => api.post(`/orders/my/${order.id}/return-request`, { reason }),
-    onSuccess: () => {
-      toast.success('Return request submitted. We\'ll review it within 24 hours.');
-      qc.invalidateQueries({ queryKey: ['my-order', order.id] });
-      qc.invalidateQueries({ queryKey: ['my-orders'] });
-      onClose();
-    },
-    onError: (e: any) => toast.error(e?.message ?? 'Could not submit return request.'),
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:hidden">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-card rounded-2xl border border-border p-6 w-full max-w-md shadow-2xl"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold font-['Outfit']">Request Return</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Describe the reason for your return. Our team will review and respond within 24–48 hours.
-        </p>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          maxLength={500}
-          rows={5}
-          placeholder="e.g. Product damaged in transit, received wrong item, quality not as described…"
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none mb-4"
-        />
-        <p className="text-xs text-muted-foreground text-right mb-4">{reason.length}/500</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            disabled={reason.trim().length < 10 || mutation.isPending}
-            onClick={() => mutation.mutate()}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
-          >
-            {mutation.isPending ? 'Submitting…' : 'Submit Request'}
-          </button>
-        </div>
-        {reason.trim().length > 0 && reason.trim().length < 10 && (
-          <p className="text-xs text-destructive mt-2 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" /> Please provide at least 10 characters.
-          </p>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [showReturnModal, setShowReturnModal] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['my-order', id],
@@ -164,15 +98,10 @@ export default function OrderDetail() {
   const currentStep = STATUS_STEPS.indexOf(order.status);
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
   const canCancel = ['pending', 'confirmed'].includes(order.status);
-  const canReturn = order.status === 'delivered' && order.returnStatus === 'none';
   const StatusIcon = STATUS_ICONS[order.status] ?? Package;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 print:p-0 print:max-w-none">
-      {showReturnModal && (
-        <ReturnRequestModal order={order} onClose={() => setShowReturnModal(false)} />
-      )}
-
       {/* Print-only Invoice Header */}
       <div className="hidden print:block mb-8 pb-6 border-b-2 border-foreground/20">
         <div className="flex justify-between items-start">
@@ -230,44 +159,22 @@ export default function OrderDetail() {
               Cancel Order
             </button>
           )}
-          {canReturn && (
-            <button
-              onClick={() => setShowReturnModal(true)}
-              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium print:hidden"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Request Return
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Return status banner */}
-      {order.returnStatus !== 'none' && (
-        <div className={clsx('rounded-xl p-4 mb-5 text-sm flex items-start gap-3 border print:hidden', {
-          'bg-amber-500/10 border-amber-500/20 text-amber-400': order.returnStatus === 'requested',
-          'bg-green-500/10 border-green-500/20 text-green-400': order.returnStatus === 'approved' || order.returnStatus === 'completed',
-          'bg-red-500/10 border-red-500/20 text-red-400': order.returnStatus === 'rejected',
-        })}>
-          <RotateCcw className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <p>
-            {order.returnStatus === 'requested' && 'Return requested — our team will review within 24–48 hours.'}
-            {order.returnStatus === 'approved' && 'Return approved. Please follow the return instructions sent to your email.'}
-            {order.returnStatus === 'rejected' && 'Return request was not approved. Contact support for assistance.'}
-            {order.returnStatus === 'completed' && 'Return completed. Refund has been initiated.'}
-          </p>
-        </div>
-      )}
+      {(['delivered', 'cancelled'].includes(order.status) || order.paymentStatus === 'paid') && <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 mb-5 text-sm text-blue-400 print:hidden">Need help with a return or refund? Please contact the store directly. Requests are handled offline.</div>}
 
-      {/* Refund status */}
+      {/* Read-only status for refunds performed outside this website and confirmed by the provider. */}
       {order.refundStatus !== 'none' && (
         <div className={clsx('rounded-xl p-4 mb-5 text-sm flex items-start gap-3 border print:hidden', {
-          'bg-amber-500/10 border-amber-500/20 text-amber-400': order.refundStatus === 'pending',
+          'bg-amber-500/10 border-amber-500/20 text-amber-400': order.refundStatus === 'pending' || order.refundStatus === 'partial',
           'bg-green-500/10 border-green-500/20 text-green-400': order.refundStatus === 'processed',
         })}>
           <CreditCard className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <p>
-            {order.refundStatus === 'pending' && 'Refund is being processed. It will appear in your account within 5–7 business days.'}
-            {order.refundStatus === 'processed' && `Refund of ${formatPrice(order.total)} has been processed to your original payment method.`}
+            {order.refundStatus === 'pending' && 'A historical refund record is pending reconciliation. Please contact the store for assistance.'}
+            {order.refundStatus === 'partial' && 'A partial refund processed outside this website was confirmed by the payment provider.'}
+            {order.refundStatus === 'processed' && 'A full refund processed outside this website was confirmed by the payment provider.'}
           </p>
         </div>
       )}

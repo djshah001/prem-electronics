@@ -1,6 +1,7 @@
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db.js';
 import { reviews, orderItems, orders, products, type Review, type NewReview } from '../../infrastructure/database/schema/index.js';
+import { createAdminNotification } from '../notifications/notifications.service.js';
 
 export const reviewsRepository = {
   /** Public: approved reviews only */
@@ -33,9 +34,17 @@ export const reviewsRepository = {
     return Number(result[0].count) > 0;
   },
 
-  async create(data: NewReview): Promise<Review> {
-    const result = await db.insert(reviews).values(data).returning();
-    return result[0];
+  async create(data: NewReview, productTitle: string): Promise<Review> {
+    return db.transaction(async (tx) => {
+      const [review] = await tx.insert(reviews).values(data).returning();
+      await createAdminNotification(tx, {
+        eventKey: `review.pending:${review.id}`, type: 'review_pending', severity: 'info',
+        title: 'Review awaiting moderation', message: `A new review for ${productTitle} is ready for moderation.`,
+        entityType: 'review', entityId: review.id, destination: '/admin/reviews',
+        metadata: { rating: review.rating },
+      });
+      return review;
+    });
   },
 
   async update(reviewId: string, data: Partial<NewReview>): Promise<Review | undefined> {

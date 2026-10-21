@@ -21,6 +21,7 @@ export const returnStatusEnum = pgEnum('return_status', [
 export const refundStatusEnum = pgEnum('refund_status', [
   'none',
   'pending',
+  'partial',
   'processed',
 ]);
 import { relations } from 'drizzle-orm';
