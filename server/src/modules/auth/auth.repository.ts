@@ -1,21 +1,30 @@
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db.js';
 import { authSessions, users, type NewUser, type User } from '../../infrastructure/database/schema/index.js';
+import { createAdminNotification } from '../notifications/notifications.service.js';
+import { retryTransientDatabaseRead } from '../../core/utils/databaseErrors.js';
 
 export const authRepository = {
   async findByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const result = await retryTransientDatabaseRead(() => db.select().from(users).where(eq(users.email, email)).limit(1));
     return result[0];
   },
 
   async findById(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const result = await retryTransientDatabaseRead(() => db.select().from(users).where(eq(users.id, id)).limit(1));
     return result[0];
   },
 
   async create(data: NewUser): Promise<User> {
-    const result = await db.insert(users).values(data).returning();
-    return result[0];
+    return db.transaction(async (tx) => {
+      const [user] = await tx.insert(users).values(data).returning();
+      await createAdminNotification(tx, {
+        eventKey: `customer.registered:${user.id}`, type: 'customer_registered', severity: 'info',
+        title: 'New customer registered', message: `${user.name} created a customer account.`,
+        entityType: 'customer', entityId: user.id, destination: `/admin/customers/${user.id}`,
+      });
+      return user;
+    });
   },
 
   async updateUser(userId: string, data: Partial<NewUser>): Promise<User> {
@@ -49,11 +58,11 @@ export const authRepository = {
   },
 
   async findByResetToken(token: string): Promise<User | undefined> {
-    const result = await db
+    const result = await retryTransientDatabaseRead(() => db
       .select()
       .from(users)
       .where(eq(users.resetToken, token))
-      .limit(1);
+      .limit(1));
     return result[0];
   },
 
@@ -105,7 +114,7 @@ export const authRepository = {
   },
 
   async findActiveSession(sessionId: string, userId: string) {
-    const [session] = await db.select({ id: authSessions.id })
+    const [session] = await retryTransientDatabaseRead(() => db.select({ id: authSessions.id })
       .from(authSessions)
       .where(and(
         eq(authSessions.id, sessionId),
@@ -113,7 +122,7 @@ export const authRepository = {
         isNull(authSessions.revokedAt),
         gt(authSessions.expiresAt, new Date())
       ))
-      .limit(1);
+      .limit(1));
     return session;
   },
 

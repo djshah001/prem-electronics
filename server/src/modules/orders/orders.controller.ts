@@ -28,13 +28,9 @@ export const ordersController = {
 
   async cancelMyOrder(req: Request, res: Response) {
     const order = await ordersService.cancelMyOrder(req.user!.id, req.params.id as string);
-    sendSuccess(res, order, order.refundStatus === 'pending' ? 'Order cancelled. Refund is pending.' : 'Order cancelled.');
-  },
-
-  async requestReturn(req: Request, res: Response) {
-    const { reason } = req.body;
-    const order = await ordersService.requestReturn(req.user!.id, req.params.id as string, String(reason ?? ''));
-    sendSuccess(res, order, 'Return request submitted successfully.');
+    sendSuccess(res, order, order.paymentStatus === 'paid'
+      ? 'Order cancelled. For refund assistance, please contact the store.'
+      : 'Order cancelled.');
   },
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
@@ -54,20 +50,6 @@ export const ordersController = {
     const input = updateOrderStatusSchema.parse(req.body);
     const order = await ordersService.updateStatus(req.params.id as string, input, req.user!.id);
     sendSuccess(res, order, 'Order status updated.');
-  },
-
-  async updateReturnStatus(req: Request, res: Response) {
-    const { returnStatus } = req.body as { returnStatus: 'approved' | 'rejected' | 'completed' };
-    if (!['approved', 'rejected', 'completed'].includes(returnStatus)) {
-      return res.status(400).json({ success: false, message: 'Invalid returnStatus value.' });
-    }
-    const order = await ordersService.updateReturnStatus(req.params.id as string, returnStatus, req.user!.id);
-    sendSuccess(res, order, `Return status updated to ${returnStatus}.`);
-  },
-
-  async processRefund(req: Request, res: Response) {
-    const order = await ordersService.processRefund(req.params.id as string, req.user!.id);
-    sendSuccess(res, order, 'Refund marked as processed.');
   },
 
   async getOrdersAdmin(req: Request, res: Response) {

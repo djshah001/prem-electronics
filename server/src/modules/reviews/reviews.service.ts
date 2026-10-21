@@ -38,7 +38,7 @@ export const reviewsService = {
       isVerifiedBuyer,
       // New reviews start pending; approved reviews reopen to pending after content edit
       isApproved: false,
-    });
+    }, product.title);
 
     // Rating aggregate is not updated until approved
     return review;

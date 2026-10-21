@@ -313,16 +313,11 @@ export const adminP2Service = {
     ]);
     const refunds = await db.select().from(paymentRefunds).where(eq(paymentRefunds.orderId, orderId)).orderBy(desc(paymentRefunds.createdAt), desc(paymentRefunds.id));
     const statusHistory = await db.select().from(orderStatusEvents).where(eq(orderStatusEvents.orderId, orderId)).orderBy(asc(orderStatusEvents.createdAt), asc(orderStatusEvents.id));
-    const capturedMinor = payments.filter((payment) => payment.status === 'captured' || payment.status === 'refunded').reduce((sum, payment) => sum + payment.amountMinor, 0);
-    const committedRefundMinor = refunds.filter((refund) => refund.status === 'processed' || refund.status === 'pending').reduce((sum, refund) => sum + refund.amountMinor, 0);
     const allowedActions = {
       fulfilment: order.order.status === 'pending' ? ['confirmed', 'cancelled']
         : order.order.status === 'confirmed' ? ['processing', 'cancelled']
           : order.order.status === 'processing' ? ['shipped']
             : order.order.status === 'shipped' ? ['delivered'] : [],
-      return: order.order.returnStatus === 'requested' ? ['approved', 'rejected']
-        : order.order.returnStatus === 'approved' ? ['completed'] : [],
-      canRefund: capturedMinor > committedRefundMinor,
     };
     return { ...order.order, customer: order.customerId ? { id: order.customerId, name: order.customerName, email: order.customerEmail, phone: order.customerPhone } : null, items, payments, refunds, statusHistory, allowedActions };
   },

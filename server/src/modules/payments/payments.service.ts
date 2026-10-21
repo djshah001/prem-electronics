@@ -27,6 +27,7 @@ import logger from '../../core/logger/logger.js';
 import { env } from '../../config/env.js';
 import { emailMasterService } from '../communications/email.service.js';
 import { invoiceMasterService } from '../invoiceMaster/invoice.service.js';
+import { createAdminNotification } from '../notifications/notifications.service.js';
 
 type PaymentInput = {
   razorpay_order_id: string;
@@ -132,11 +133,19 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
     try {
       await verifyProviderPayment(existingOrder, input);
     } catch (error: any) {
-      await db.update(paymentAttempts).set({
-        status: 'failed',
-        failureReason: String(error?.message ?? error).slice(0, 500),
-        updatedAt: new Date(),
-      }).where(eq(paymentAttempts.providerOrderId, input.razorpay_order_id));
+      await db.transaction(async (tx) => {
+        await tx.update(paymentAttempts).set({
+          status: 'failed',
+          failureReason: String(error?.message ?? error).slice(0, 500),
+          updatedAt: new Date(),
+        }).where(eq(paymentAttempts.providerOrderId, input.razorpay_order_id));
+        await createAdminNotification(tx, {
+          eventKey: `payment.failed:${existingOrder.id}:${input.razorpay_payment_id}`,
+          type: 'payment_failed', severity: 'error', title: 'Payment failed',
+          message: `Payment verification failed for order #${existingOrder.orderNumber}.`,
+          entityType: 'order', entityId: existingOrder.id, destination: `/admin/orders/${existingOrder.id}`,
+        });
+      });
       if (existingOrder.userId) {
         const [user] = await db.select().from(users).where(eq(users.id, existingOrder.userId)).limit(1);
         if (user) await emailMasterService.enqueue('payment_failed', user.email, { customerName: user.name, orderNumber: existingOrder.orderNumber }, `payment-failed:${existingOrder.id}:${input.razorpay_payment_id}`, { orderId: existingOrder.id, priority: 20 }).catch((queueError) => logger.error('Payment failure email could not be queued.', queueError));
@@ -213,6 +222,13 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
       updatedAt: capturedAt,
     }).where(eq(paymentAttempts.providerOrderId, input.razorpay_order_id));
 
+    await createAdminNotification(tx, {
+      eventKey: `payment.confirmed:${order.id}`, type: 'payment_confirmed', severity: 'success',
+      title: 'Payment confirmed', message: `Payment was confirmed for order #${order.orderNumber}.`,
+      entityType: 'order', entityId: order.id, destination: `/admin/orders/${order.id}`,
+      metadata: { amountMinor: order.amountMinor, currency: order.currency },
+    });
+
     if (order.couponId) {
       await tx.update(coupons).set({
         usedCount: sql`${coupons.usedCount} + 1`,
@@ -286,85 +302,6 @@ export const paymentsService = {
     return finalizePayment(input, { userId });
   },
 
-  async processFullRefund(orderId: string, actorUserId?: string) {
-    const [record] = await db.select({ order: orders, attempt: paymentAttempts })
-      .from(orders)
-      .innerJoin(paymentAttempts, eq(paymentAttempts.orderId, orders.id))
-      .where(and(eq(orders.id, orderId), or(eq(paymentAttempts.status, 'captured'), eq(paymentAttempts.status, 'refunded'))))
-      .limit(1);
-    if (!record) throw new NotFoundError('Captured payment record not found for this order.');
-
-    const [totals] = await db.select({
-      processed: sql<number>`coalesce(sum(${paymentRefunds.amountMinor}) filter (where ${paymentRefunds.status} = 'processed'), 0)`,
-      pending: sql<number>`coalesce(sum(${paymentRefunds.amountMinor}) filter (where ${paymentRefunds.status} = 'pending'), 0)`,
-    }).from(paymentRefunds).where(eq(paymentRefunds.paymentAttemptId, record.attempt.id));
-    const remaining = record.attempt.amountMinor - Number(totals.processed) - Number(totals.pending);
-    if (remaining <= 0) throw new AppError('No refundable balance remains for this payment.', 409);
-
-    const orderMerchandiseMinor = Math.round((Number(record.order.subtotal) - Number(record.order.discount ?? 0)) * 100);
-    const orderTaxMinor = Math.round(Number(record.order.tax ?? 0) * 100);
-    const orderShippingMinor = Math.round(Number(record.order.shipping ?? 0) * 100);
-    const allocationScale = remaining / record.attempt.amountMinor;
-    let merchandiseMinor = Math.round(orderMerchandiseMinor * allocationScale);
-    const taxMinor = Math.round(orderTaxMinor * allocationScale);
-    const shippingMinor = Math.round(orderShippingMinor * allocationScale);
-    merchandiseMinor += remaining - merchandiseMinor - taxMinor - shippingMinor;
-
-    const [pending] = await db.insert(paymentRefunds).values({
-      orderId,
-      paymentAttemptId: record.attempt.id,
-      amountMinor: remaining,
-      merchandiseMinor,
-      taxMinor,
-      shippingMinor,
-      currency: record.attempt.currency,
-      status: 'pending',
-    }).returning();
-
-    try {
-      const providerRefund = record.attempt.providerPaymentId?.startsWith('mock_payment_') && env.ALLOW_MOCK_PAYMENTS
-        ? { id: `mock_refund_${crypto.randomUUID()}`, status: 'processed', amount: remaining }
-        : record.attempt.providerPaymentId
-          ? await razorpay.payments.refund(record.attempt.providerPaymentId, { amount: remaining, speed: 'normal' })
-          : undefined;
-      if (!providerRefund) throw new AppError('Provider payment reference is missing.', 409);
-
-      const processed = providerRefund.status === 'processed';
-      const [refund] = await db.update(paymentRefunds).set({
-        providerRefundId: providerRefund.id,
-        status: processed ? 'processed' : 'pending',
-        processedAt: processed ? new Date() : null,
-        updatedAt: new Date(),
-      }).where(eq(paymentRefunds.id, pending.id)).returning();
-
-      await db.update(orders).set({
-        refundStatus: processed ? 'processed' : 'pending',
-        ...(processed ? { paymentStatus: 'refunded' as const, status: 'refunded' as const } : {}),
-        updatedAt: new Date(),
-      }).where(eq(orders.id, orderId));
-      if (processed) {
-        await db.update(paymentAttempts).set({ status: 'refunded', updatedAt: new Date() })
-          .where(eq(paymentAttempts.id, record.attempt.id));
-      }
-      await db.insert(orderStatusEvents).values({
-        orderId,
-        eventType: 'refund_changed',
-        fromValue: record.order.refundStatus,
-        toValue: processed ? 'processed' : 'pending',
-        actorUserId,
-        metadata: { providerRefundId: providerRefund.id, amountMinor: remaining },
-      });
-      return refund;
-    } catch (error: any) {
-      await db.update(paymentRefunds).set({
-        status: 'failed',
-        failureReason: String(error?.message ?? error).slice(0, 500),
-        updatedAt: new Date(),
-      }).where(eq(paymentRefunds.id, pending.id));
-      throw error instanceof AppError ? error : new AppError('Payment provider could not process the refund.', 502);
-    }
-  },
-
   async handleWebhook(rawBody: Buffer, signature: string, suppliedEventId?: string) {
     const body = rawBody.toString('utf8');
     if (!verifyWebhookSignature(body, signature)) {
@@ -415,46 +352,58 @@ export const paymentsService = {
         if (!refundId || !Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
           throw new AppError('Webhook refund details are invalid.', 400);
         }
-        await db.insert(paymentRefunds).values({
-          orderId: record.order.id,
-          paymentAttemptId: record.attempt.id,
-          providerRefundId: refundId,
-          amountMinor,
-          currency: String(refund.currency ?? record.attempt.currency).toUpperCase(),
-          status: 'processed',
-          processedAt: refund.created_at ? new Date(Number(refund.created_at) * 1000) : new Date(),
-        }).onConflictDoUpdate({
-          target: paymentRefunds.providerRefundId,
-          set: { status: 'processed', processedAt: new Date(), updatedAt: new Date() },
-        });
+        const reconciliation = await db.transaction(async (tx) => {
+          await tx.insert(paymentRefunds).values({
+            orderId: record.order.id,
+            paymentAttemptId: record.attempt.id,
+            providerRefundId: refundId,
+            amountMinor,
+            currency: String(refund.currency ?? record.attempt.currency).toUpperCase(),
+            status: 'processed',
+            processedAt: refund.created_at ? new Date(Number(refund.created_at) * 1000) : new Date(),
+          }).onConflictDoUpdate({
+            target: paymentRefunds.providerRefundId,
+            set: { status: 'processed', processedAt: new Date(), updatedAt: new Date() },
+          });
 
-        const [refundTotals] = await db.select({
-          total: sql<number>`coalesce(sum(${paymentRefunds.amountMinor}), 0)`,
-        }).from(paymentRefunds).where(and(
-          eq(paymentRefunds.paymentAttemptId, record.attempt.id),
-          eq(paymentRefunds.status, 'processed')
-        ));
-        const fullyRefunded = Number(refundTotals.total) >= record.attempt.amountMinor;
-        const [updatedOrder] = await db.update(orders).set({
-          refundStatus: 'processed',
-          ...(fullyRefunded ? { paymentStatus: 'refunded' as const, status: 'refunded' as const } : {}),
-          updatedAt: new Date(),
-        }).where(eq(orders.id, record.order.id)).returning();
-        if (fullyRefunded) {
-          await db.update(paymentAttempts).set({ status: 'refunded', updatedAt: new Date() })
-            .where(eq(paymentAttempts.id, record.attempt.id));
-        }
-        await db.insert(orderStatusEvents).values({
-          orderId: record.order.id,
-          eventType: 'refund_changed',
-          fromValue: record.order.refundStatus,
-          toValue: 'processed',
-          metadata: { providerRefundId: refundId, amountMinor, fullyRefunded, source: 'webhook' },
+          const [refundTotals] = await tx.select({
+            total: sql<number>`coalesce(sum(${paymentRefunds.amountMinor}), 0)`,
+          }).from(paymentRefunds).where(and(
+            eq(paymentRefunds.paymentAttemptId, record.attempt.id),
+            eq(paymentRefunds.status, 'processed')
+          ));
+          const totalRefundedMinor = Number(refundTotals.total);
+          const fullyRefunded = totalRefundedMinor >= record.attempt.amountMinor;
+          const refundStatus = fullyRefunded ? 'processed' as const : 'partial' as const;
+          const [updatedOrder] = await tx.update(orders).set({
+            refundStatus,
+            ...(fullyRefunded ? { paymentStatus: 'refunded' as const, status: 'refunded' as const } : {}),
+            updatedAt: new Date(),
+          }).where(eq(orders.id, record.order.id)).returning();
+          if (fullyRefunded) {
+            await tx.update(paymentAttempts).set({ status: 'refunded', updatedAt: new Date() })
+              .where(eq(paymentAttempts.id, record.attempt.id));
+          }
+          await tx.insert(orderStatusEvents).values({
+            orderId: record.order.id,
+            eventType: 'refund_changed',
+            fromValue: record.order.refundStatus,
+            toValue: refundStatus,
+            metadata: { providerRefundId: refundId, amountMinor, totalRefundedMinor, fullyRefunded, source: 'webhook' },
+          });
+          const amountLabel = new Intl.NumberFormat('en-IN', { style: 'currency', currency: record.attempt.currency }).format(amountMinor / 100);
+          await createAdminNotification(tx, {
+            eventKey: `refund.external:${refundId}`, type: 'external_refund_confirmed', severity: 'warning',
+            title: fullyRefunded ? 'External refund completed' : 'External partial refund recorded',
+            message: `${amountLabel} was refunded externally for order #${record.order.orderNumber}.`,
+            entityType: 'order', entityId: record.order.id, destination: `/admin/orders/${record.order.id}`,
+            metadata: { amountMinor, currency: record.attempt.currency, fullyRefunded },
+          });
+          await tx.update(webhookEvents).set({ status: 'processed', processedAt: new Date() })
+            .where(eq(webhookEvents.eventId, eventId));
+          return { fullyRefunded, refundStatus, updatedOrder };
         });
-
-        await db.update(webhookEvents).set({ status: 'processed', processedAt: new Date() })
-          .where(eq(webhookEvents.eventId, eventId));
-        return { orderId: record.order.id, refundStatus: 'processed', fullyRefunded, order: updatedOrder };
+        return { orderId: record.order.id, refundStatus: reconciliation.refundStatus, fullyRefunded: reconciliation.fullyRefunded, order: reconciliation.updatedOrder };
       }
 
       if (event.event !== 'payment.captured') {

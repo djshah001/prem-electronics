@@ -4,7 +4,6 @@ import { usersRepository } from '../users/users.repository.js';
 import { couponsRepository } from '../coupons/coupons.repository.js';
 import { razorpay } from '../../infrastructure/payment/razorpay.js';
 import { env } from '../../config/env.js';
-import { paymentsService } from '../payments/payments.service.js';
 import logger from '../../core/logger/logger.js';
 import crypto from 'crypto';
 import { NotFoundError, ForbiddenError, AppError } from '../../core/errors/appError.js';
@@ -20,7 +19,7 @@ const ADMIN_TRANSITIONS: Record<string, Array<'pending' | 'confirmed' | 'process
   processing: ['confirmed'],
   shipped: ['processing'],
   delivered: ['shipped'],
-  cancelled: ['pending', 'confirmed', 'processing'],
+  cancelled: ['pending', 'confirmed'],
 };
 
 const queueOrderCommunication = async (order: { id: string; userId: string | null; orderNumber: string }, eventKey: EmailEventKey, variables: Record<string, unknown> = {}) => {
@@ -321,36 +320,6 @@ export const ordersService = {
     if (!updated) throw new AppError('Order status changed in another request. Refresh and try again.', 409);
     await queueOrderCommunication(updated, 'cancellation');
     return updated;
-  },
-
-  async requestReturn(userId: string, orderId: string, reason: string) {
-    const order = await ordersRepository.findById(orderId);
-    if (!order) throw new NotFoundError('Order not found.');
-    if (order.userId !== userId) throw new ForbiddenError();
-    if (order.status !== 'delivered') throw new AppError('Only delivered orders can be returned.', 409);
-    if (order.returnStatus !== 'none') throw new AppError('A return request has already been submitted for this order.', 409);
-    const updated = await ordersRepository.requestReturn(orderId, reason, userId);
-    if (!updated) throw new AppError('Could not submit return request. Please try again.', 409);
-    await queueOrderCommunication(updated, 'return_update', { returnStatus: 'requested' });
-    return updated;
-  },
-
-  async updateReturnStatus(orderId: string, returnStatus: 'approved' | 'rejected' | 'completed', actorUserId?: string) {
-    const order = await ordersRepository.findById(orderId);
-    if (!order) throw new NotFoundError('Order not found.');
-    const updated = await ordersRepository.updateReturnStatus(orderId, returnStatus, actorUserId);
-    if (!updated) throw new AppError('Could not update return status.', 409);
-    await queueOrderCommunication(updated, 'return_update', { returnStatus });
-    return updated;
-  },
-
-  async processRefund(orderId: string, actorUserId?: string) {
-    const order = await ordersRepository.findById(orderId);
-    if (!order) throw new NotFoundError('Order not found.');
-    if (order.refundStatus === 'processed') throw new AppError('Refund has already been processed for this order.', 409);
-    const refunded = await paymentsService.processFullRefund(orderId, actorUserId);
-    await queueOrderCommunication(order, 'refund');
-    return refunded;
   },
 
   async getOrdersAdmin(query: { page: number; limit: number; search?: string; sortBy?: string; sortOrder?: string }) {

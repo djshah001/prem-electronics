@@ -38,7 +38,7 @@ export default function OrderSuccess() {
           <div className="flex justify-between font-bold text-base pt-2 border-t border-border mt-2"><span>Total</span><span className="gradient-text">{formatPrice(order.total)}</span></div>
         </div>
         {order.shippingAddress && <div className="mt-5 pt-4 border-t border-border text-sm"><p className="font-semibold mb-1">Ship to</p><p className="text-muted-foreground leading-5">{order.shippingAddress.fullName}, {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}, {order.shippingAddress.country}<br />{order.shippingAddress.phone}</p></div>}
-        {order.refundStatus === 'pending' && <p className="mt-4 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-500">Refund processing is pending.</p>}
+        {order.status === 'cancelled' && order.paymentStatus === 'paid' && <p className="mt-4 rounded-lg bg-blue-500/10 p-3 text-sm text-blue-500">For refund assistance, please contact the store. Refund requests are handled offline.</p>}
       </section>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center print:hidden">

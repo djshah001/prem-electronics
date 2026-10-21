@@ -39,7 +39,7 @@ All `/api/v1/admin/*` routes enforce authenticated admin/superadmin access on th
 | 13.3 Navigation/permissions | Overview/Catalog/Sales/Customers/Content groups; transactions/blogs added; P3 links omitted | None | Edge asserts all 11 visible links and opens every top-level route with the expected header | VERIFIED |
 | 14.1 Route inventory/states | Protected nested route tree, redirect from `/admin`, admin 404, access denied, expired-session handling | None | Edge top-level route/direct refresh/logout checks; non-admin access-denied screen not browser-exercised | IMPLEMENTED BUT UNVERIFIED |
 | 14.2 Customer details/history | Protected profile/GST summary; DB-wide capture-minus-refund totals; filtered server order history and order links | Existing users/business/order ledger | HTTP detail/history smoke asserts numeric summaries | IMPLEMENTED BUT UNVERIFIED |
-| 14.3 Admin order detail | Reloadable route; immutable item/address/GST snapshots; separated statuses; persisted history; backend allowed actions; invoice/refund references | `0015_p2_order_status_history.sql` | HTTP detail asserts non-empty status history; seeded fixture; UI route production-build only | IMPLEMENTED BUT UNVERIFIED |
+| 14.3 Admin order detail | Reloadable route; immutable item/address/GST snapshots; persisted history; fulfilment actions; read-only external refund references | `0015_p2_order_status_history.sql` | HTTP detail asserts non-empty status history; seeded fixture; UI route production-build only | IMPLEMENTED BUT UNVERIFIED |
 | 14.4 Transactions/payments | Protected paginated list/detail; capture/refund ledger; provider IDs; remaining-refundable calculation; order/customer links | `0014_p2_payments_analytics.sql`; provider refund-ID uniqueness | Edge list route; HTTP list/detail/refund-array smoke; webhook/unit tests | VERIFIED |
 | 14.5 Module metric cards | Global `/admin/stats` for products/categories/variants/orders/customers/payments/blogs/coupons/reviews; shared cards above modules | Existing tables plus payment ledger | HTTP asserts numeric global totals; Edge renders cards | VERIFIED |
 | 15.1 Query validation | Zod schemas for product/category/customer/order/transaction/inventory/review/coupon/blog/analytics queries; repeated-value rejection and sort allowlists | Deterministic unique-ID secondary ordering | Schema unit test; HTTP repeated page, unsafe coupon sort and over-limit inventory rejection | VERIFIED |
@@ -65,7 +65,7 @@ All `/api/v1/admin/*` routes enforce authenticated admin/superadmin access on th
 | Command/check | Result |
 | --- | --- |
 | `npm.cmd run db:migrate` (server) | PASS; migrations 0013-0015 applied |
-| `npm.cmd run db:seed` (server) | PASS; P2 variants, snapshots, status history, payments/refunds and 5 blog states seeded |
+| `npm.cmd run db:seed` (server) | PASS at audit time; seed now contains variants, snapshots, status history, captured payments and no return/refund workflow fixtures |
 | `npm.cmd test` (server) | PASS; 10/10 unit/schema/sanitizer/payment/GST tests |
 | `npm.cmd run test:db` (server) | PASS; 5/5 PostgreSQL suites including auth, analytics and HTTP smoke |
 | `npm.cmd run build` (server) | PASS |

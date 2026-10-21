@@ -25,7 +25,6 @@ import {
   gstVerifications,
   businessProfiles,
   paymentAttempts,
-  paymentRefunds,
   orderStatusEvents,
   invoiceTemplates,
   issuedInvoices,
@@ -33,6 +32,8 @@ import {
   campaigns,
   campaignRecipients,
   bannerSettings,
+  adminNotifications,
+  adminNotificationRecipients,
   type BusinessAddress,
 } from './schema/index.js';
 import { reviewsRepository } from '../../modules/reviews/reviews.repository.js';
@@ -59,14 +60,31 @@ async function seed() {
     if (env.NODE_ENV === 'production') {
       throw new Error('Seed reset is forbidden in production.');
     }
-    if (!/(dev|test|local)/i.test(databaseName) || process.env.SEED_RESET_CONFIRM !== databaseName) {
+    const explicitlyConfirmedTestDatabase = process.env.SEED_RESET_TEST_DATABASE === 'true';
+    if ((!/(dev|test|local)/i.test(databaseName) && !explicitlyConfirmedTestDatabase) || process.env.SEED_RESET_CONFIRM !== databaseName) {
       throw new Error(
-        `Refusing destructive reset. Use a disposable dev/test/local database and set SEED_RESET_CONFIRM=${databaseName}.`
+        `Refusing destructive reset. Use a disposable database, set SEED_RESET_CONFIRM=${databaseName}, and for a nonstandard test database name also set SEED_RESET_TEST_DATABASE=true.`
       );
     }
     logger.warn(`Resetting explicitly confirmed disposable database: ${databaseName}`);
     await db.execute(
-      `TRUNCATE TABLE banners, banner_settings, media_assets, users, categories, products, product_options, product_option_values, product_variants, variant_option_values, coupons, blogs, blog_content_revisions, blog_slug_redirects, orders, order_items, order_status_events, payment_attempts, payment_refunds, addresses, reviews, wishlists, carts, cart_items, cart_merge_operations, coupon_redemptions, gst_verifications, business_profiles, webhook_events CASCADE;`
+      `TRUNCATE TABLE
+        admin_notification_recipients, admin_notifications,
+        auth_sessions, addresses, users,
+        banner_settings, banners, media_assets,
+        blog_content_revisions, blog_slug_redirects, blogs,
+        business_profiles, gst_verifications,
+        cart_items, cart_merge_operations, carts,
+        campaign_recipients, campaigns,
+        content_audit_events,
+        email_send_attempts, email_delivery_jobs, email_template_versions, email_templates, email_outbox,
+        invoice_template_versions, invoice_templates, issued_invoices,
+        marketing_preferences, marketing_suppressions,
+        coupon_redemptions, coupons,
+        order_items, order_status_events, payment_refunds, payment_attempts, webhook_events, orders,
+        reviews, wishlists,
+        variant_option_values, product_option_values, product_options, product_variants, products, categories
+      CASCADE;`
     );
   } else {
     logger.info('Non-destructive seed mode: existing business records will be preserved where unique.');
@@ -1135,7 +1153,7 @@ async function seed() {
       country: 'India',
     };
 
-    // Order 1: Delivered (Available for Return Request & Review & Print Tax Invoice)
+    // Order 1: Delivered (available for review and invoice verification)
     const [order1] = await db
       .insert(orders)
       .values({
@@ -1179,15 +1197,15 @@ async function seed() {
       });
     }
 
-    // Order 2: Delivered with Return Requested (Pending Admin Moderation)
+    // Order 2: Delivered lifecycle fixture (returns are handled offline)
     const [order2] = await db
       .insert(orders)
       .values({
-        orderNumber: 'PE-2026-RETREQ',
+        orderNumber: 'PE-2026-DELIV2',
         userId: customerUser.id,
         status: 'delivered',
         paymentStatus: 'paid',
-        returnStatus: 'requested',
+        returnStatus: 'none',
         refundStatus: 'none',
         subtotal: '26999.00',
         discount: '0.00',
@@ -1197,10 +1215,10 @@ async function seed() {
         amountMinor: 3185882,
         currency: 'INR',
         paymentMethod: 'razorpay',
-        razorpayOrderId: 'order_seed_retreq',
-        razorpayPaymentId: 'pay_seed_retreq_success',
+        razorpayOrderId: 'order_seed_deliv2',
+        razorpayPaymentId: 'pay_seed_deliv2_success',
         shippingAddress: defaultAddress,
-        notes: 'Return requested: Box arrived damaged and right earcup has static buzz.',
+        notes: 'Development fixture for delivered-order history.',
       })
       .onConflictDoNothing()
       .returning();
@@ -1223,16 +1241,16 @@ async function seed() {
       });
     }
 
-    // Order 3: Delivered with Return Approved (Pending Refund)
+    // Order 3: Another delivered lifecycle fixture; no online return/refund state
     const [order3] = await db
       .insert(orders)
       .values({
-        orderNumber: 'PE-2026-RETAPP',
+        orderNumber: 'PE-2026-DELIV3',
         userId: customerUser.id,
         status: 'delivered',
         paymentStatus: 'paid',
-        returnStatus: 'approved',
-        refundStatus: 'pending',
+        returnStatus: 'none',
+        refundStatus: 'none',
         subtotal: '22499.00',
         discount: '0.00',
         shipping: '0.00',
@@ -1241,10 +1259,10 @@ async function seed() {
         amountMinor: 2654882,
         currency: 'INR',
         paymentMethod: 'razorpay',
-        razorpayOrderId: 'order_seed_retapp',
-        razorpayPaymentId: 'pay_seed_retapp_success',
+        razorpayOrderId: 'order_seed_deliv3',
+        razorpayPaymentId: 'pay_seed_deliv3_success',
         shippingAddress: defaultAddress,
-        notes: 'Return approved: Customer will ship item back via reverse pickup.',
+        notes: 'Development fixture for delivered-order history.',
       })
       .onConflictDoNothing()
       .returning();
@@ -1267,16 +1285,16 @@ async function seed() {
       });
     }
 
-    // Order 4: Cancelled & Refund Processed
+    // Order 4: Paid cancellation; refund assistance is handled offline
     const [order4] = await db
       .insert(orders)
       .values({
-        orderNumber: 'PE-2026-REFUND',
+        orderNumber: 'PE-2026-CANCEL',
         userId: customerUser.id,
         status: 'cancelled',
-        paymentStatus: 'refunded',
+        paymentStatus: 'paid',
         returnStatus: 'none',
-        refundStatus: 'processed',
+        refundStatus: 'none',
         subtotal: '35999.00',
         discount: '0.00',
         shipping: '0.00',
@@ -1285,10 +1303,10 @@ async function seed() {
         amountMinor: 4247882,
         currency: 'INR',
         paymentMethod: 'razorpay',
-        razorpayOrderId: 'order_seed_refund',
-        razorpayPaymentId: 'pay_seed_refund_done',
+        razorpayOrderId: 'order_seed_cancel',
+        razorpayPaymentId: 'pay_seed_cancel_paid',
         shippingAddress: defaultAddress,
-        notes: 'Order cancelled before dispatch. Refund processed to source account.',
+        notes: 'Order cancelled before dispatch. Customer is directed to offline support for refund assistance.',
       })
       .onConflictDoNothing()
       .returning();
@@ -1516,7 +1534,7 @@ async function seed() {
   }
 
   // ─── 10. Blog Posts ──────────────────────────────────────────────────────────
-  // Complete reporting snapshots for seed orders and add authoritative payment/refund events.
+  // Complete reporting snapshots for seed orders and add authoritative payment events.
   await db.execute(sql`
     update ${orderItems} oi
     set category_id_snapshot = p.category_id,
@@ -1566,40 +1584,6 @@ async function seed() {
       status: order.paymentStatus === 'refunded' ? 'refunded' : captured ? 'captured' : 'created',
       capturedAt: captured ? order.createdAt : null,
       finalizedAt: captured ? order.createdAt : null,
-    });
-  }
-
-  const refundFixtures = [
-    { orderNumber: 'PE-2026-DELIV1', providerRefundId: 'rfnd_seed_partial_200', amountMinor: 20000, merchandiseMinor: 20000, taxMinor: 0, shippingMinor: 0 },
-    { orderNumber: 'PE-2026-REFUND', providerRefundId: 'rfnd_seed_full_refund', amountMinor: 4247882, merchandiseMinor: 3599900, taxMinor: 647982, shippingMinor: 0 },
-  ];
-  for (const fixture of refundFixtures) {
-    const order = reportingOrders.find((candidate) => candidate.orderNumber === fixture.orderNumber);
-    if (!order) continue;
-    const [attempt] = await db.select().from(paymentAttempts).where(eq(paymentAttempts.orderId, order.id)).limit(1);
-    if (!attempt) continue;
-    await db.insert(paymentRefunds).values({
-      orderId: order.id,
-      paymentAttemptId: attempt.id,
-      providerRefundId: fixture.providerRefundId,
-      amountMinor: fixture.amountMinor,
-      merchandiseMinor: fixture.merchandiseMinor,
-      taxMinor: fixture.taxMinor,
-      shippingMinor: fixture.shippingMinor,
-      currency: order.currency,
-      status: 'processed',
-      processedAt: new Date(order.createdAt.getTime() + 60 * 1000),
-    }).onConflictDoUpdate({
-      target: paymentRefunds.providerRefundId,
-      set: {
-        amountMinor: fixture.amountMinor,
-        merchandiseMinor: fixture.merchandiseMinor,
-        taxMinor: fixture.taxMinor,
-        shippingMinor: fixture.shippingMinor,
-        status: 'processed',
-        processedAt: new Date(order.createdAt.getTime() + 60 * 1000),
-        updatedAt: new Date(),
-      },
     });
   }
 
@@ -1768,6 +1752,14 @@ async function seed() {
     .onConflictDoNothing();
   logger.info('✅ Banner Master settings seeded (no fabricated live banners)');
 
+  if (adminUser) {
+    const seededAlerts = await db.insert(adminNotifications).values([
+      { eventKey: 'seed:operations-ready', type: 'system', severity: 'success', title: 'Operations centre ready', message: 'Admin notifications are active for orders, payments, inventory, customers, and reviews.', destination: '/admin/notifications' },
+      { eventKey: 'seed:manual-refund-policy', type: 'policy', severity: 'info', title: 'Offline refund policy active', message: 'Returns and refund requests are handled offline; this website only reconciles provider-confirmed refunds.', destination: '/admin/orders' },
+    ]).onConflictDoNothing().returning({ id: adminNotifications.id });
+    if (seededAlerts.length) await db.insert(adminNotificationRecipients).values(seededAlerts.map((notification) => ({ notificationId: notification.id, adminUserId: adminUser.id }))).onConflictDoNothing();
+  }
+
   logger.success(`
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                🎉 Prem Electronics Database Seeded!                       ║
@@ -1786,14 +1778,12 @@ async function seed() {
 ║  ❤️ Wishlist:    2 items saved in customer wishlist                       ║
 ║  🛒 Cart:        Active cart item with variant seeded for checkout        ║
 ║  📝 Blogs:       3 published + 1 draft + 1 archived sanitized article     ║
-║  💳 Payments:    Captures, one partial refund, and one full refund ledger ║
+║  💳 Payments:    Captures only; no seeded refund initiation/history       ║
 ║  📄 P3 Masters:  Versioned invoice/email templates + durable PDF fixtures  ║
 ║  📣 Campaigns:   Explicit-consent preview fixture (delivery disabled)      ║
 ║  📦 Orders:      7 lifecycle/company orders with variant references:      ║
-║                  - PE-2026-DELIV1: Delivered (Test Return/Review/Invoice) ║
-║                  - PE-2026-RETREQ: Return Requested (Test Admin Approve)  ║
-║                  - PE-2026-RETAPP: Return Approved (Test Admin Refund)    ║
-║                  - PE-2026-REFUND: Cancelled & Refund Processed           ║
+║                  - PE-2026-DELIV1/2/3: Delivered review/invoice fixtures ║
+║                  - PE-2026-CANCEL: Paid cancellation, offline assistance ║
 ║                  - PE-2026-PEND01: Pending (Test Online Cancel Order)     ║
 ║                  - PE-2026-COUPON: Confirmed with WELCOME10 redeemed      ║
 ║                  - PE-2026-B2B01: Company GST invoice snapshot fixture    ║

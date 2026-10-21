@@ -13,6 +13,7 @@ import {
   type OrderItem,
 } from '../../infrastructure/database/schema/index.js';
 import type { OrderQuery } from './orders.schema.js';
+import { createAdminNotification } from '../notifications/notifications.service.js';
 
 export const ordersRepository = {
   async findByUserId(userId: string, query: OrderQuery): Promise<{ data: Order[]; total: number }> {
@@ -69,6 +70,7 @@ export const ordersRepository = {
     reservationExpiresAt: Date
   ): Promise<Order> {
     return db.transaction(async (tx) => {
+      const inventoryAlerts: Array<{ type: 'low_stock' | 'out_of_stock'; entityType: 'product' | 'variant'; entityId: string; label: string; stock: number }> = [];
       for (const item of items) {
         if (!item.productId) throw new Error('Cannot reserve inventory without a product ID.');
         if (item.variantId) {
@@ -84,11 +86,16 @@ export const ordersRepository = {
               eq(productVariants.isActive, true),
               gte(productVariants.stockQuantity, item.quantity)
             ))
-            .returning({ id: productVariants.id });
+            .returning({ id: productVariants.id, sku: productVariants.sku, stock: productVariants.stockQuantity, threshold: productVariants.lowStockThreshold });
 
           if (reservedVariant.length !== 1) {
             throw new Error(`INVENTORY_RESERVATION_FAILED:variant_${item.variantId}`);
           }
+          const variant = reservedVariant[0];
+          const previousStock = variant.stock + item.quantity;
+          const variantLabel = `${item.productTitle ?? 'Product'} (${variant.sku ?? variant.id})`;
+          if (previousStock > 0 && variant.stock === 0) inventoryAlerts.push({ type: 'out_of_stock', entityType: 'variant', entityId: variant.id, label: variantLabel, stock: 0 });
+          else if (previousStock > variant.threshold && variant.stock <= variant.threshold) inventoryAlerts.push({ type: 'low_stock', entityType: 'variant', entityId: variant.id, label: variantLabel, stock: variant.stock });
         }
         const reserved = await tx
           .update(products)
@@ -101,10 +108,16 @@ export const ordersRepository = {
             eq(products.isActive, true),
             gte(products.stock, item.quantity)
           ))
-          .returning({ id: products.id });
+          .returning({ id: products.id, stock: products.stock, threshold: products.lowStockThreshold });
 
         if (reserved.length !== 1) {
           throw new Error(`INVENTORY_RESERVATION_FAILED:${item.productId}`);
+        }
+        if (!item.variantId) {
+          const product = reserved[0];
+          const previousStock = product.stock + item.quantity;
+          if (previousStock > 0 && product.stock === 0) inventoryAlerts.push({ type: 'out_of_stock', entityType: 'product', entityId: product.id, label: item.productTitle ?? 'Product', stock: 0 });
+          else if (previousStock > product.threshold && product.stock <= product.threshold) inventoryAlerts.push({ type: 'low_stock', entityType: 'product', entityId: product.id, label: item.productTitle ?? 'Product', stock: product.stock });
         }
       }
 
@@ -129,6 +142,22 @@ export const ordersRepository = {
         amountMinor: order.amountMinor,
         currency: order.currency,
       });
+
+      await createAdminNotification(tx, {
+        eventKey: `order.created:${order.id}`, type: 'new_order', severity: 'info',
+        title: 'New order placed', message: `Order #${order.orderNumber} was placed and is awaiting payment.`,
+        entityType: 'order', entityId: order.id, destination: `/admin/orders/${order.id}`,
+      });
+      for (const alert of inventoryAlerts) {
+        await createAdminNotification(tx, {
+          eventKey: `inventory.${alert.type}:${alert.entityType}:${alert.entityId}:order:${order.id}`,
+          type: alert.type, severity: alert.type === 'out_of_stock' ? 'error' : 'warning',
+          title: alert.type === 'out_of_stock' ? 'Item out of stock' : 'Low stock warning',
+          message: `${alert.label} now has ${alert.stock} unit${alert.stock === 1 ? '' : 's'} available.`,
+          entityType: alert.entityType, entityId: alert.entityId, destination: '/admin/inventory',
+          metadata: { stock: alert.stock },
+        });
+      }
 
       return order;
     });
@@ -285,7 +314,11 @@ export const ordersRepository = {
         for (const item of items) {
           if (item.variantId) {
             await tx.update(productVariants)
-              .set({ stockQuantity: sql`${productVariants.stockQuantity} + ${item.quantity}`, updatedAt: now })
+              .set({
+                stockQuantity: sql`${productVariants.stockQuantity} + ${item.quantity}`,
+                reservedQuantity: sql`GREATEST(0, ${productVariants.reservedQuantity} - ${item.quantity})`,
+                updatedAt: now,
+              })
               .where(eq(productVariants.id, item.variantId));
           }
           if (item.productId) {
@@ -299,7 +332,6 @@ export const ordersRepository = {
         ...(status === 'cancelled' ? {
           inventoryReleasedAt: order.inventoryReleasedAt ?? now,
           paymentStatus: order.paymentStatus === 'pending' ? 'failed' as const : order.paymentStatus,
-          refundStatus: order.paymentStatus === 'paid' ? 'pending' as const : order.refundStatus,
         } : {}),
         updatedAt: now,
       }).where(eq(orders.id, id)).returning();
@@ -307,46 +339,15 @@ export const ordersRepository = {
         orderId: id, eventType: 'fulfilment_changed', fromValue: order.status, toValue: status,
         actorUserId, metadata: { paymentStatus: updated.paymentStatus, refundStatus: updated.refundStatus },
       });
-      return updated;
-    });
-  },
-  async requestReturn(orderId: string, reason: string, actorUserId?: string): Promise<Order | undefined> {
-    return db.transaction(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
-      if (!order || order.status !== 'delivered' || order.returnStatus !== 'none') return undefined;
-      const [updated] = await tx.update(orders).set({
-        returnStatus: 'requested',
-        notes: reason ? `Return: ${reason}` : order.notes,
-        updatedAt: new Date(),
-      }).where(eq(orders.id, orderId)).returning();
-      await tx.insert(orderStatusEvents).values({ orderId, eventType: 'return_changed', fromValue: order.returnStatus, toValue: 'requested', actorUserId, metadata: { reason } });
-      return updated;
-    });
-  },
-
-  async updateReturnStatus(orderId: string, returnStatus: 'approved' | 'rejected' | 'completed', actorUserId?: string): Promise<Order | undefined> {
-    return db.transaction(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
-      if (!order) return undefined;
-      const now = new Date();
-      const extra: Partial<typeof orders.$inferInsert> = {};
-      if (returnStatus === 'completed') {
-        extra.refundStatus = 'pending';
-        extra.paymentStatus = 'refunded';
+      if (status === 'cancelled') {
+        await createAdminNotification(tx, {
+          eventKey: `order.cancelled:${id}`, type: 'order_cancelled', severity: 'warning',
+          title: 'Order cancelled', message: `Order #${order.orderNumber} was cancelled.`,
+          entityType: 'order', entityId: id, destination: `/admin/orders/${id}`,
+          metadata: { paymentStatus: updated.paymentStatus },
+        });
       }
-      const [updated] = await tx.update(orders).set({ returnStatus, ...extra, updatedAt: now }).where(eq(orders.id, orderId)).returning();
-      await tx.insert(orderStatusEvents).values({ orderId, eventType: 'return_changed', fromValue: order.returnStatus, toValue: returnStatus, actorUserId });
       return updated;
     });
-  },
-
-  async processRefund(orderId: string): Promise<Order | undefined> {
-    const [updated] = await db.update(orders).set({
-      refundStatus: 'processed',
-      paymentStatus: 'refunded',
-      status: 'refunded',
-      updatedAt: new Date(),
-    }).where(eq(orders.id, orderId)).returning();
-    return updated;
   },
 };

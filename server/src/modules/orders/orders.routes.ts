@@ -11,7 +11,6 @@ router.get('/my', authenticate, asyncHandler(ordersController.getMyOrders));
 router.get('/my/:id', authenticate, asyncHandler(ordersController.getMyOrderById));
 router.get('/my/:id/invoice', authenticate, asyncHandler(ordersController.getMyInvoice));
 router.patch('/my/:id/cancel', authenticate, asyncHandler(ordersController.cancelMyOrder));
-router.post('/my/:id/return-request', authenticate, asyncHandler(ordersController.requestReturn));
 
 // ─── Admin routes ─────────────────────────────────────────────────────────────
 router.get('/admin/all', authenticate, ...adminOnly, asyncHandler(ordersController.getOrdersAdmin));
@@ -19,7 +18,5 @@ router.post('/bulk-delete', authenticate, ...adminOnly, asyncHandler(ordersContr
 router.get('/', ...adminOnly, asyncHandler(ordersController.getAllOrders));
 router.get('/:id/invoice', ...adminOnly, asyncHandler(ordersController.getInvoiceAdmin));
 router.put('/:id/status', ...adminOnly, asyncHandler(ordersController.updateStatus));
-router.put('/:id/return-status', ...adminOnly, asyncHandler(ordersController.updateReturnStatus));
-router.post('/:id/refund', ...adminOnly, asyncHandler(ordersController.processRefund));
 
 export default router;

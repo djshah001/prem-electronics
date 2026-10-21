@@ -79,6 +79,35 @@ test('P2 protected/public APIs and logout replay protections work over HTTP', as
     assert.equal(Array.isArray(orderDetailBody.data.statusHistory), true);
     assert.equal(orderDetailBody.data.statusHistory.length > 0, true);
 
+    const [notificationList, notificationCount] = await Promise.all([
+      authenticatedGet('/admin/notifications?page=1&limit=10&readState=all'),
+      authenticatedGet('/admin/notifications/unread-count'),
+    ]);
+    assert.deepEqual([notificationList.status, notificationCount.status], [200, 200]);
+    const notificationBody = await notificationList.json() as any;
+    assert.equal(Array.isArray(notificationBody.data), true);
+    const notificationId = notificationBody.data[0]?.id;
+    assert.ok(notificationId, 'seeded notification is required for notification API smoke tests');
+    const markRead = await fetch(`${base}/admin/notifications/${notificationId}/read`, { method: 'PATCH', headers: { cookie, origin } });
+    const markUnread = await fetch(`${base}/admin/notifications/${notificationId}/unread`, { method: 'PATCH', headers: { cookie, origin } });
+    const readAll = await fetch(`${base}/admin/notifications/read-all`, { method: 'POST', headers: { cookie, origin } });
+    assert.deepEqual([markRead.status, markUnread.status, readAll.status], [200, 200, 200]);
+
+    const customerLogin = await fetch(`${base}/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json', origin },
+      body: JSON.stringify({ email: 'customer@premelectronics.com', password: 'Customer@123' }),
+    });
+    assert.equal(customerLogin.status, 200);
+    const customerCookie = customerLogin.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
+    assert.equal((await fetch(`${base}/admin/notifications`, { headers: { cookie: customerCookie } })).status, 403);
+
+    const [removedRefund, removedAdminReturn, removedCustomerReturn] = await Promise.all([
+      fetch(`${base}/orders/${orderId}/refund`, { method: 'POST', headers: { cookie, origin } }),
+      fetch(`${base}/orders/${orderId}/return-status`, { method: 'PUT', headers: { 'content-type': 'application/json', cookie, origin }, body: JSON.stringify({ returnStatus: 'approved' }) }),
+      fetch(`${base}/orders/my/${orderId}/return-request`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: customerCookie, origin }, body: JSON.stringify({ reason: 'must remain unavailable' }) }),
+    ]);
+    assert.deepEqual([removedRefund.status, removedAdminReturn.status, removedCustomerReturn.status], [404, 404, 404]);
+
     const slug = `p2-smoke-${Date.now()}`;
     const createBlog = await fetch(`${base}/blogs/admin`, {
       method: 'POST',

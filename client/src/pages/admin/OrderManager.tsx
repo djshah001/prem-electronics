@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, CheckSquare, Square, Trash2, ArrowUpDown,
-  RotateCcw, CreditCard, X, Eye,
+  CreditCard, X, Eye,
 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import type { Order, PaginationMeta, OrderStatus } from '../../types';
@@ -25,19 +25,11 @@ const STATUS_COLORS: Record<string, string> = {
   refunded: 'bg-gray-500/20 text-gray-400',
 };
 
-const RETURN_STATUS_COLORS: Record<string, string> = {
-  none: 'text-muted-foreground',
-  requested: 'text-amber-400',
-  approved: 'text-blue-400',
-  rejected: 'text-red-400',
-  completed: 'text-green-400',
-};
-
 const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
 const NEXT_STATUSES: Partial<Record<OrderStatus, OrderStatus[]>> = {
   pending: ['cancelled'],
   confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
+  processing: ['shipped'],
   shipped: ['delivered'],
   delivered: [],
   cancelled: [],
@@ -53,28 +45,6 @@ interface OrderDetailPanelProps {
 }
 
 function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
-  const qc = useQueryClient();
-
-  const returnMutation = useMutation({
-    mutationFn: (returnStatus: 'approved' | 'rejected' | 'completed') =>
-      api.put(`/orders/${order.id}/return-status`, { returnStatus }),
-    onSuccess: (_, returnStatus) => {
-      toast.success(`Return status updated to ${returnStatus}`);
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
-    },
-    onError: (e: any) => toast.error(e?.message || 'Failed to update return status'),
-  });
-
-  const refundMutation = useMutation({
-    mutationFn: () => api.post(`/orders/${order.id}/refund`, {}),
-    onSuccess: () => {
-      toast.success('Refund marked as processed');
-      qc.invalidateQueries({ queryKey: ['admin-orders'] });
-      onClose();
-    },
-    onError: (e: any) => toast.error(e?.message || 'Failed to process refund'),
-  });
-
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -137,65 +107,11 @@ function OrderDetailPanel({ order, onClose }: OrderDetailPanelProps) {
             </p>
           </div>
 
-          {/* Return management */}
-          {order.returnStatus !== 'none' && (
-            <div className="rounded-xl bg-background border border-amber-500/20 p-4">
-              <p className="text-xs text-amber-400 font-semibold mb-3 flex items-center gap-1.5">
-                <RotateCcw className="w-3.5 h-3.5" /> Return Request
-              </p>
-              <p className="text-sm text-muted-foreground mb-3">
-                Status: <span className={clsx('font-semibold capitalize', RETURN_STATUS_COLORS[order.returnStatus])}>{order.returnStatus}</span>
-              </p>
-              {order.returnStatus === 'requested' && (
-                <div className="flex gap-2">
-                  <button
-                    disabled={returnMutation.isPending}
-                    onClick={() => returnMutation.mutate('approved')}
-                    className="flex-1 py-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    disabled={returnMutation.isPending}
-                    onClick={() => returnMutation.mutate('rejected')}
-                    className="flex-1 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-semibold hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-              {order.returnStatus === 'approved' && (
-                <button
-                  disabled={returnMutation.isPending}
-                  onClick={() => returnMutation.mutate('completed')}
-                  className="w-full py-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 text-xs font-semibold hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                >
-                  Mark Return Completed
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Refund processing */}
-          {(order.refundStatus === 'pending' || order.paymentStatus === 'paid' && ['cancelled', 'refunded'].includes(order.status)) && (
-            <div className="rounded-xl bg-background border border-border p-4">
-              <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5" /> Refund
-              </p>
-              <p className="text-sm text-muted-foreground mb-3">
-                Status: <span className={clsx('font-semibold', order.refundStatus === 'processed' ? 'text-green-400' : 'text-amber-400')}>{order.refundStatus}</span>
-              </p>
-              {order.refundStatus !== 'processed' && (
-                <button
-                  disabled={refundMutation.isPending}
-                  onClick={() => { if (confirm(`Mark refund of ${formatPrice(order.total)} as processed?`)) refundMutation.mutate(); }}
-                  className="w-full py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
-                >
-                  {refundMutation.isPending ? 'Processing…' : `Mark Refund Processed (${formatPrice(order.total)})`}
-                </button>
-              )}
-            </div>
-          )}
+          <div className="rounded-xl bg-background border border-border p-4">
+            <p className="text-xs font-semibold mb-1">Returns and refunds</p>
+            <p className="text-sm text-muted-foreground">Handled offline. This admin console does not initiate or process refunds.</p>
+            {order.refundStatus !== 'none' && <p className="mt-2 text-xs capitalize">Provider-reconciled refund status: <strong>{order.refundStatus}</strong></p>}
+          </div>
 
           {order.notes && (
             <div className="rounded-xl bg-background border border-border p-4">
@@ -328,11 +244,6 @@ export default function OrderManager() {
             <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium capitalize w-fit', STATUS_COLORS[order.status] ?? 'bg-muted text-muted-foreground')}>
               {order.status}
             </span>
-            {order.returnStatus !== 'none' && (
-              <span className={clsx('text-[10px] font-medium capitalize flex items-center gap-0.5', RETURN_STATUS_COLORS[order.returnStatus])}>
-                <RotateCcw className="w-2.5 h-2.5" /> {order.returnStatus}
-              </span>
-            )}
             {order.refundStatus !== 'none' && (
               <span className="text-[10px] font-medium text-cyan-400 flex items-center gap-0.5">
                 <CreditCard className="w-2.5 h-2.5" /> refund: {order.refundStatus}
