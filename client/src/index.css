@@ -240,6 +240,7 @@ html.dark {
   html {
     background: hsl(var(--background));
     scroll-behavior: smooth;
+    font-size: 16.5px; /* Subtle global lift for comfortable, accessible typography */
   }
 
   body {
@@ -247,6 +248,8 @@ html.dark {
     background: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-sans);
+    font-size: 0.95rem; /* ~15.7px base body text, up from tight 14px */
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 250ms ease, color 250ms ease;
@@ -255,7 +258,8 @@ html.dark {
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     font-weight: 700;
-    letter-spacing: -0.028em;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
   }
 
   button, input, select, textarea {

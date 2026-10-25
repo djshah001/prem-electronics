@@ -40,7 +40,7 @@ export default function Orders() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
       <h1 className="text-3xl font-black font-['Outfit'] mb-8">My Orders</h1>
 
       {isLoading ? (
@@ -83,7 +83,7 @@ export default function Orders() {
               </div>
               </Link>
               {['pending', 'confirmed'].includes(order.status) && <div className="mt-4 pt-4 border-t border-border flex justify-end"><button disabled={cancelMutation.isPending} onClick={() => { if (window.confirm('Cancel this order?')) cancelMutation.mutate(order.id); }} className="text-sm font-semibold text-destructive disabled:opacity-50">Cancel order</button></div>}
-              {order.status === 'cancelled' && order.paymentStatus === 'paid' && <p className="mt-3 text-xs text-blue-500 text-right">Contact the store for refund assistance</p>}
+              {order.status === 'cancelled' && order.paymentStatus === 'paid' && <p className="mt-3 text-xs text-blue-500 text-right">Contact store support for assistance with this cancelled order</p>}
             </article>
           ))}
 

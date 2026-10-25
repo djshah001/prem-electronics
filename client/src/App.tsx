@@ -35,6 +35,11 @@ import { Suspense, lazy, useEffect } from 'react';
 import { subscribeToLogout, clearLocalAuthState } from './auth/session';
 import { AuthBootstrap } from './auth/AuthBootstrap';
 const ProductDetails = lazy(() => import('./pages/storefront/ProductDetails'));
+const Contact = lazy(() => import('./pages/storefront/Contact'));
+const About = lazy(() => import('./pages/storefront/About'));
+const FAQ = lazy(() => import('./pages/storefront/FAQ'));
+const Terms = lazy(() => import('./pages/storefront/Terms'));
+const Privacy = lazy(() => import('./pages/storefront/Privacy'));
 const Addresses = lazy(() => import('./pages/customer/Addresses'));
 const Profile = lazy(() => import('./pages/customer/Profile'));
 const Wishlist = lazy(() => import('./pages/customer/Wishlist'));
@@ -116,10 +121,10 @@ const AdminLayout = () => (
 );
 
 const AdminNotFound = () => <div className="p-8 min-h-[60vh] grid place-items-center"><div className="text-center"><p className="text-6xl font-black text-primary">404</p><h2 className="text-2xl font-bold mt-3">Admin page not found</h2><p className="text-muted-foreground mt-2">This route is not part of the authorized admin console.</p><Link to="/admin/dashboard" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Back to dashboard</Link></div></div>;
-const AccessDenied = () => <div className="min-h-screen grid place-items-center bg-background p-6"><div className="text-center"><p className="text-5xl font-black text-red-500">403</p><h1 className="text-2xl font-bold mt-3">Access denied</h1><p className="text-muted-foreground mt-2">Your account is signed in but does not have permission to open the admin console.</p><Link to="/" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Return to storefront</Link></div></div>;
+const AccessDenied = () => <div className="min-h-screen grid place-items-center bg-background p-6 pt-24"><div className="text-center"><p className="text-5xl font-black text-red-500">403</p><h1 className="text-2xl font-bold mt-3">Access denied</h1><p className="text-muted-foreground mt-2">Your account is signed in but does not have permission to open the admin console.</p><Link to="/" className="inline-block mt-5 rounded-lg bg-primary px-4 py-2 text-primary-foreground">Return to storefront</Link></div></div>;
 
 const StorefrontErrorBoundary = () => (
-  <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+  <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 pt-24 text-center">
     <div className="w-16 h-16 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4">
       <span className="text-3xl">⚠️</span>
     </div>
@@ -153,6 +158,11 @@ const router = createBrowserRouter([
       { path: '/', element: <Home /> },
       { path: '/shop', element: <Shop /> },
       { path: '/products/:slug', element: <ProductDetails /> },
+      { path: '/contact', element: <Contact /> },
+      { path: '/about', element: <About /> },
+      { path: '/faq', element: <FAQ /> },
+      { path: '/terms', element: <Terms /> },
+      { path: '/privacy', element: <Privacy /> },
       { path: '/blog', element: <BlogPage /> },
       { path: '/blog/:slug', element: <BlogDetails /> },
       { path: '/access-denied', element: <AccessDenied /> },

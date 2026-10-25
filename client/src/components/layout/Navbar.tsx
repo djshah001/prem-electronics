@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   Heart,
   Loader2,
-  RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
@@ -26,7 +25,12 @@ import type { Product } from "../../types";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { NavCategoryDropdown } from "./NavCategoryDropdown";
+import { AllCategoriesDropdown } from "./AllCategoriesDropdown";
 import { MobileNav } from "./MobileNav";
+import {
+  resolveNavCategories,
+  getIndividualNavCategories,
+} from "../../config/navigationCategories";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,11 +71,25 @@ export const Navbar = () => {
   // Dynamic Categories from backend via React Query
   const {
     categories,
-    rootCategories,
     isLoading: categoriesLoading,
     isError: categoriesError,
     refetch: refetchCategories,
   } = useCategories();
+
+  const resolvedNavCategories = resolveNavCategories(categories);
+  const individualNavCategories = getIndividualNavCategories(categories);
+
+  // Prevent background scrolling when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
 
   // Auto-suggest query
   const { data: suggestionsData, isFetching: isSearching } = useQuery({
@@ -173,7 +191,7 @@ export const Navbar = () => {
   const isTransparentHero = isHome && !isScrolled;
 
   const navLinkClass = cn(
-    "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5",
+    "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 whitespace-nowrap",
     isTransparentHero
       ? "text-slate-900 hover:bg-white/10 hover:text-white"
       : "text-slate-900 hover:bg-card/70 hover:text-foreground",
@@ -191,11 +209,11 @@ export const Navbar = () => {
         reduceMotion
           ? { duration: 0 }
           : {
-              type: "spring",
-              stiffness: 260,
-              damping: 25,
-              mass: 0.7,
-            }
+            type: "spring",
+            stiffness: 260,
+            damping: 25,
+            mass: 0.7,
+          }
       }
       className={cn("fixed inset-x-0 top-0 z-50 pointer-events-none")}
     >
@@ -233,59 +251,32 @@ export const Navbar = () => {
             </Link>
           </motion.div>
 
-          {/* Desktop Nav with Dynamic Categories */}
+          {/* Desktop Nav: Exactly 7 items in specified order */}
           <nav
             aria-label="Main Navigation"
             className="hidden md:flex items-center gap-1 lg:gap-2 flex-wrap"
           >
-            <Link to="/shop" className={navLinkClass}>
-              Shop
+            {/* 1. All Categories (Multilevel Dropdown) */}
+            <AllCategoriesDropdown
+              categories={resolvedNavCategories}
+              overlay={isTransparentHero}
+            />
+
+            {/* 2 - 5. Individual Category Dropdowns (Cameras, Camera Lenses, Action Cameras, Gimbals & Stabilizers) */}
+            {individualNavCategories.map((category) => (
+              <NavCategoryDropdown
+                key={category.slug}
+                category={category}
+                overlay={isTransparentHero}
+              />
+            ))}
+
+            {/* 6. Contact Us */}
+            <Link to="/contact" className={navLinkClass}>
+              Contact Us
             </Link>
 
-            {categoriesLoading ? (
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-7 w-20 rounded-lg animate-pulse",
-                      isTransparentHero ? "bg-white/15" : "bg-muted/40",
-                    )}
-                  />
-                ))}
-              </div>
-            ) : categoriesError ? (
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 text-xs",
-                  isTransparentHero ? "text-white/70" : "text-muted-foreground",
-                )}
-              >
-                <Link
-                  to="/shop"
-                  className="hover:text-primary transition-colors underline"
-                >
-                  Catalog
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => refetchCategories()}
-                  title="Retry loading categories"
-                  className="p-1 hover:text-primary transition-colors"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              rootCategories.map((category) => (
-                <NavCategoryDropdown
-                  key={category.id}
-                  category={category}
-                  overlay={isTransparentHero}
-                />
-              ))
-            )}
-
+            {/* 7. Blog */}
             <Link to="/blog" className={navLinkClass}>
               Blog
             </Link>
@@ -435,7 +426,7 @@ export const Navbar = () => {
               className={cn(
                 "hidden sm:flex",
                 isTransparentHero &&
-                  "!border-white/20 !bg-white/10 hover:!bg-white/20 text-white",
+                "!border-white/20 !bg-white/10 hover:!bg-white/20 text-white",
               )}
             />
 
@@ -618,7 +609,8 @@ export const Navbar = () => {
         <MobileNav
           isOpen={menuOpen}
           onClose={() => setMenuOpen(false)}
-          categories={categories}
+          allCategories={resolvedNavCategories}
+          individualCategories={individualNavCategories}
           isLoading={categoriesLoading}
           isError={categoriesError}
           onRetry={refetchCategories}

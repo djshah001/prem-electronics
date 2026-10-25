@@ -13,14 +13,18 @@ import {
   RefreshCw,
   ShoppingBag,
   Sparkles,
+  LayoutGrid,
+  Phone,
 } from "lucide-react";
-import type { Category, User as UserType } from "../../types";
-import { getCategoryIcon } from "./NavCategoryDropdown";
+import type { User as UserType } from "../../types";
+import type { CategoryConfig } from "../../config/navigationCategories";
+import { getCategoryIconComponent } from "../../config/navigationCategories";
 
 interface MobileNavProps {
   isOpen: boolean;
   onClose: () => void;
-  categories: Category[];
+  allCategories: CategoryConfig[];
+  individualCategories: CategoryConfig[];
   isLoading: boolean;
   isError: boolean;
   onRetry?: () => void;
@@ -31,23 +35,23 @@ interface MobileNavProps {
 export const MobileNav = ({
   isOpen,
   onClose,
-  categories,
+  allCategories,
+  individualCategories,
   isLoading,
   isError,
   onRetry,
   user,
   onLogout,
 }: MobileNavProps) => {
-  const [expandedCategories, setExpandedCategories] = useState<
-    Record<string, boolean>
-  >({});
+  const [allCategoriesOpen, setAllCategoriesOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [mobileSearch, setMobileSearch] = useState("");
   const navigate = useNavigate();
 
-  const toggleCategory = (catId: string) => {
+  const toggleCategory = (slug: string) => {
     setExpandedCategories((prev) => ({
       ...prev,
-      [catId]: !prev[catId],
+      [slug]: !prev[slug],
     }));
   };
 
@@ -59,13 +63,6 @@ export const MobileNav = ({
     }
   };
 
-  const rootCategories = Array.isArray(categories)
-    ? categories.filter(
-        (c) =>
-          c && c.isActive !== false && (!c.parentId || c.parentId === null),
-      )
-    : [];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -76,8 +73,8 @@ export const MobileNav = ({
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="absolute left-0 right-0 top-full z-[110] lg:hidden
              max-h-[calc(100dvh-4rem)] overflow-y-auto
-             border border-gray-200 bg-white text-gray-900
-             shadow-2xl rounded-b-2xl"
+             border-b border-border bg-card/95 backdrop-blur-2xl text-foreground
+             shadow-2xl"
         >
           <div className="px-4 py-5 space-y-5">
             {/* Search Input */}
@@ -88,12 +85,32 @@ export const MobileNav = ({
                 type="text"
                 value={mobileSearch}
                 onChange={(e) => setMobileSearch(e.target.value)}
-                placeholder="Search products, brands..."
+                placeholder="Search cameras, lenses, gimbals..."
                 className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </form>
 
-            {/* Quick Link: All Shop */}
+            {/* Category Sync Status / Error */}
+            {isError && onRetry && (
+              <div className="flex items-center justify-between px-3 py-2 bg-destructive/10 text-destructive text-xs rounded-xl">
+                <span>Failed to sync categories</span>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="flex items-center gap-1 font-semibold hover:underline"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
+              </div>
+            )}
+            {isLoading && (
+              <div className="h-1 bg-primary/20 rounded-full overflow-hidden">
+                <div className="h-full bg-primary animate-pulse w-1/3" />
+              </div>
+            )}
+
+            {/* Quick Link: All Products */}
             <div className="space-y-1">
               <Link
                 to="/shop"
@@ -104,169 +121,241 @@ export const MobileNav = ({
                   <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                     <ShoppingBag className="w-4 h-4" />
                   </div>
-                  <span>All Products</span>
+                  <span>All Catalog Products</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground" />
               </Link>
             </div>
 
-            {/* Categories Section */}
-            <div>
-              <div className="flex items-center justify-between px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                <span>Categories</span>
-                {isLoading && (
-                  <span className="text-[10px] text-muted-foreground animate-pulse">
-                    Loading...
-                  </span>
-                )}
+            {/* Section: Main Navbar Menu Items */}
+            <div className="space-y-1.5">
+              <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Navigation
               </div>
 
-              {/* Loading Skeletons */}
-              {isLoading && (
-                <div className="space-y-2 px-1">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-10 bg-muted/50 rounded-xl animate-pulse"
+              {/* 1. All Categories Accordion */}
+              <div className="rounded-xl overflow-hidden border border-border/50 bg-background/50">
+                <div className="flex items-center justify-between px-3 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAllCategoriesOpen((prev) => !prev)}
+                    className="flex items-center gap-2.5 text-sm font-bold text-foreground hover:text-primary transition-colors flex-1 text-left"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <LayoutGrid className="w-4 h-4" />
+                    </div>
+                    <span>All Categories</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Toggle All Categories"
+                    onClick={() => setAllCategoriesOpen((prev) => !prev)}
+                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-200 ${allCategoriesOpen ? "rotate-180 text-primary" : ""
+                        }`}
                     />
-                  ))}
+                  </button>
                 </div>
-              )}
 
-              {/* Error State */}
-              {isError && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs text-destructive flex items-center justify-between">
-                  <span>Failed to load categories.</span>
-                  {onRetry && (
-                    <button
-                      type="button"
-                      onClick={onRetry}
-                      className="inline-flex items-center gap-1 font-semibold underline hover:no-underline"
+                {/* All Categories Nested Content */}
+                <AnimatePresence>
+                  {allCategoriesOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden border-t border-border/40 bg-muted/20"
                     >
-                      <RefreshCw className="w-3 h-3" />
-                      Retry
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Categories Accordion */}
-              {!isLoading && !isError && (
-                <div className="space-y-1">
-                  {rootCategories.map((category) => {
-                    const subcategories = Array.isArray(category?.children)
-                      ? category.children.filter(
-                          (sub) => sub && sub.isActive !== false,
-                        )
-                      : [];
-                    const hasSubcategories = subcategories.length > 0;
-                    const isExpanded = !!expandedCategories[category.id];
-                    const CategoryIcon = getCategoryIcon(
-                      category.slug || category.name,
-                    );
-
-                    if (!hasSubcategories) {
-                      return (
+                      <div className="py-2 pl-3 pr-2 space-y-1">
                         <Link
-                          key={category.id}
-                          to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
+                          to="/shop"
                           onClick={onClose}
-                          className="flex items-center justify-between px-3 py-2.5 text-sm text-foreground hover:bg-muted/50 rounded-xl transition-colors font-medium"
+                          className="block py-1.5 px-3 text-xs font-semibold text-primary hover:underline"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center">
-                              <CategoryIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <span>{category.name}</span>
-                          </div>
+                          View Entire Catalog →
                         </Link>
-                      );
-                    }
 
-                    return (
-                      <div
-                        key={category.id}
-                        className="rounded-xl overflow-hidden border border-border/40 bg-card/40"
-                      >
-                        {/* Accordion Header */}
-                        <div className="flex items-center justify-between px-3 py-2">
-                          <Link
-                            to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
-                            onClick={onClose}
-                            className="flex items-center gap-2.5 text-sm font-semibold text-foreground hover:text-primary transition-colors flex-1"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                              <CategoryIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <span>{category.name}</span>
-                          </Link>
+                        {allCategories.map((cat) => {
+                          const Icon = getCategoryIconComponent(cat.iconName);
+                          const isCatExpanded = !!expandedCategories[`all-${cat.slug}`];
+                          const hasSub = cat.subcategories.length > 0;
 
-                          {/* Toggle Subcategories Button */}
-                          <button
-                            type="button"
-                            aria-label={`Toggle ${category.name} subcategories`}
-                            aria-expanded={isExpanded}
-                            onClick={() => toggleCategory(category.id)}
-                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <ChevronDown
-                              className={`w-4 h-4 transition-transform duration-200 ${
-                                isExpanded ? "rotate-180 text-primary" : ""
-                              }`}
-                            />
-                          </button>
-                        </div>
-
-                        {/* Subcategories Accordion Content */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden border-t border-border/30 bg-muted/20"
-                            >
-                              <div className="py-1.5 pl-6 pr-3 space-y-1">
+                          return (
+                            <div key={cat.slug} className="rounded-lg overflow-hidden">
+                              <div className="flex items-center justify-between px-2.5 py-1.5 hover:bg-card/70 rounded-lg">
                                 <Link
-                                  to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
+                                  to={cat.href}
                                   onClick={onClose}
-                                  className="block py-1.5 px-3 text-xs font-semibold text-primary hover:underline"
+                                  className="flex items-center gap-2 text-xs font-medium text-foreground hover:text-primary flex-1"
                                 >
-                                  View all in {category.name} →
+                                  <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span>{cat.name}</span>
                                 </Link>
-                                {subcategories.map((sub) => (
-                                  <Link
-                                    key={sub.id}
-                                    to={`/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`}
-                                    onClick={onClose}
-                                    className="block py-2 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-card/60 rounded-lg transition-colors font-medium"
+
+                                {hasSub && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleCategory(`all-${cat.slug}`)}
+                                    className="p-1 hover:text-primary"
                                   >
-                                    {sub.name}
-                                  </Link>
-                                ))}
+                                    <ChevronDown
+                                      className={`w-3.5 h-3.5 transition-transform ${isCatExpanded ? "rotate-180 text-primary" : "text-muted-foreground"
+                                        }`}
+                                    />
+                                  </button>
+                                )}
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+
+                              {/* Nested Subcategories */}
+                              <AnimatePresence>
+                                {hasSub && isCatExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden pl-7 pr-2 py-1 space-y-1 border-l-2 border-primary/20 ml-4 my-1"
+                                  >
+                                    <Link
+                                      to={cat.href}
+                                      onClick={onClose}
+                                      className="block py-1 text-[11px] font-semibold text-primary"
+                                    >
+                                      All in {cat.name} →
+                                    </Link>
+                                    {cat.subcategories.map((sub) => (
+                                      <Link
+                                        key={sub.slug}
+                                        to={sub.href}
+                                        onClick={onClose}
+                                        className="block py-1 px-2 text-[11px] text-muted-foreground hover:text-foreground hover:bg-card rounded-md"
+                                      >
+                                        {sub.name}
+                                      </Link>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 2 - 5. Individual Category Dropdowns */}
+              {individualCategories.map((category) => {
+                const Icon = getCategoryIconComponent(category.iconName);
+                const isExpanded = !!expandedCategories[`ind-${category.slug}`];
+                const hasSub = category.subcategories.length > 0;
+
+                return (
+                  <div
+                    key={category.slug}
+                    className="rounded-xl overflow-hidden border border-border/40 bg-background/40"
+                  >
+                    <div className="flex items-center justify-between px-3 py-2">
+                      <Link
+                        to={category.href}
+                        onClick={onClose}
+                        className="flex items-center gap-2.5 text-sm font-semibold text-foreground hover:text-primary transition-colors flex-1"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>{category.name}</span>
+                      </Link>
+
+                      {hasSub && (
+                        <button
+                          type="button"
+                          aria-label={`Toggle ${category.name} subcategories`}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleCategory(`ind-${category.slug}`)}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180 text-primary" : ""
+                              }`}
+                          />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Subcategories */}
+                    <AnimatePresence>
+                      {hasSub && isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden border-t border-border/30 bg-muted/20"
+                        >
+                          <div className="py-2 pl-6 pr-3 space-y-1">
+                            <Link
+                              to={category.href}
+                              onClick={onClose}
+                              className="block py-1.5 px-3 text-xs font-semibold text-primary hover:underline"
+                            >
+                              View all in {category.name} →
+                            </Link>
+                            {category.subcategories.map((sub) => (
+                              <Link
+                                key={sub.slug}
+                                to={sub.href}
+                                onClick={onClose}
+                                className="block py-2 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-card/60 rounded-lg transition-colors font-medium"
+                              >
+                                {sub.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+
+              {/* 6. Contact Us */}
+              <Link
+                to="/contact"
+                onClick={onClose}
+                className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/50 rounded-xl transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Phone className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Contact Us</span>
                 </div>
-              )}
+                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
+
+              {/* 7. Blog */}
+              <Link
+                to="/blog"
+                onClick={onClose}
+                className="flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/50 rounded-xl transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Blog</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
             </div>
 
             {/* Other Links */}
             <div className="pt-2 border-t border-border/50 space-y-1">
-              <Link
-                to="/blog"
-                onClick={onClose}
-                className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl transition-colors font-medium"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Tech Beats Blog</span>
-              </Link>
-
               <Link
                 to="/wishlist"
                 onClick={onClose}

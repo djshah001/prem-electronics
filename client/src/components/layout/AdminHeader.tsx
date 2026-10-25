@@ -1,7 +1,7 @@
 import { useSetAtom } from 'jotai';
 import { Link, useLocation } from 'react-router-dom';
 import { AlertTriangle, Bell, CheckCheck, CreditCard, Loader2, LogOut, MailWarning, Menu, MessageSquare, PackageX, ShoppingBag, Store, UserPlus } from 'lucide-react';
-import { ThemeToggle } from '../ui/ThemeToggle';
+// import { ThemeToggle } from '../ui/ThemeToggle';
 import { useAuth } from '../../hooks/useAuth';
 import { adminMobileNavOpenAtom } from '../../store/adminLayoutAtom';
 import {
@@ -66,7 +66,7 @@ export const AdminHeader = () => {
             <DropdownMenuSeparator className="m-0" /><Link to="/admin/notifications" className="block p-3 text-center text-sm font-medium text-primary hover:bg-muted">View all notifications</Link>
           </DropdownMenuContent>
         </DropdownMenu>
-        <ThemeToggle />
+        {/* <ThemeToggle /> */}
         <DropdownMenu>
           <DropdownMenuTrigger aria-label="Open administrator profile menu" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <Avatar className="h-9 w-9 border border-border"><AvatarImage src={user?.avatarUrl || ''} alt="" /><AvatarFallback>{user?.name?.[0]?.toUpperCase() || 'A'}</AvatarFallback></Avatar>

@@ -148,27 +148,27 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
         {/* ─── Floating Badges (Top-Left) ──────────────────────── */}
         <div className="pointer-events-none absolute top-2.5 left-2.5 z-10 flex flex-col gap-1.5">
           {product.salePrice && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm shadow-primary/30">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-sm shadow-primary/30">
               -{calculateDiscount(product.price, product.salePrice)}%
             </span>
           )}
           {product.isFeatured && (
-            <span className="inline-flex items-center rounded-lg border border-amber-400/30 bg-amber-400/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black backdrop-blur-md">
+            <span className="inline-flex items-center rounded-lg border border-amber-400/30 bg-amber-400/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-black backdrop-blur-md">
               Featured
             </span>
           )}
           {hasVariants && (
-            <span className="inline-flex items-center rounded-lg border border-white/20 bg-black/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/90 backdrop-blur-md">
+            <span className="inline-flex items-center rounded-lg border border-white/20 bg-black/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white/90 backdrop-blur-md">
               Variants
             </span>
           )}
           {product.stock <= product.lowStockThreshold && product.stock > 0 && (
-            <span className="inline-flex items-center rounded-lg border border-orange-500/30 bg-orange-500/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
+            <span className="inline-flex items-center rounded-lg border border-orange-500/30 bg-orange-500/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
               Low Stock
             </span>
           )}
           {isOutOfStock && (
-            <span className="inline-flex items-center rounded-lg border border-border/80 bg-zinc-950/80 px-2 py-0.5 text-[10px] font-bold text-white/80 backdrop-blur-md">
+            <span className="inline-flex items-center rounded-lg border border-border/80 bg-zinc-950/80 px-2.5 py-1 text-[11px] font-bold text-white/80 backdrop-blur-md">
               Sold Out
             </span>
           )}
@@ -201,20 +201,20 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
       </div>
 
       {/* ─── Content Information ─────────────────────────────── */}
-      <div className="flex flex-1 flex-col justify-between pt-3 pb-1 px-1">
+      <div className="flex flex-1 flex-col justify-between pt-3.5 pb-1 px-1">
         <div>
           {/* Brand & Star Rating Row */}
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+            <span className="text-xs font-bold uppercase tracking-wider text-primary">
               {product.brand || "Prem Gear"}
             </span>
             {product.reviewCount > 0 && (
-              <div className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-0.5 text-[11px]">
-                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span className="font-semibold text-foreground">
+              <div className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                <span className="font-bold text-foreground">
                   {Number(product.avgRating).toFixed(1)}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   ({product.reviewCount})
                 </span>
               </div>
@@ -223,20 +223,20 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
 
           {/* Title */}
           <Link to={`/products/${product.slug}`} className="block">
-            <h3 className="line-clamp-2 text-sm font-semibold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary leading-snug">
+            <h3 className="line-clamp-2 text-[0.95rem] font-bold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary leading-snug">
               {product.title}
             </h3>
           </Link>
         </div>
 
         {/* ─── Price & Action Footer ───────────────────────────── */}
-        <div className="mt-3.5 space-y-3">
+        <div className="mt-4 space-y-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-black tracking-tight text-foreground font-['Outfit']">
+            <span className="text-xl font-black tracking-tight text-foreground font-['Outfit']">
               {formatPrice(product.salePrice ?? product.price)}
             </span>
             {product.salePrice && (
-              <span className="text-xs text-muted-foreground/75 line-through">
+              <span className="text-sm font-medium text-muted-foreground/80 line-through">
                 {formatPrice(product.price)}
               </span>
             )}
@@ -248,7 +248,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
               type="button"
               data-product-action="sold-out"
               disabled
-              className="w-full rounded-xl bg-muted py-2.5 text-xs font-semibold text-muted-foreground cursor-not-allowed text-center"
+              className="w-full rounded-xl bg-muted py-2.5 text-sm font-semibold text-muted-foreground cursor-not-allowed text-center"
             >
               Sold Out
             </button>
@@ -258,13 +258,13 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
               type="button"
               data-product-action="configure"
               onClick={handleAction}
-              className="group/btn relative flex w-full items-center justify-between rounded-xl border border-border/80 bg-secondary/80 px-3.5 py-2.5 text-xs font-bold text-foreground transition-all duration-300 hover:border-primary/50 hover:bg-primary/10 hover:text-primary active:scale-[0.98]"
+              className="group/btn relative flex w-full items-center justify-between rounded-xl border border-border/80 bg-secondary/80 px-4 py-2.5 text-sm font-bold text-foreground transition-all duration-300 hover:border-primary/50 hover:bg-primary/10 hover:text-primary active:scale-[0.98]"
             >
               <span className="flex items-center gap-2">
-                <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                <SlidersHorizontal className="h-4 w-4 text-primary" />
                 Configure Options
               </span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover/btn:translate-x-1" />
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
             </button>
           ) : (
             /* Standalone Action: Direct Quick Add to Cart */
@@ -273,7 +273,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
               data-product-action="add-to-cart"
               onClick={handleAction}
               className={cn(
-                "group/btn relative flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all duration-300 active:scale-[0.98]",
+                "group/btn relative flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-all duration-300 active:scale-[0.98]",
                 inCart
                   ? "border border-emerald-500/40 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
                   : "bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/30",
@@ -287,7 +287,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
                     animate={{ scale: 1 }}
                     className="flex items-center gap-1.5"
                   >
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <Check className="h-4 w-4 stroke-[3]" />
                     In Cart
                   </motion.span>
                 ) : (
@@ -298,7 +298,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
                     exit={{ opacity: 0, y: -2 }}
                     className="flex items-center gap-1.5"
                   >
-                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <ShoppingCart className="h-4 w-4" />
                     Add to Cart
                   </motion.span>
                 )}

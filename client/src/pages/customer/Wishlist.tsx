@@ -35,7 +35,7 @@ export default function Wishlist() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 mt-16 sm:mt-20 py-8 sm:py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-black font-['Outfit'] flex items-center gap-3">
             <Heart className="w-8 h-8 text-red-400 fill-red-400" /> My Wishlist

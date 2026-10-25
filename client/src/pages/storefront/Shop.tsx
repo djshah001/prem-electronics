@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { SlidersHorizontal, Search, X, ChevronDown, Star, Sparkles, Flame, Check } from 'lucide-react';
+import { SlidersHorizontal, Search, X, ChevronDown, Check } from 'lucide-react';
+// Preserved icon imports for future filter re-activation: Star, Sparkles, Flame
 import { api } from '../../api/axiosClient';
 import { ProductCard } from '../../components/shared/ProductCard';
 import type { Product, Category, PaginationMeta } from '../../types';
@@ -18,9 +19,35 @@ const SORT_OPTIONS = [
   { value: 'popular', label: 'Most Popular' },
 ];
 
-const POPULAR_BRANDS = ['Apple', 'Samsung', 'Sony', 'ASUS', 'LG', 'OnePlus', 'Dell', 'HP', 'Boat'];
+export const POPULAR_BRANDS = ['Apple', 'Samsung', 'Sony', 'ASUS', 'LG', 'OnePlus', 'Dell', 'HP', 'Boat'];
 
-const RATING_OPTIONS = [
+/**
+ * Helper to dynamically get brands for the active category.
+ * Ready for activation when the approved brand list is provided.
+ */
+export const getBrandsForCategory = (categoryId?: string): string[] => {
+  if (!categoryId) return POPULAR_BRANDS;
+  return POPULAR_BRANDS;
+};
+
+/**
+ * Temporarily disabled categories per store policy.
+ * Implementation preserved here so they can be re-enabled at any time.
+ */
+export const TEMPORARILY_DISABLED_CATEGORIES = [
+  'smartphones',
+  'smartphone',
+  'laptops',
+  'laptop',
+  'televisions',
+  'television',
+  'tv',
+  'office laptops',
+  'office-laptops',
+  'office laptop',
+];
+
+export const RATING_OPTIONS = [
   { value: 4, label: '4★ & above' },
   { value: 3, label: '3★ & above' },
   { value: 2, label: '2★ & above' },
@@ -38,7 +65,7 @@ export default function Shop() {
   const [sortBy, setSortBy] = useState('newest');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const [sliderMax, setSliderMax] = useState(250000);
+  const [sliderMax, setSliderMax] = useState(500000);
   const [inStock, setInStock] = useState(false);
   const [isFeatured, setIsFeatured] = useState(searchParams.get('isFeatured') === 'true');
   const [isNewArrival, setIsNewArrival] = useState(false);
@@ -158,7 +185,7 @@ export default function Shop() {
     setSortBy('newest');
     setMinPrice('');
     setMaxPrice('');
-    setSliderMax(250000);
+    setSliderMax(500000);
     setInStock(false);
     setIsFeatured(false);
     setIsNewArrival(false);
@@ -167,12 +194,12 @@ export default function Shop() {
   };
 
   const hasFilters =
-    search ||
-    categoryId ||
-    selectedBrand ||
+    Boolean(search) ||
+    Boolean(categoryId) ||
+    Boolean(selectedBrand) ||
     minRating !== null ||
-    minPrice ||
-    maxPrice ||
+    Boolean(minPrice) ||
+    Boolean(maxPrice && Number(maxPrice) < 500000) ||
     inStock ||
     isFeatured ||
     isNewArrival ||
@@ -182,71 +209,88 @@ export default function Shop() {
     <div className="space-y-6">
       {/* Category */}
       <div>
-        <h3 className="font-semibold text-sm text-foreground mb-3 font-['Outfit']">Category</h3>
-        <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+        <h3 className="font-semibold text-base text-foreground mb-3 font-['Outfit']">Category</h3>
+        <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
           <button
             onClick={() => handleSelectCategory(null)}
             className={clsx(
-              'w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between',
+              'w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex items-center justify-between',
               !categoryId ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
             )}
           >
             <span>All Categories</span>
-            {!categoryId && <Check className="w-3.5 h-3.5" />}
+            {!categoryId && <Check className="w-4 h-4" />}
           </button>
-          {categories.filter((c) => !c.parentId).map((cat) => {
-            const isCatSelected = categoryId === cat.id;
-            const subcategories = (cat.children ?? []).filter((s) => s.isActive !== false);
-            return (
-              <div key={cat.id} className="space-y-0.5">
-                <button
-                  onClick={() => handleSelectCategory(cat)}
-                  className={clsx(
-                    'w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between font-medium',
-                    isCatSelected ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
+
+          {/* Filter out temporarily disabled categories (Smartphones, Laptops, Televisions, Office Laptops) */}
+          {categories
+            .filter((c) => !c.parentId)
+            .filter((c) => {
+              const normName = c.name?.toLowerCase().trim() || '';
+              const normSlug = c.slug?.toLowerCase().trim() || '';
+              return (
+                !TEMPORARILY_DISABLED_CATEGORIES.includes(normName) &&
+                !TEMPORARILY_DISABLED_CATEGORIES.includes(normSlug)
+              );
+            })
+            .map((cat) => {
+              const isCatSelected = categoryId === cat.id;
+              const subcategories = (cat.children ?? []).filter((s) => s.isActive !== false);
+              return (
+                <div key={cat.id} className="space-y-0.5">
+                  <button
+                    onClick={() => handleSelectCategory(cat)}
+                    className={clsx(
+                      'w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex items-center justify-between font-medium',
+                      isCatSelected ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                    )}
+                  >
+                    <span>{cat.name}</span>
+                    {isCatSelected && <Check className="w-4 h-4 text-primary" />}
+                  </button>
+                  {subcategories.length > 0 && (
+                    <div className="pl-3.5 ml-2 space-y-0.5 border-l border-border/50">
+                      {subcategories.map((sub) => {
+                        const isSubSelected = categoryId === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            onClick={() => handleSelectCategory(sub)}
+                            className={clsx(
+                              'w-full text-left px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-colors flex items-center justify-between',
+                              isSubSelected
+                                ? 'bg-primary/10 text-primary font-semibold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-card'
+                            )}
+                          >
+                            <span className="truncate">{sub.name}</span>
+                            {isSubSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                >
-                  <span>{cat.name}</span>
-                  {isCatSelected && <Check className="w-3.5 h-3.5 text-primary" />}
-                </button>
-                {subcategories.length > 0 && (
-                  <div className="pl-3.5 ml-2 space-y-0.5 border-l border-border/50">
-                    {subcategories.map((sub) => {
-                      const isSubSelected = categoryId === sub.id;
-                      return (
-                        <button
-                          key={sub.id}
-                          onClick={() => handleSelectCategory(sub)}
-                          className={clsx(
-                            'w-full text-left px-2.5 py-1 rounded-md text-[11px] transition-colors flex items-center justify-between',
-                            isSubSelected
-                              ? 'bg-primary/10 text-primary font-semibold'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-card'
-                          )}
-                        >
-                          <span className="truncate">{sub.name}</span>
-                          {isSubSelected && <Check className="w-3 h-3 text-primary flex-shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
         </div>
       </div>
 
-      {/* Brand Checkboxes */}
+      {/* =========================================================================
+          BRANDS FILTER (TEMPORARILY DISABLED)
+          Preserved for future activation once the approved brand list is provided.
+          When activated, displays only the brands relevant to the active category.
+          ========================================================================= */}
+      {/* 
       <div>
-        <h3 className="font-semibold text-sm text-foreground mb-3 font-['Outfit']">Brands</h3>
+        <h3 className="font-semibold text-base text-foreground mb-3 font-['Outfit']">Brands</h3>
         <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
           {POPULAR_BRANDS.map((b) => {
             const isSelected = selectedBrand.toLowerCase() === b.toLowerCase();
             return (
               <label
                 key={b}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-card cursor-pointer text-xs transition-colors"
+                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-card cursor-pointer text-sm transition-colors"
               >
                 <input
                   type="checkbox"
@@ -260,56 +304,61 @@ export default function Shop() {
           })}
         </div>
       </div>
+      */}
 
-      {/* Price Range Slider */}
+      {/* Price Range Slider (Up to ₹5,00,000) */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-sm text-foreground font-['Outfit']">Price Range</h3>
-          <span className="text-xs font-semibold text-primary">{formatCurrency(Number(maxPrice || sliderMax))}</span>
+          <h3 className="font-semibold text-base text-foreground font-['Outfit']">Price Range</h3>
+          <span className="text-sm font-bold text-primary">{formatCurrency(Number(maxPrice || sliderMax))}</span>
         </div>
         <input
           type="range"
           min="1000"
-          max="250000"
-          step="2000"
+          max="500000"
+          step="5000"
           value={maxPrice || sliderMax}
           onChange={(e) => {
             const val = Number(e.target.value);
             setSliderMax(val);
             setMaxPrice(String(val));
           }}
-          className="w-full accent-primary h-1.5 bg-muted rounded-lg cursor-pointer"
+          className="w-full accent-primary h-2 bg-muted rounded-lg cursor-pointer"
         />
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div>
-            <label className="text-[10px] text-muted-foreground block mb-1">Min (₹)</label>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">Min (₹)</label>
             <input
               type="number"
               placeholder="0"
               value={minPrice}
               onChange={(e) => setMinPrice(e.target.value)}
-              className="w-full px-2.5 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground block mb-1">Max (₹)</label>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">Max (₹)</label>
             <input
               type="number"
-              placeholder="250000"
+              placeholder="500000"
               value={maxPrice}
               onChange={(e) => {
                 setMaxPrice(e.target.value);
                 if (e.target.value) setSliderMax(Number(e.target.value));
               }}
-              className="w-full px-2.5 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
         </div>
       </div>
 
-      {/* Rating Filters */}
+      {/* =========================================================================
+          CUSTOMER RATING FILTER (TEMPORARILY DISABLED)
+          Preserved for future use per store instructions.
+          ========================================================================= */}
+      {/* 
       <div>
-        <h3 className="font-semibold text-sm text-foreground mb-2 font-['Outfit']">Customer Rating</h3>
+        <h3 className="font-semibold text-base text-foreground mb-2 font-['Outfit']">Customer Rating</h3>
         <div className="space-y-1">
           {RATING_OPTIONS.map((r) => {
             const active = minRating === r.value;
@@ -318,7 +367,7 @@ export default function Shop() {
                 key={r.value}
                 onClick={() => setMinRating(active ? null : r.value)}
                 className={clsx(
-                  'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
+                  'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm transition-colors',
                   active ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:bg-card'
                 )}
               >
@@ -327,24 +376,29 @@ export default function Shop() {
                     {[1, 2, 3, 4, 5].map((s) => (
                       <Star
                         key={s}
-                        className={clsx('w-3 h-3', s <= r.value ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')}
+                        className={clsx('w-3.5 h-3.5', s <= r.value ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')}
                       />
                     ))}
                   </div>
                   <span>{r.label}</span>
                 </div>
-                {active && <Check className="w-3 h-3" />}
+                {active && <Check className="w-3.5 h-3.5" />}
               </button>
             );
           })}
         </div>
       </div>
+      */}
 
-      {/* Badges / Special Filters */}
+      {/* =========================================================================
+          SPECIAL TAGS FILTER (TEMPORARILY DISABLED)
+          Preserved for future use per store instructions.
+          ========================================================================= */}
+      {/* 
       <div>
-        <h3 className="font-semibold text-sm text-foreground mb-2.5 font-['Outfit']">Special Tags</h3>
+        <h3 className="font-semibold text-base text-foreground mb-2.5 font-['Outfit']">Special Tags</h3>
         <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer text-xs">
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
             <input
               type="checkbox"
               checked={isNewArrival}
@@ -352,10 +406,10 @@ export default function Shop() {
               className="accent-purple-500 w-4 h-4 rounded"
             />
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" /> New Arrivals
+              <Sparkles className="w-4 h-4 text-purple-400" /> New Arrivals
             </span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs">
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
             <input
               type="checkbox"
               checked={isBestSeller}
@@ -363,10 +417,10 @@ export default function Shop() {
               className="accent-amber-500 w-4 h-4 rounded"
             />
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Flame className="w-3.5 h-3.5 text-amber-400" /> Best Sellers
+              <Flame className="w-4 h-4 text-amber-400" /> Best Sellers
             </span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs">
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
             <input
               type="checkbox"
               checked={isFeatured}
@@ -379,9 +433,10 @@ export default function Shop() {
           </label>
         </div>
       </div>
+      */}
 
-      {/* In Stock */}
-      <label className="flex items-center gap-3 cursor-pointer pt-2 border-t border-border">
+      {/* In Stock Only Toggle (Active & Fully Functional) */}
+      <label className="flex items-center gap-3 cursor-pointer pt-3 border-t border-border group">
         <div className="relative">
           <input
             type="checkbox"
@@ -389,22 +444,24 @@ export default function Shop() {
             onChange={(e) => setInStock(e.target.checked)}
             className="sr-only"
           />
-          <div className={clsx('w-10 h-5 rounded-full transition-colors', inStock ? 'bg-primary' : 'bg-muted')}>
+          <div className={clsx('w-11 h-6 rounded-full transition-colors', inStock ? 'bg-primary' : 'bg-muted')}>
             <div
               className={clsx(
-                'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+                'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
                 inStock && 'translate-x-5'
               )}
             />
           </div>
         </div>
-        <span className="text-xs font-medium text-foreground">In Stock Only</span>
+        <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+          In Stock Only
+        </span>
       </label>
 
       {hasFilters && (
         <button
           onClick={clearFilters}
-          className="w-full flex items-center justify-center gap-2 py-2 border border-destructive/50 text-destructive rounded-xl text-xs font-semibold hover:bg-destructive/10 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 border border-destructive/50 text-destructive rounded-xl text-sm font-semibold hover:bg-destructive/10 transition-colors"
         >
           <X className="w-4 h-4" /> Reset All Filters
         </button>
@@ -413,7 +470,7 @@ export default function Shop() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -503,7 +560,7 @@ export default function Shop() {
           {maxPrice && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
               Max: {formatCurrency(Number(maxPrice))}
-              <button onClick={() => { setMaxPrice(''); setSliderMax(250000); }}><X className="w-3 h-3" /></button>
+              <button onClick={() => { setMaxPrice(''); setSliderMax(500000); }}><X className="w-3 h-3" /></button>
             </span>
           )}
           {isNewArrival && (
