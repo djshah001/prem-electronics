@@ -5,6 +5,7 @@ import app from '../../app.js';
 import { db, pool } from '../../infrastructure/database/db.js';
 import { blogs } from '../../infrastructure/database/schema/index.js';
 import { eq } from 'drizzle-orm';
+import { env } from '../../config/env.js';
 
 test('P2 protected/public APIs and logout replay protections work over HTTP', async () => {
   const server = app.listen(0, '127.0.0.1');
@@ -17,11 +18,28 @@ test('P2 protected/public APIs and logout replay protections work over HTTP', as
   const origin = 'http://localhost:5173';
   let createdBlogId: string | undefined;
   try {
-    const login = await fetch(`${base}/auth/login`, {
+    const otpLogin = async (phone: string, admin = false) => {
+      const prefix = admin ? '/auth/admin/otp' : '/auth/otp';
+      const requested = await fetch(`${base}${prefix}/request`, {
+        method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify({ phone }),
+      });
+      assert.equal(requested.status, 201);
+      const requestCookies = requested.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
+      const challenge = (await requested.json() as any).data;
+      const verified = await fetch(`${base}${prefix}/verify`, {
+        method: 'POST', headers: { 'content-type': 'application/json', origin, cookie: requestCookies },
+        body: JSON.stringify({ challengeId: challenge.challengeId, code: env.OTP_FAKE_CODE }),
+      });
+      assert.equal(verified.status, 200);
+      return verified;
+    };
+
+    const legacyLogin = await fetch(`${base}/auth/login`, {
       method: 'POST', headers: { 'content-type': 'application/json', origin },
       body: JSON.stringify({ email: 'admin@premelectronics.com', password: 'Admin@123' }),
     });
-    assert.equal(login.status, 200);
+    assert.equal(legacyLogin.status, 404);
+    const login = await otpLogin('+919876543210', true);
     const setCookies = login.headers.getSetCookie();
     const cookie = setCookies.map((value) => value.split(';')[0]).join('; ');
     const accessCookie = setCookies.find((value) => value.startsWith('accessToken='))!.split(';')[0];
@@ -93,11 +111,7 @@ test('P2 protected/public APIs and logout replay protections work over HTTP', as
     const readAll = await fetch(`${base}/admin/notifications/read-all`, { method: 'POST', headers: { cookie, origin } });
     assert.deepEqual([markRead.status, markUnread.status, readAll.status], [200, 200, 200]);
 
-    const customerLogin = await fetch(`${base}/auth/login`, {
-      method: 'POST', headers: { 'content-type': 'application/json', origin },
-      body: JSON.stringify({ email: 'customer@premelectronics.com', password: 'Customer@123' }),
-    });
-    assert.equal(customerLogin.status, 200);
+    const customerLogin = await otpLogin('+919876543211');
     const customerCookie = customerLogin.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
     assert.equal((await fetch(`${base}/admin/notifications`, { headers: { cookie: customerCookie } })).status, 403);
 

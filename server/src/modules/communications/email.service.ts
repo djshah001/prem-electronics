@@ -24,7 +24,7 @@ const renderVersion = (version: typeof emailTemplateVersions.$inferSelect, varia
 });
 
 const safeSamples: Record<string, unknown> = {
-  customerName: 'Sample Customer', otp: '123456', resetUrl: `${env.CLIENT_URL}/reset-password?token=preview-token`,
+  customerName: 'Sample Customer',
   orderNumber: 'PE-PREVIEW-001', orderTotal: 'INR 2,358.82',
   campaignSubject: 'A sample Prem Electronics update', campaignMessage: 'Preview content is generated with safe example data.',
   unsubscribeUrl: `${env.CLIENT_URL}/unsubscribe?token=preview-token`,
@@ -131,7 +131,7 @@ export const emailMasterService = {
       const [failed] = await db.insert(emailDeliveryJobs).values({ eventKey, templateVersionId: version.id, orderId: options.orderId, campaignRecipientId: options.campaignRecipientId, recipient: recipient.trim().toLowerCase(), variables, status: 'render_failed', priority: options.priority ?? 50, dedupeKey, expiresAt: options.expiresAt, lastError: String(error?.message ?? error).slice(0, 1000) }).onConflictDoNothing({ target: emailDeliveryJobs.dedupeKey }).returning();
       return failed ?? (await db.select().from(emailDeliveryJobs).where(eq(emailDeliveryJobs.dedupeKey, dedupeKey)).limit(1))[0];
     }
-    const [job] = await db.insert(emailDeliveryJobs).values({ eventKey, templateVersionId: version.id, orderId: options.orderId, campaignRecipientId: options.campaignRecipientId, recipient: recipient.trim().toLowerCase(), variables, subjectSnapshot: rendered.subject, htmlSnapshot: rendered.html, textSnapshot: rendered.text, priority: options.priority ?? (EMAIL_EVENT_CATALOG[eventKey].category === 'auth' ? 10 : 50), dedupeKey, expiresAt: options.expiresAt }).onConflictDoNothing({ target: emailDeliveryJobs.dedupeKey }).returning();
+    const [job] = await db.insert(emailDeliveryJobs).values({ eventKey, templateVersionId: version.id, orderId: options.orderId, campaignRecipientId: options.campaignRecipientId, recipient: recipient.trim().toLowerCase(), variables, subjectSnapshot: rendered.subject, htmlSnapshot: rendered.html, textSnapshot: rendered.text, priority: options.priority ?? 50, dedupeKey, expiresAt: options.expiresAt }).onConflictDoNothing({ target: emailDeliveryJobs.dedupeKey }).returning();
     if (job) return job;
     return (await db.select().from(emailDeliveryJobs).where(eq(emailDeliveryJobs.dedupeKey, dedupeKey)).limit(1))[0];
   },

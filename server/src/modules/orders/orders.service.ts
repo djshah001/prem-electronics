@@ -25,7 +25,7 @@ const ADMIN_TRANSITIONS: Record<string, Array<'pending' | 'confirmed' | 'process
 const queueOrderCommunication = async (order: { id: string; userId: string | null; orderNumber: string }, eventKey: EmailEventKey, variables: Record<string, unknown> = {}) => {
   if (!order.userId) return;
   const user = await usersRepository.findById(order.userId);
-  if (!user) return;
+  if (!user?.email) return;
   try {
     await emailMasterService.enqueue(eventKey, user.email, { customerName: user.name, orderNumber: order.orderNumber, ...variables }, `${eventKey}:${order.id}:${String(variables.returnStatus ?? 'once')}`, { orderId: order.id });
   } catch (error) {
@@ -35,6 +35,10 @@ const queueOrderCommunication = async (order: { id: string; userId: string | nul
 
 export const ordersService = {
   async createOrder(userId: string, input: CreateOrderInput) {
+    const orderingUser = await usersRepository.findById(userId);
+    if (!orderingUser?.onboardingCompletedAt) {
+      throw new ForbiddenError('Complete your account profile before checkout.');
+    }
     await ordersRepository.releaseExpiredReservations();
     // 1. Resolve shipping address. It determines place of supply for the supported ordinary-goods flow.
     let shippingAddress = input.shippingAddress;

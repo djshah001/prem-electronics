@@ -8,9 +8,10 @@ export type UserRole = 'customer' | 'admin' | 'superadmin';
 
 export interface JwtPayload {
   id: string;
-  email: string;
+  email: string | null;
   role: UserRole;
   sid: string;
+  av: string;
 }
 
 declare global {
@@ -40,7 +41,7 @@ export const authenticate = async (req: Request, _res: Response, next: NextFunct
     }
 
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    if (!decoded.sid) {
+    if (!decoded.sid || decoded.av !== env.AUTH_TOKEN_VERSION) {
       throw new UnauthorizedError('This session is no longer valid.');
     }
     const activeSession = await authRepository.findActiveSession(decoded.sid, decoded.id);
@@ -48,10 +49,10 @@ export const authenticate = async (req: Request, _res: Response, next: NextFunct
       throw new UnauthorizedError('This session is no longer valid.');
     }
     const currentUser = await authRepository.findById(decoded.id);
-    if (!currentUser || !currentUser.isVerified || currentUser.isBlocked) {
+    if (!currentUser || !currentUser.isVerified || currentUser.isBlocked || !currentUser.authPhoneE164 || !currentUser.phoneVerifiedAt) {
       throw new UnauthorizedError('This session is no longer valid.');
     }
-    req.user = { id: currentUser.id, email: currentUser.email, role: currentUser.role, sid: decoded.sid };
+    req.user = { id: currentUser.id, email: currentUser.email, role: currentUser.role, sid: decoded.sid, av: decoded.av };
     next();
   } catch (err) {
     next(err);

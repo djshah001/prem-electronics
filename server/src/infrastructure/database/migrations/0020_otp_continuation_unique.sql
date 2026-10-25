@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "otp_challenges_continuation_uidx" ON "otp_challenges" USING btree ("continuation_hash");

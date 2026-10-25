@@ -148,7 +148,7 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
       });
       if (existingOrder.userId) {
         const [user] = await db.select().from(users).where(eq(users.id, existingOrder.userId)).limit(1);
-        if (user) await emailMasterService.enqueue('payment_failed', user.email, { customerName: user.name, orderNumber: existingOrder.orderNumber }, `payment-failed:${existingOrder.id}:${input.razorpay_payment_id}`, { orderId: existingOrder.id, priority: 20 }).catch((queueError) => logger.error('Payment failure email could not be queued.', queueError));
+        if (user?.email) await emailMasterService.enqueue('payment_failed', user.email, { customerName: user.name, orderNumber: existingOrder.orderNumber }, `payment-failed:${existingOrder.id}:${input.razorpay_payment_id}`, { orderId: existingOrder.id, priority: 20 }).catch((queueError) => logger.error('Payment failure email could not be queued.', queueError));
       }
       throw error;
     }
@@ -266,7 +266,7 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
     let emailRequest: { recipient: string; variables: Record<string, unknown> } | undefined;
     if (order.userId) {
       const [user] = await tx.select().from(users).where(eq(users.id, order.userId)).limit(1);
-      if (user) {
+      if (user?.email) {
         emailRequest = {
           recipient: user.email,
           variables: {

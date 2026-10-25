@@ -14,9 +14,14 @@ export const usersRepository = {
     return result[0];
   },
 
+  async findByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return user;
+  },
+
   async updateProfile(
     id: string,
-    data: Partial<Pick<User, 'name' | 'phone' | 'avatarUrl'>>
+    data: Partial<Pick<User, 'name' | 'email' | 'avatarUrl'>>
   ): Promise<User> {
     const result = await db
       .update(users)

@@ -5,6 +5,7 @@ import type { User } from '../types';
 export const userAtom = atomWithStorage<User | null>('prem_user', null, undefined, {
   getOnInit: true,
 });
+export const authReadyAtom = atom(false);
 export const isAuthenticatedAtom = atom((get) => get(userAtom) !== null);
 export const isAdminAtom = atom((get) => {
   const user = get(userAtom) as User;

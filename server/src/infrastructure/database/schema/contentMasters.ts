@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { orders } from './orders.js';
 import { users } from './users.js';
+import { messageDeliveryJobs } from './messageDelivery.js';
 import { sql } from 'drizzle-orm';
 
 export type StructuredContent = {
@@ -50,8 +51,9 @@ export const emailDeliveryStatusEnum = pgEnum('email_delivery_status', [
 export const campaignStatusEnum = pgEnum('campaign_status', [
   'draft', 'scheduled', 'running', 'paused', 'completed', 'cancelled',
 ]);
+export const campaignChannelEnum = pgEnum('campaign_channel', ['email', 'whatsapp']);
 export const campaignRecipientStatusEnum = pgEnum('campaign_recipient_status', [
-  'pending', 'suppressed', 'queued', 'smtp_accepted', 'failed', 'cancelled',
+  'pending', 'suppressed', 'queued', 'smtp_accepted', 'provider_accepted', 'failed', 'cancelled',
 ]);
 
 export const invoiceTemplates = pgTable('invoice_templates', {
@@ -200,7 +202,11 @@ export const campaigns = pgTable('campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 160 }).notNull(),
   status: campaignStatusEnum('status').default('draft').notNull(),
-  templateVersionId: uuid('template_version_id').notNull().references(() => emailTemplateVersions.id, { onDelete: 'restrict' }),
+  channel: campaignChannelEnum('channel').default('email').notNull(),
+  templateVersionId: uuid('template_version_id').references(() => emailTemplateVersions.id, { onDelete: 'restrict' }),
+  whatsappTemplateName: varchar('whatsapp_template_name', { length: 160 }),
+  whatsappTemplateLanguage: varchar('whatsapp_template_language', { length: 20 }),
+  whatsappBodyVariables: jsonb('whatsapp_body_variables').$type<string[]>().default([]).notNull(),
   audienceDefinition: jsonb('audience_definition').$type<Record<string, unknown>>().default({ optedIn: true }).notNull(),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
   recipientSnapshotAt: timestamp('recipient_snapshot_at', { withTimezone: true }),
@@ -216,15 +222,18 @@ export const campaignRecipients = pgTable('campaign_recipients', {
   id: uuid('id').primaryKey().defaultRandom(),
   campaignId: uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
-  email: varchar('email', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 20 }),
   variables: jsonb('variables').$type<Record<string, unknown>>().default({}).notNull(),
   status: campaignRecipientStatusEnum('status').default('pending').notNull(),
   suppressionReason: varchar('suppression_reason', { length: 120 }),
   deliveryJobId: uuid('delivery_job_id').references(() => emailDeliveryJobs.id, { onDelete: 'set null' }),
+  messageDeliveryJobId: uuid('message_delivery_job_id').references(() => messageDeliveryJobs.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('campaign_recipients_email_uidx').on(table.campaignId, table.email),
+  uniqueIndex('campaign_recipients_phone_uidx').on(table.campaignId, table.phone),
   index('campaign_recipients_status_idx').on(table.campaignId, table.status),
 ]);
 

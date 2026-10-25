@@ -1,9 +1,9 @@
 import { usersRepository } from './users.repository.js';
-import { NotFoundError } from '../../core/errors/appError.js';
+import { ConflictError, NotFoundError } from '../../core/errors/appError.js';
 import { buildPaginationMeta } from '../../core/utils/responseHandler.js';
 import type { UpdateProfileInput, CreateAddressInput, UpdateAddressInput } from './users.schema.js';
 
-const sanitizeUser = (user: { passwordHash?: string; otpToken?: string | null; otpExpiry?: Date | null; resetToken?: string | null; resetTokenExpiry?: Date | null; [key: string]: unknown }) => {
+const sanitizeUser = (user: { passwordHash?: string | null; otpToken?: string | null; otpExpiry?: Date | null; resetToken?: string | null; resetTokenExpiry?: Date | null; [key: string]: unknown }) => {
   const { passwordHash, otpToken, otpExpiry, resetToken, resetTokenExpiry, ...safe } = user;
   return safe;
 };
@@ -16,7 +16,12 @@ export const usersService = {
   },
 
   async updateProfile(userId: string, input: UpdateProfileInput) {
-    const user = await usersRepository.updateProfile(userId, input);
+    const normalized = input.email === undefined ? input : { ...input, email: input.email?.trim().toLowerCase() || null };
+    if (normalized.email) {
+      const owner = await usersRepository.findByEmail(normalized.email);
+      if (owner && owner.id !== userId) throw new ConflictError('That contact email is already in use.');
+    }
+    const user = await usersRepository.updateProfile(userId, normalized);
     return sanitizeUser(user);
   },
 
