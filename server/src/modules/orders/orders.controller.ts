@@ -29,7 +29,7 @@ export const ordersController = {
   async cancelMyOrder(req: Request, res: Response) {
     const order = await ordersService.cancelMyOrder(req.user!.id, req.params.id as string);
     sendSuccess(res, order, order.paymentStatus === 'paid'
-      ? 'Order cancelled. For refund assistance, please contact the store.'
+      ? 'Order cancelled. For support or payment queries, please contact store support.'
       : 'Order cancelled.');
   },
 

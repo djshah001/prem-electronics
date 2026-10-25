@@ -14,14 +14,16 @@ import {
   Package,
 } from "lucide-react";
 import type { Category } from "../../types";
+import type { CategoryConfig } from "../../config/navigationCategories";
+import { getCategoryIconComponent } from "../../config/navigationCategories";
 
 interface NavCategoryDropdownProps {
-  category: Category;
+  category: Category | CategoryConfig;
   onNavigate?: () => void;
   overlay?: boolean;
 }
 
-// Icon resolver based on category slug/name
+// Icon resolver fallback
 export const getCategoryIcon = (slugOrName: string) => {
   const normalized = slugOrName.toLowerCase();
   if (normalized.includes("phone") || normalized.includes("mobile")) {
@@ -55,11 +57,32 @@ export const NavCategoryDropdown = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const subcategories = Array.isArray(category.children)
-    ? category.children.filter((sub) => sub && sub.isActive !== false)
-    : [];
+  if (!category) return null;
+
+  // Extract subcategories safely from either CategoryConfig or Category
+  const subcategories: Array<{
+    name: string;
+    slug: string;
+    id?: string;
+    href?: string;
+    description?: string;
+  }> = Array.isArray((category as any).subcategories)
+      ? (category as any).subcategories
+      : Array.isArray((category as Category).children)
+        ? ((category as Category).children || []).filter((sub) => sub && sub.isActive !== false)
+        : [];
+
   const hasSubcategories = subcategories.length > 0;
-  const CategoryIcon = getCategoryIcon(category.slug || category.name || "");
+
+  const CategoryIcon = (category as any).iconName
+    ? getCategoryIconComponent((category as any).iconName)
+    : getCategoryIcon(category.slug || category.name || "");
+
+  const categoryHref =
+    (category as any).href ||
+    ((category as any).id
+      ? `/shop?categoryId=${(category as any).id}&categorySlug=${category.slug}`
+      : `/shop?categorySlug=${category.slug}`);
 
   // Close on outside click
   useEffect(() => {
@@ -83,7 +106,7 @@ export const NavCategoryDropdown = ({
   const handleMouseLeave = () => {
     timeoutRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 150); // Small grace delay for smoother cursor travel
+    }, 160);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -101,14 +124,13 @@ export const NavCategoryDropdown = ({
   if (!hasSubcategories) {
     return (
       <Link
-        to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
+        to={categoryHref}
         onClick={onNavigate}
         className={`rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5
-           ${
-             overlay
-               ? "text-slate-800 hover:bg-white/10 hover:text-white"
-               : "text-slate-900 hover:bg-card/60 hover:text-foreground"
-           }
+           ${overlay
+            ? "text-slate-800 hover:bg-white/10 hover:text-white"
+            : "text-slate-900 hover:bg-card/60 hover:text-foreground"
+          }
         `}
       >
         {category.name}
@@ -116,7 +138,7 @@ export const NavCategoryDropdown = ({
     );
   }
 
-  const isWide = subcategories.length > 3;
+  const isWide = subcategories.length > 2;
 
   return (
     <div
@@ -132,21 +154,19 @@ export const NavCategoryDropdown = ({
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
-        className={`group flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-          isOpen
+        className={`group flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${isOpen
             ? "text-primary bg-primary/10"
             : overlay
-              ? "text-slate-800 hover:bg-white/10 hover:text-white"
-              : "text-slate-800 hover:bg-card/70 hover:text-foreground"
-        }`}
+              ? "text-white/80 hover:bg-white/10 hover:text-white"
+              : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
+          }`}
       >
         <span>{category.name}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform duration-200 ${
-            isOpen
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen
               ? "rotate-180 text-primary"
-              : "text-slate-800 group-hover:text-foreground"
-          }`}
+              : "text-muted-foreground group-hover:text-foreground"
+            }`}
         />
       </button>
 
@@ -158,9 +178,8 @@ export const NavCategoryDropdown = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 360, damping: 28 }}
-            className={`absolute top-full left-0 mt-1.5 z-50 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl p-4 overflow-hidden origin-top-left ${
-              isWide ? "w-80 sm:w-96" : "w-72"
-            }`}
+            className={`absolute top-full left-0 mt-1.5 z-50 bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl shadow-2xl p-4 overflow-hidden origin-top-left ${isWide ? "w-80 sm:w-96" : "w-72"
+              }`}
           >
             {/* Header with Category Name & View All link */}
             <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/50">
@@ -182,7 +201,7 @@ export const NavCategoryDropdown = ({
               </div>
 
               <Link
-                to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
+                to={categoryHref}
                 onClick={() => {
                   setIsOpen(false);
                   onNavigate?.();
@@ -196,16 +215,21 @@ export const NavCategoryDropdown = ({
 
             {/* Subcategories Grid */}
             <div
-              className={`grid gap-1.5 ${
-                isWide ? "grid-cols-2" : "grid-cols-1"
-              }`}
+              className={`grid gap-1.5 ${isWide ? "grid-cols-2" : "grid-cols-1"
+                }`}
             >
               {subcategories.map((sub) => {
                 const SubIcon = getCategoryIcon(sub.slug || sub.name);
+                const subHref =
+                  sub.href ||
+                  (sub.id
+                    ? `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`
+                    : `/shop?categorySlug=${sub.slug}`);
+
                 return (
                   <Link
-                    key={sub.id}
-                    to={`/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`}
+                    key={sub.slug}
+                    to={subHref}
                     onClick={() => {
                       setIsOpen(false);
                       onNavigate?.();
@@ -238,14 +262,14 @@ export const NavCategoryDropdown = ({
                 <span>Verified genuine stock</span>
               </span>
               <Link
-                to="/shop"
+                to={categoryHref}
                 onClick={() => {
                   setIsOpen(false);
                   onNavigate?.();
                 }}
                 className="hover:underline text-[10px] text-muted-foreground hover:text-foreground"
               >
-                All Products
+                Browse All
               </Link>
             </div>
           </motion.div>

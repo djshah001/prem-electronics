@@ -28,7 +28,7 @@ export default function Businesses() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
       <div className="flex items-center justify-between gap-4 mb-7">
         <div><h1 className="text-3xl font-black font-['Outfit']">Business profiles</h1><p className="text-sm text-muted-foreground">Manage verified GST registrations and invoice billing details.</p></div>
         <button onClick={() => { setShowAdd((value) => !value); setReverifyGstin(''); }} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> Add business</button>

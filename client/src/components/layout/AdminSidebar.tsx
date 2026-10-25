@@ -3,49 +3,69 @@ import { NavLink } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   BarChart3, BookOpen, Boxes, ChevronLeft, ChevronRight, CreditCard,
-  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, Zap, ReceiptText, Mail, Megaphone, ScrollText, Images, Bell,
+  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, ReceiptText, Mail, Megaphone, ScrollText, Images, Bell,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { adminMobileNavOpenAtom, adminSidebarCollapsedAtom } from '../../store/adminLayoutAtom';
 
 const groups = [
-  { label: 'Overview', items: [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-    { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-    { icon: Bell, label: 'Notifications', href: '/admin/notifications' },
-  ] },
-  { label: 'Catalog', items: [
-    { icon: Package, label: 'Products', href: '/admin/products' },
-    { icon: Tag, label: 'Categories', href: '/admin/categories' },
-    { icon: Boxes, label: 'Inventory', href: '/admin/inventory' },
-  ] },
-  { label: 'Sales', items: [
-    { icon: ShoppingBag, label: 'Orders', href: '/admin/orders' },
-    { icon: CreditCard, label: 'Transactions', href: '/admin/transactions' },
-    { icon: Tag, label: 'Coupons', href: '/admin/coupons' },
-  ] },
-  { label: 'Customers', items: [
-    { icon: Users, label: 'Customers', href: '/admin/customers' },
-    { icon: MessageSquare, label: 'Reviews', href: '/admin/reviews' },
-  ] },
-  { label: 'Content', items: [
-    { icon: BookOpen, label: 'Blogs', href: '/admin/blogs' },
-    { icon: Images, label: 'Banner Master', href: '/admin/banners' },
-  ] },
-  { label: 'Communications', items: [
-    { icon: Mail, label: 'Email Master', href: '/admin/email-master' },
-    { icon: Megaphone, label: 'Campaigns', href: '/admin/campaigns' },
-    { icon: ScrollText, label: 'Email Logs', href: '/admin/email-logs' },
-  ] },
-  { label: 'Settings / Documents', items: [
-    { icon: ReceiptText, label: 'Invoice Master', href: '/admin/invoice-master' },
-  ] },
+  {
+    label: 'Overview', items: [
+      { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
+      { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+      { icon: Bell, label: 'Notifications', href: '/admin/notifications' },
+    ]
+  },
+  {
+    label: 'Catalog', items: [
+      { icon: Package, label: 'Products', href: '/admin/products' },
+      { icon: Tag, label: 'Categories', href: '/admin/categories' },
+      { icon: Boxes, label: 'Inventory', href: '/admin/inventory' },
+    ]
+  },
+  {
+    label: 'Sales', items: [
+      { icon: ShoppingBag, label: 'Orders', href: '/admin/orders' },
+      { icon: CreditCard, label: 'Transactions', href: '/admin/transactions' },
+      { icon: Tag, label: 'Coupons', href: '/admin/coupons' },
+    ]
+  },
+  {
+    label: 'Customers', items: [
+      { icon: Users, label: 'Customers', href: '/admin/customers' },
+      { icon: MessageSquare, label: 'Reviews', href: '/admin/reviews' },
+    ]
+  },
+  {
+    label: 'Content', items: [
+      { icon: BookOpen, label: 'Blogs', href: '/admin/blogs' },
+      { icon: Images, label: 'Banner Master', href: '/admin/banners' },
+    ]
+  },
+  {
+    label: 'Communications', items: [
+      { icon: Mail, label: 'Email Master', href: '/admin/email-master' },
+      { icon: Megaphone, label: 'Campaigns', href: '/admin/campaigns' },
+      { icon: ScrollText, label: 'Email Logs', href: '/admin/email-logs' },
+    ]
+  },
+  {
+    label: 'Settings / Documents', items: [
+      { icon: ReceiptText, label: 'Invoice Master', href: '/admin/invoice-master' },
+    ]
+  },
 ];
 
 const SidebarContent = ({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) => (
   <>
     <div className={clsx('h-16 border-b border-border flex items-center gap-3 px-4', collapsed && 'justify-center px-2')}>
-      <span className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0"><Zap className="w-5 h-5 text-white" /></span>
+      <span className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+        <img
+          src="/Symbol.jpg"
+          alt="Prem Electronics Logo"
+          className="w-full h-full object-contain"
+        />
+      </span>
       {!collapsed && <div><p className="font-bold text-sm">Prem Electronics</p><p className="text-xs text-muted-foreground">Admin panel</p></div>}
     </div>
     <nav aria-label="Admin navigation" className="flex-1 overflow-y-auto p-3 space-y-5">

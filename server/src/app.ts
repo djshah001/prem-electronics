@@ -93,7 +93,7 @@ app.use('/api/v1/admin/banners', bannerAdminRouter);
 app.use('/api/v1/admin/notifications', notificationsRoutes);
 
 // ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
-app.get('/favicon.ico', (_req, res) => {
+app.get('/favicon.jpg', (_req, res) => {
   res.status(204).end();
 });
 

@@ -220,7 +220,7 @@ export default function Checkout() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+      <div className="max-w-7xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center">
         <h1 className="text-3xl font-black font-['Outfit'] mb-4">Your cart is empty</h1>
         <button onClick={() => navigate('/shop')} className="px-6 py-3 gradient-primary text-white rounded-xl font-semibold">
           Continue Shopping
@@ -230,7 +230,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
       <h1 className="text-3xl font-black font-['Outfit'] mb-8">Checkout</h1>
 
       <div className="grid lg:grid-cols-5 gap-8">

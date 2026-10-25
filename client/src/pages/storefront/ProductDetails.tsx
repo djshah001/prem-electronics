@@ -186,7 +186,7 @@ export default function ProductDetails() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
         <div className="grid lg:grid-cols-2 gap-12 animate-pulse">
           <div className="aspect-square bg-muted rounded-3xl" />
           <div className="space-y-4">
@@ -203,7 +203,7 @@ export default function ProductDetails() {
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+      <div className="max-w-7xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center">
         <Zap className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
         <h1 className="text-2xl font-bold font-['Outfit'] mb-2">Product not found</h1>
         <Link to="/shop" className="text-primary hover:underline">Back to Shop</Link>
@@ -212,7 +212,7 @@ export default function ProductDetails() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
@@ -255,8 +255,8 @@ export default function ProductDetails() {
 
         {/* Info */}
         <div>
-          {product.brand && <p className="text-primary font-medium text-sm mb-2">{product.brand}</p>}
-          <h1 className="text-3xl font-black font-['Outfit'] text-foreground mb-3">{product.title}</h1>
+          {product.brand && <p className="text-primary font-bold text-sm uppercase tracking-wider mb-2">{product.brand}</p>}
+          <h1 className="text-3xl sm:text-4xl font-black font-['Outfit'] text-foreground mb-3">{product.title}</h1>
 
           {/* Rating */}
           {product.reviewCount > 0 && (
@@ -266,7 +266,7 @@ export default function ProductDetails() {
                   <Star key={s} className={clsx('w-4 h-4', s <= Math.round(Number(product.avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                 ))}
               </div>
-              <span className="text-sm text-muted-foreground">{Number(product.avgRating).toFixed(1)} ({product.reviewCount} review{product.reviewCount !== 1 ? 's' : ''})</span>
+              <span className="text-sm font-medium text-muted-foreground">{Number(product.avgRating).toFixed(1)} ({product.reviewCount} review{product.reviewCount !== 1 ? 's' : ''})</span>
             </div>
           )}
 
@@ -278,12 +278,12 @@ export default function ProductDetails() {
           )}
 
           {/* Price */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-4xl font-black text-foreground">{formatPrice(activePrice)}</span>
+          <div className="flex items-baseline gap-3 mb-5">
+            <span className="text-4xl sm:text-5xl font-black text-foreground font-['Outfit']">{formatPrice(activePrice)}</span>
             {hasSalePrice && (
               <>
-                <span className="text-xl text-muted-foreground line-through">{formatPrice(regularPrice)}</span>
-                <span className="px-2 py-0.5 bg-destructive/20 text-destructive text-sm font-bold rounded-lg">
+                <span className="text-xl sm:text-2xl text-muted-foreground line-through font-medium">{formatPrice(regularPrice)}</span>
+                <span className="px-2.5 py-1 bg-destructive/15 text-destructive text-sm font-bold rounded-lg">
                   -{discountPct(regularPrice, activePrice)}% OFF
                 </span>
               </>
@@ -366,7 +366,7 @@ export default function ProductDetails() {
 
           {/* Description */}
           {product.description && (
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">{product.description}</p>
+            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">{product.description}</p>
           )}
 
           {/* Add to Cart */}
@@ -375,7 +375,7 @@ export default function ProductDetails() {
             onClick={() => addToCart(product, 1, selectedVariant)}
             disabled={activeStock === 0 || (hasOptions && !selectedVariant)}
             className={clsx(
-              'w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-base font-bold transition-all mb-4',
+              'w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-base sm:text-lg font-bold transition-all mb-4',
               activeStock === 0 || (hasOptions && !selectedVariant)
                 ? 'bg-muted text-muted-foreground cursor-not-allowed'
                 : inCart
