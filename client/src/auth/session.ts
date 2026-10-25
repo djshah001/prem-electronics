@@ -21,6 +21,8 @@ export const clearLocalAuthState = () => {
   localStorage.removeItem('prem_user');
   localStorage.removeItem('prem_cart_merge_token');
   sessionStorage.removeItem('pending_business_gstin');
+  sessionStorage.removeItem('prem_otp_customer');
+  sessionStorage.removeItem('prem_otp_admin');
 };
 
 export const broadcastLogout = () => {

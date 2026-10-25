@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ShoppingCart,
@@ -23,7 +23,7 @@ import { useCategories } from "../../hooks/useCategories";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/axiosClient";
 import type { Product } from "../../types";
-// import { ThemeToggle } from "../ui/ThemeToggle";
+import { ThemeToggle } from "../ui/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { NavCategoryDropdown } from "./NavCategoryDropdown";
 import { MobileNav } from "./MobileNav";
@@ -49,15 +49,20 @@ export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const cartCount = useAtomValue(cartCountAtom);
   const [, setCartOpen] = useAtom(cartDrawerOpenAtom);
   const user = useAtomValue(userAtom);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const reduceMotion = Boolean(useReducedMotion());
+  const isHome = location.pathname === "/";
   const debouncedSearch = useDebounce(search, 300);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dynamic Categories from backend via React Query
   const {
@@ -82,6 +87,58 @@ export const Navbar = () => {
 
   const suggestions = suggestionsData?.data ?? [];
   const showSuggestions = searchFocused && debouncedSearch.trim().length >= 2;
+
+  // -------------------------------------------------------------
+  // Liquid Scroll Behavior: Hide on scroll, show when stopped
+  // -------------------------------------------------------------
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 20);
+
+      // Never hide navbar if user is actively searching or has mobile menu open
+      if (searchFocused || menuOpen) {
+        setIsVisible(true);
+        return;
+      }
+
+      // Always show when resting at the top of the page
+      if (currentScrollY <= 25) {
+        setIsVisible(true);
+        return;
+      }
+
+      // Hide immediately while scrolling
+      setIsVisible(false);
+
+      // Debounce reveal: trigger smooth spring entry when scrolling ceases
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsVisible(true);
+      }, 200);
+    };
+
+    const handleScrollEnd = () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      setIsVisible(true);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("scrollend", handleScrollEnd);
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scrollend", handleScrollEnd);
+    };
+  }, [searchFocused, menuOpen]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -111,21 +168,43 @@ export const Navbar = () => {
     navigate(`/products/${slug}`);
   };
 
-  const isTransparentHero = false;
+  // Keep visible if search or menu is actively open
+  const shouldShow = isVisible || searchFocused || menuOpen;
+  const isTransparentHero = isHome && !isScrolled;
 
   const navLinkClass = cn(
     "rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5",
     isTransparentHero
-      ? "text-white/80 hover:bg-white/10 hover:text-white"
-      : "text-muted-foreground hover:bg-card/70 hover:text-foreground",
+      ? "text-slate-900 hover:bg-white/10 hover:text-white"
+      : "text-slate-900 hover:bg-card/70 hover:text-foreground",
   );
 
   return (
-    <motion.header className="fixed inset-x-0 top-0 z-[100] pointer-events-none">
+    <motion.header
+      initial={reduceMotion ? false : { opacity: 0, y: -30 }}
+      animate={{
+        y: shouldShow ? 0 : -95,
+        opacity: shouldShow ? 1 : 0,
+        scale: shouldShow ? 1 : 0.985,
+      }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : {
+              type: "spring",
+              stiffness: 260,
+              damping: 25,
+              mass: 0.7,
+            }
+      }
+      className={cn("fixed inset-x-0 top-0 z-50 pointer-events-none")}
+    >
       <div
         className={cn(
-          "relative mx-auto max-w-8xl px-4 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 sm:px-6 pointer-events-auto",
-          "border-border/80 bg-white shadow-black/10",
+          "mx-auto w-full border px-4 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-500 sm:px-6 pointer-events-auto border-border/80 bg-background/85 shadow-black/10 dark:bg-slate-100/50",
+          // isTransparentHero
+          //   ? "border-white/20 bg-slate-950/45 shadow-black/20"
+          //   : "border-border/80 bg-background/85 shadow-black/10 dark:bg-slate-100/50",
         )}
       >
         <div className="flex items-center justify-between h-16 gap-2">
@@ -138,7 +217,7 @@ export const Navbar = () => {
               to="/"
               className={cn(
                 "flex items-center gap-2 flex-shrink-0 rounded-xl transition-all duration-300",
-                isTransparentHero && "px-2.5 py-2 shadow-sm",
+                isTransparentHero && " px-2.5 py-2 shadow-sm",
               )}
             >
               <img
@@ -157,7 +236,7 @@ export const Navbar = () => {
           {/* Desktop Nav with Dynamic Categories */}
           <nav
             aria-label="Main Navigation"
-            className="hidden lg:flex items-center gap-1 xl:gap-2"
+            className="hidden md:flex items-center gap-1 lg:gap-2 flex-wrap"
           >
             <Link to="/shop" className={navLinkClass}>
               Shop
@@ -215,7 +294,7 @@ export const Navbar = () => {
           {/* Desktop Search with Smart Auto-Suggest */}
           <motion.div
             ref={searchContainerRef}
-            className="hidden lg:block relative flex-1 min-w-0 max-w-xs mx-2 xl:mx-4"
+            className="hidden md:block relative flex-1 max-w-xs mx-4"
             animate={{ scale: searchFocused && !reduceMotion ? 1.025 : 1 }}
             transition={{ type: "spring", stiffness: 280, damping: 24 }}
           >
@@ -352,13 +431,13 @@ export const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* <ThemeToggle
+            <ThemeToggle
               className={cn(
                 "hidden sm:flex",
                 isTransparentHero &&
                   "!border-white/20 !bg-white/10 hover:!bg-white/20 text-white",
               )}
-            /> */}
+            />
 
             {/* Wishlist */}
             <Link
@@ -499,7 +578,7 @@ export const Navbar = () => {
             <motion.button
               whileTap={reduceMotion ? undefined : { scale: 0.9 }}
               className={cn(
-                "rounded-xl p-2 transition-colors lg:hidden",
+                "rounded-xl p-2 transition-colors md:hidden",
                 isTransparentHero
                   ? "text-white hover:bg-white/10"
                   : "hover:bg-card",

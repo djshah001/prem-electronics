@@ -10,7 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/infrastructure/payment/razorpay.test.js .test-dist/infrastructure/gst/gstin.test.js .test-dist/modules/pricing/gstPricing.test.js .test-dist/modules/blogs/blogSanitizer.test.js .test-dist/modules/admin/admin.schema.test.js .test-dist/modules/communications/contentDocument.test.js .test-dist/modules/communications/campaignPolicy.test.js .test-dist/modules/invoiceMaster/invoice.renderer.test.js .test-dist/modules/banners/banners.schema.test.js",
+    "test": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/infrastructure/otp/otpProvider.test.js .test-dist/infrastructure/messaging/msg91MessagingProvider.test.js .test-dist/infrastructure/payment/razorpay.test.js .test-dist/infrastructure/gst/gstin.test.js .test-dist/modules/pricing/gstPricing.test.js .test-dist/modules/blogs/blogSanitizer.test.js .test-dist/modules/admin/admin.schema.test.js .test-dist/modules/communications/contentDocument.test.js .test-dist/modules/communications/campaignPolicy.test.js .test-dist/modules/invoiceMaster/invoice.renderer.test.js .test-dist/modules/banners/banners.schema.test.js",
     "test:db": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/modules/cart/cart.integration.test.js && node --test .test-dist/modules/businesses/businesses.integration.test.js && node --test .test-dist/modules/auth/auth.integration.test.js && node --test .test-dist/modules/admin/analytics.integration.test.js && node --test .test-dist/modules/notifications/notifications.integration.test.js && node --test .test-dist/modules/admin/api.smoke.integration.test.js",
     "test:p3-db": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node --test .test-dist/modules/communications/campaign.integration.test.js",
     "db:generate": "npm run build && drizzle-kit generate",
@@ -19,11 +19,13 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/infrastructure/database/seed.js",
     "blogs:remediate": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/modules/blogs/remediateBlogs.js",
-    "banners:cleanup-assets": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/modules/banners/cleanupBannerAssets.js"
+    "banners:cleanup-assets": "tsc --outDir .test-dist --declaration false --declarationMap false --sourceMap false && node .test-dist/modules/banners/cleanupBannerAssets.js",
+    "auth:audit-identities": "npm run build && node dist/modules/auth/auditAuthIdentities.js",
+    "auth:map-phones": "npm run build && node dist/modules/auth/mapAuthIdentities.js",
+    "auth:bootstrap-admin": "npm run build && node dist/modules/auth/bootstrapAdmin.js"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",
-    "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -33,6 +35,7 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "libphonenumber-js": "^1.11.20",
     "multer": "^2.4.0",
     "nodemailer": "10.0.15",
     "pdfkit": "0.20.2",
@@ -43,7 +46,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

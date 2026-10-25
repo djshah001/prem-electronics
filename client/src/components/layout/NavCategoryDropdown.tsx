@@ -59,7 +59,7 @@ export const NavCategoryDropdown = ({
     ? category.children.filter((sub) => sub && sub.isActive !== false)
     : [];
   const hasSubcategories = subcategories.length > 0;
-  const CategoryIcon = getCategoryIcon(category.slug || category.name || '');
+  const CategoryIcon = getCategoryIcon(category.slug || category.name || "");
 
   // Close on outside click
   useEffect(() => {
@@ -103,11 +103,13 @@ export const NavCategoryDropdown = ({
       <Link
         to={`/shop?categoryId=${category.id}&categorySlug=${category.slug}`}
         onClick={onNavigate}
-        className={`rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-          overlay
-            ? "text-white/80 hover:bg-white/10 hover:text-white"
-            : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
-        }`}
+        className={`rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5
+           ${
+             overlay
+               ? "text-slate-800 hover:bg-white/10 hover:text-white"
+               : "text-slate-900 hover:bg-card/60 hover:text-foreground"
+           }
+        `}
       >
         {category.name}
       </Link>
@@ -134,14 +136,16 @@ export const NavCategoryDropdown = ({
           isOpen
             ? "text-primary bg-primary/10"
             : overlay
-              ? "text-white/80 hover:bg-white/10 hover:text-white"
-              : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
+              ? "text-slate-800 hover:bg-white/10 hover:text-white"
+              : "text-slate-800 hover:bg-card/70 hover:text-foreground"
         }`}
       >
         <span>{category.name}</span>
         <ChevronDown
           className={`w-3.5 h-3.5 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-primary" : "text-muted-foreground group-hover:text-foreground"
+            isOpen
+              ? "rotate-180 text-primary"
+              : "text-slate-800 group-hover:text-foreground"
           }`}
         />
       </button>
@@ -170,7 +174,9 @@ export const NavCategoryDropdown = ({
                   </h4>
                   <p className="text-[10px] text-muted-foreground">
                     {subcategories.length}{" "}
-                    {subcategories.length === 1 ? "subcategory" : "subcategories"}
+                    {subcategories.length === 1
+                      ? "subcategory"
+                      : "subcategories"}
                   </p>
                 </div>
               </div>

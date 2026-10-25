@@ -7,6 +7,7 @@ import { paymentsService } from './modules/payments/payments.service.js';
 import { ordersRepository } from './modules/orders/orders.repository.js';
 import { emailMasterService } from './modules/communications/email.service.js';
 import { campaignService } from './modules/communications/campaign.service.js';
+import { messageService } from './modules/communications/message.service.js';
 
 const startServer = async () => {
   // Test database connectivity
@@ -38,6 +39,7 @@ const startServer = async () => {
     });
     void campaignService.processScheduled().catch((error) => logger.error('Scheduled campaign processing failed.', error));
     void emailMasterService.processQueue().catch((error) => logger.error('Email delivery queue processing failed.', error));
+    void messageService.processQueue().catch((error) => logger.error('Mobile message delivery queue processing failed.', error));
   }, 60_000);
   maintenanceTimer.unref();
 

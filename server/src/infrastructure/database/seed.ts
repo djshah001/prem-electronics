@@ -29,6 +29,7 @@ import {
   invoiceTemplates,
   issuedInvoices,
   marketingPreferences,
+  mobileMarketingPreferences,
   campaigns,
   campaignRecipients,
   bannerSettings,
@@ -39,7 +40,6 @@ import {
 import { reviewsRepository } from '../../modules/reviews/reviews.repository.js';
 import { productsRepository } from '../../modules/products/products.repository.js';
 import { sanitizeBlogHtml } from '../../modules/blogs/blogSanitizer.js';
-import bcrypt from 'bcryptjs';
 import logger from '../../core/logger/logger.js';
 import { and, eq, isNull, like, sql } from 'drizzle-orm';
 import { defaultInvoiceConfig, invoiceMasterService } from '../../modules/invoiceMaster/invoice.service.js';
@@ -70,12 +70,13 @@ async function seed() {
     await db.execute(
       `TRUNCATE TABLE
         admin_notification_recipients, admin_notifications,
-        auth_sessions, addresses, users,
+        auth_identity_audit_events, otp_challenges, auth_sessions, addresses, users,
         banner_settings, banners, media_assets,
         blog_content_revisions, blog_slug_redirects, blogs,
         business_profiles, gst_verifications,
         cart_items, cart_merge_operations, carts,
         campaign_recipients, campaigns,
+        message_delivery_jobs, mobile_marketing_preferences, whatsapp_marketing_suppressions,
         content_audit_events,
         email_send_attempts, email_delivery_jobs, email_template_versions, email_templates, email_outbox,
         invoice_template_versions, invoice_templates, issued_invoices,
@@ -783,8 +784,7 @@ async function seed() {
   logger.info('✅ Product variants & options seeded (S24 Ultra, iPhone 16 Pro Max, Sony WH-1000XM5, plus defaults)');
 
   // ─── 3. Users ────────────────────────────────────────────────────────────────
-  const adminPasswordHash = await bcrypt.hash('Admin@123', 12);
-  const customerPasswordHash = await bcrypt.hash('Customer@123', 12);
+  const seededPhoneVerifiedAt = new Date('2026-10-01T04:30:00.000Z');
 
   await db
     .insert(users)
@@ -792,30 +792,56 @@ async function seed() {
       {
         name: 'Prem Admin',
         email: 'admin@premelectronics.com',
-        passwordHash: adminPasswordHash,
+        passwordHash: null,
         role: 'admin',
         isVerified: true,
+        phone: '9876543210',
+        authPhoneE164: '+919876543210',
+        phoneVerifiedAt: seededPhoneVerifiedAt,
+        onboardingCompletedAt: seededPhoneVerifiedAt,
       },
       {
         name: 'Priya Sharma',
         email: 'customer@premelectronics.com',
-        passwordHash: customerPasswordHash,
+        passwordHash: null,
         role: 'customer',
         isVerified: true,
+        phone: '9876543211',
+        authPhoneE164: '+919876543211',
+        phoneVerifiedAt: seededPhoneVerifiedAt,
+        onboardingCompletedAt: seededPhoneVerifiedAt,
       },
       {
         name: 'Rahul Patel',
         email: 'rahul@premelectronics.com',
-        passwordHash: customerPasswordHash,
+        passwordHash: null,
         role: 'customer',
         isVerified: true,
+        phone: '9876543212',
+        authPhoneE164: '+919876543212',
+        phoneVerifiedAt: seededPhoneVerifiedAt,
+        onboardingCompletedAt: seededPhoneVerifiedAt,
       },
     ])
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        passwordHash: null,
+        isVerified: true,
+        phoneVerifiedAt: seededPhoneVerifiedAt,
+        onboardingCompletedAt: seededPhoneVerifiedAt,
+        updatedAt: new Date(),
+      },
+    });
 
   const [adminUser] = await db.select().from(users).where(eq(users.email, 'admin@premelectronics.com')).limit(1);
   const [customerUser] = await db.select().from(users).where(eq(users.email, 'customer@premelectronics.com')).limit(1);
   const [secondCustomer] = await db.select().from(users).where(eq(users.email, 'rahul@premelectronics.com')).limit(1);
+  await Promise.all([
+    adminUser && db.update(users).set({ passwordHash: null, phone: '9876543210', authPhoneE164: '+919876543210', phoneVerifiedAt: seededPhoneVerifiedAt, onboardingCompletedAt: seededPhoneVerifiedAt, updatedAt: new Date() }).where(eq(users.id, adminUser.id)),
+    customerUser && db.update(users).set({ passwordHash: null, phone: '9876543211', authPhoneE164: '+919876543211', phoneVerifiedAt: seededPhoneVerifiedAt, onboardingCompletedAt: seededPhoneVerifiedAt, updatedAt: new Date() }).where(eq(users.id, customerUser.id)),
+    secondCustomer && db.update(users).set({ passwordHash: null, phone: '9876543212', authPhoneE164: '+919876543212', phoneVerifiedAt: seededPhoneVerifiedAt, onboardingCompletedAt: seededPhoneVerifiedAt, updatedAt: new Date() }).where(eq(users.id, secondCustomer.id)),
+  ]);
 
   // Development-only taxpayer fixture. It is intentionally labelled and must not be used as merchant legal data.
   const fixtureGstin = '27AAPFU0939F1ZV';
@@ -1703,7 +1729,7 @@ async function seed() {
 
   for (const eventKey of Object.keys(EMAIL_EVENT_CATALOG) as Array<keyof typeof EMAIL_EVENT_CATALOG>) {
     const ensured = await emailMasterService.ensureSystemTemplate(eventKey);
-    const actionVariable = eventKey === 'password_reset' ? '{{resetUrl}}' : eventKey === 'promotion' ? '{{unsubscribeUrl}}' : undefined;
+    const actionVariable = eventKey === 'promotion' ? '{{unsubscribeUrl}}' : undefined;
     if (actionVariable && !ensured.version.plainText.includes(actionVariable) && adminUser) {
       await emailMasterService.publish(ensured.template.id, adminUser.id, 'Include the required action URL in plain-text output');
     }
@@ -1737,6 +1763,45 @@ async function seed() {
     for (const user of consentFixtures) await db.insert(campaignRecipients).values({ campaignId: campaign.id, userId: user.id, email: user.email.toLowerCase(), variables: { customerName: user.email.split('@')[0] }, status: 'pending' }).onConflictDoNothing();
   }
 
+  const mobileConsentFixtures = [customerUser, secondCustomer].filter((user): user is NonNullable<typeof user> => Boolean(user?.authPhoneE164));
+  for (const user of mobileConsentFixtures) {
+    await db.insert(mobileMarketingPreferences).values({
+      userId: user.id,
+      phone: user.authPhoneE164!,
+      whatsappOptedIn: true,
+      provenance: 'development_seed_explicit_consent',
+      consentedAt: new Date('2026-10-05T04:30:00.000Z'),
+    }).onConflictDoUpdate({
+      target: mobileMarketingPreferences.userId,
+      set: { phone: user.authPhoneE164!, whatsappOptedIn: true, provenance: 'development_seed_explicit_consent', consentedAt: new Date('2026-10-05T04:30:00.000Z'), withdrawnAt: null, updatedAt: new Date() },
+    });
+  }
+
+  let [whatsappCampaign] = await db.select().from(campaigns).where(eq(campaigns.name, 'WhatsApp Preview — Delivery Disabled')).limit(1);
+  if (!whatsappCampaign && adminUser) {
+    [whatsappCampaign] = await db.insert(campaigns).values({
+      name: 'WhatsApp Preview — Delivery Disabled',
+      channel: 'whatsapp',
+      whatsappTemplateName: 'prem_festive_offer',
+      whatsappTemplateLanguage: 'en',
+      whatsappBodyVariables: ['{{customerName}}', '{{campaignName}}'],
+      status: 'draft',
+      audienceDefinition: { whatsappOptedIn: true, fixture: true },
+      recipientSnapshotAt: new Date('2026-10-05T04:30:00.000Z'),
+      createdBy: adminUser.id,
+      updatedBy: adminUser.id,
+    }).returning();
+  }
+  if (whatsappCampaign) {
+    for (const user of mobileConsentFixtures) await db.insert(campaignRecipients).values({
+      campaignId: whatsappCampaign.id,
+      userId: user.id,
+      phone: user.authPhoneE164!,
+      variables: { customerName: user.name },
+      status: 'pending',
+    }).onConflictDoNothing();
+  }
+
   for (const order of reportingOrders.filter((entry) => ['paid', 'refunded'].includes(entry.paymentStatus) && entry.invoiceNumber)) {
     const issued = await invoiceMasterService.issueForOrder(order.id);
     if (order.invoiceIssuedAt && order.invoiceIssuedAt < new Date('2026-10-05T00:00:00.000Z') && !issued.isLegacy) {
@@ -1764,9 +1829,9 @@ async function seed() {
 ╔═══════════════════════════════════════════════════════════════════════════╗
 ║                🎉 Prem Electronics Database Seeded!                       ║
 ╠═══════════════════════════════════════════════════════════════════════════╣
-║  👤 Admin:       admin@premelectronics.com / Admin@123                    ║
-║  👤 Customer:    customer@premelectronics.com / Customer@123              ║
-║  👤 Customer 2:  rahul@premelectronics.com / Customer@123                 ║
+║  👤 Admin OTP:       +919876543210                                         ║
+║  👤 Customer OTP:    +919876543211                                         ║
+║  👤 Customer 2 OTP:  +919876543212                                         ║
 ║  📍 Addresses:   2 saved delivery addresses (Home default & Office)       ║
 ║  🏢 Businesses:  Account-isolated GST fixture profiles for both customers ║
 ║  🏷  Coupons:     WELCOME10 | FIRSTORDER10 | FLAT500 | PREM20 | EXPIRED50  ║

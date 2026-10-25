@@ -2,11 +2,14 @@
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   role: 'customer' | 'admin' | 'superadmin';
   isVerified: boolean;
   avatarUrl?: string;
-  phone?: string;
+  phone?: string | null;
+  authPhoneE164?: string | null;
+  phoneVerifiedAt?: string | null;
+  onboardingRequired?: boolean;
   createdAt: string;
 }
 
@@ -78,7 +81,22 @@ export interface BusinessProfile {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export interface AuthResponse {
   user: User;
+  onboardingRequired: false;
 }
+
+export interface OtpChallengeResponse {
+  challengeId: string;
+  maskedDestination: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  status: 'sent';
+}
+
+export type OtpVerifyResponse = AuthResponse | {
+  onboardingRequired: true;
+  onboardingToken: string;
+  maskedDestination: string;
+};
 
 // ─── Category ────────────────────────────────────────────────────────────────
 export interface Category {
@@ -400,7 +418,7 @@ export interface Blog {
 export interface CustomerAdmin {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   isVerified: boolean;
   isBlocked: boolean;
   createdAt: string;

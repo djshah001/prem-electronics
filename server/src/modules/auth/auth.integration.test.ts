@@ -8,7 +8,9 @@ import { authRepository } from './auth.repository.js';
 test('revoking an old refresh token invalidates the entire rotated session family', async () => {
   const suffix = crypto.randomUUID();
   const [user] = await db.insert(users).values({
-    name: 'P2 Auth Fixture', email: `p2-auth-${suffix}@example.test`, passwordHash: 'fixture-not-a-real-password-hash', isVerified: true,
+    name: 'OTP Auth Fixture', email: `otp-auth-${suffix}@example.test`, passwordHash: null, isVerified: true,
+    authPhoneE164: `+919${suffix.replaceAll('-', '').replace(/[^0-9]/g, '').padEnd(9, '7').slice(0, 9)}`,
+    phoneVerifiedAt: new Date(), onboardingCompletedAt: new Date(),
   }).returning();
   try {
     const initial = await authRepository.createSession(user.id, `a${suffix.replaceAll('-', '')}`, new Date(Date.now() + 60_000));

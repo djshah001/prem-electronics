@@ -1,20 +1,19 @@
 import { useAtom } from 'jotai';
-import { userAtom } from '../store/userAtom';
-import { api } from '../api/axiosClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { User, AuthResponse } from '../types';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { api } from '../api/axiosClient';
+import { beginLogout, broadcastLogout, clearLocalAuthState, markSessionStarted } from '../auth/session';
 import { cartItemsAtom } from '../store/cartAtom';
-import {
-  beginLogout,
-  broadcastLogout,
-  clearLocalAuthState,
-  markSessionStarted,
-} from '../auth/session';
+import { authReadyAtom, userAtom } from '../store/userAtom';
+import type { User } from '../types';
+
+const safeReturnTo = (value?: string | null): string | undefined =>
+  value && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\') ? value : undefined;
 
 export const useAuth = () => {
   const [user, setUser] = useAtom(userAtom);
+  const [, setAuthReady] = useAtom(authReadyAtom);
   const [guestCart, setGuestCart] = useAtom(cartItemsAtom);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -33,122 +32,45 @@ export const useAuth = () => {
     await queryClient.invalidateQueries({ queryKey: ['cart'] });
   };
 
-  const loginMutation = useMutation({
-    mutationFn: (data: { email: string; password: string }) =>
-      api.post<AuthResponse>('/auth/login', data),
-    onSuccess: async (res) => {
-      markSessionStarted();
-      setUser(res.data.user);
-      if (guestCart.length > 0) {
-        try {
-          await mergeGuestCart();
-        } catch {
-          toast.warning('Signed in, but your guest cart could not be merged. It remains saved on this device.');
-        }
-      }
-      toast.success(`Welcome back, ${res.data.user.name}! 👋`);
-      if (res.data.user.role === 'admin' || res.data.user.role === 'superadmin') {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/', { replace: true });
-      }
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Login failed. Please try again.');
-    },
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: (data: { name: string; email: string; password: string }) =>
-      api.post<User>('/auth/register', data),
-    onSuccess: (_, variables) => {
-      toast.success('Account created! Please check your email for the OTP.');
-      navigate(`/verify-otp?email=${encodeURIComponent(variables.email)}`);
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Registration failed.');
-    },
-  });
+  const completeAuthentication = async (authenticatedUser: User, returnTo?: string | null) => {
+    markSessionStarted();
+    setUser(authenticatedUser);
+    setAuthReady(true);
+    await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    if (guestCart.length > 0 && authenticatedUser.role === 'customer') {
+      try { await mergeGuestCart(); }
+      catch { toast.warning('Signed in, but your guest cart remains saved on this device and can be merged later.'); }
+    }
+    const destination = safeReturnTo(returnTo)
+      ?? (authenticatedUser.role === 'admin' || authenticatedUser.role === 'superadmin' ? '/admin/dashboard' : '/');
+    navigate(destination, { replace: true });
+  };
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
       beginLogout();
       await queryClient.cancelQueries();
-      try {
-        await api.post('/auth/logout');
-        return { serverRevoked: true };
-      } catch (error) {
-        return { serverRevoked: false, error };
-      } finally {
+      try { await api.post('/auth/logout'); return true; }
+      catch { return false; }
+      finally {
         clearLocalAuthState();
         setUser(null);
+        setAuthReady(true);
         queryClient.clear();
         broadcastLogout();
         navigate('/login', { replace: true });
       }
     },
-    onSuccess: ({ serverRevoked }) => {
-      if (serverRevoked) {
-        toast.success('Logged out successfully.');
-      } else {
-        toast.error('Local session cleared, but the server could not confirm logout. Please retry when online.', {
-          action: {
-            label: 'Retry',
-            onClick: () => logoutMutation.mutate(),
-          },
-        });
-      }
-    },
-    onSettled: () => {
-      setUser(null);
-    },
-  });
-
-  const forgotPasswordMutation = useMutation({
-    mutationFn: (data: { email: string }) => api.post('/auth/forgot-password', data),
-    onSuccess: () => {
-      toast.success('Password reset link sent! Check your email.');
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Failed to send reset email.');
-    },
-  });
-
-  const verifyOTPMutation = useMutation({
-    mutationFn: (data: { email: string; otp: string }) =>
-      api.post<AuthResponse>('/auth/verify-otp', data),
-    onSuccess: async (res) => {
-      markSessionStarted();
-      setUser(res.data.user);
-      if (guestCart.length > 0) {
-        try {
-          await mergeGuestCart();
-        } catch {
-          toast.warning('Your account is verified, but the guest cart could not be merged yet.');
-        }
-      }
-      toast.success('Email verified! Welcome to Prem Electronics ⚡');
-      const pendingGstin = sessionStorage.getItem('pending_business_gstin');
-      if (pendingGstin) {
-        sessionStorage.removeItem('pending_business_gstin');
-        navigate(`/account/businesses?setup=1&gstin=${encodeURIComponent(pendingGstin)}`);
-      } else {
-        navigate('/');
-      }
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || 'OTP verification failed.');
-    },
+    onSuccess: (confirmed) => confirmed
+      ? toast.success('Logged out successfully.')
+      : toast.error('Local session cleared, but server logout could not be confirmed.'),
   });
 
   return {
     user,
     isAuthenticated: user !== null,
     isAdmin: user?.role === 'admin' || user?.role === 'superadmin',
-    login: loginMutation,
-    register: registerMutation,
+    completeAuthentication,
     logout: logoutMutation,
-    forgotPassword: forgotPasswordMutation,
-    verifyOTP: verifyOTPMutation,
   };
 };

@@ -33,6 +33,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 // Lazy pages
 import { Suspense, lazy, useEffect } from 'react';
 import { subscribeToLogout, clearLocalAuthState } from './auth/session';
+import { AuthBootstrap } from './auth/AuthBootstrap';
 const ProductDetails = lazy(() => import('./pages/storefront/ProductDetails'));
 const Addresses = lazy(() => import('./pages/customer/Addresses'));
 const Profile = lazy(() => import('./pages/customer/Profile'));
@@ -166,6 +167,7 @@ const router = createBrowserRouter([
           { path: '/verify-otp', element: <VerifyOTP /> },
           { path: '/forgot-password', element: <ForgotPassword /> },
           { path: '/reset-password', element: <ResetPassword /> },
+          { path: '/admin/login', element: <Login /> },
         ],
       },
 
@@ -236,6 +238,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthBootstrap />
       <ThemeProvider>
         <RouterProvider router={router} />
         <Toaster richColors position="top-right" closeButton />

@@ -1,40 +1,37 @@
 import { z } from 'zod';
 
-export const registerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+export const otpRequestSchema = z.object({
+  phone: z.string().trim().min(8).max(30),
 });
 
-export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+export const otpChallengeSchema = z.object({
+  challengeId: z.string().uuid(),
 });
 
-export const verifyOTPSchema = z.object({
-  email: z.string().email(),
-  otp: z.string().length(6, 'OTP must be 6 digits'),
+export const otpVerifySchema = otpChallengeSchema.extend({
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit OTP.'),
 });
 
-export const forgotPasswordSchema = z.object({
-  email: z.string().email(),
+export const onboardingSchema = z.object({
+  onboardingToken: z.string().min(32).max(256),
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(255).optional().or(z.literal('')),
+  marketingConsent: z.boolean().default(false),
+  whatsappConsent: z.boolean().default(false),
 });
 
-export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+export const phoneChangeRequestSchema = z.discriminatedUnion('stage', [
+  z.object({ stage: z.literal('current') }),
+  z.object({ stage: z.literal('new'), phone: z.string().trim().min(8).max(30) }),
+]);
+
+export const phoneChangeCompleteSchema = z.object({
+  currentProof: z.string().min(32).max(256),
+  newProof: z.string().min(32).max(256),
 });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
-export type VerifyOTPInput = z.infer<typeof verifyOTPSchema>;
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type OtpRequestInput = z.infer<typeof otpRequestSchema>;
+export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;
+export type OnboardingInput = z.infer<typeof onboardingSchema>;
+export type PhoneChangeRequestInput = z.infer<typeof phoneChangeRequestSchema>;
+export type PhoneChangeCompleteInput = z.infer<typeof phoneChangeCompleteSchema>;

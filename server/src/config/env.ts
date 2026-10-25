@@ -11,7 +11,32 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_DAYS: z.string().transform(Number).default('30'),
+  AUTH_TOKEN_VERSION: z.string().min(1).default('otp-v1'),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  OTP_AUTH_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  OTP_PROVIDER: z.enum(['msg91', 'fake']).default('fake'),
+  MSG91_AUTHKEY: z.string().min(1).optional(),
+  MSG91_WIDGET_ID: z.string().min(1).optional(),
+  OTP_BINDING_SECRET: z.string().min(32).optional(),
+  OTP_FAKE_CODE: z.string().regex(/^\d{6}$/).default('654321'),
+  OTP_LIFETIME_SECONDS: z.string().transform(Number).default('300').pipe(z.number().int().min(60).max(900)),
+  OTP_RESEND_COOLDOWN_SECONDS: z.string().transform(Number).default('60').pipe(z.number().int().min(10).max(600)),
+  OTP_MAX_ATTEMPTS: z.string().transform(Number).default('5').pipe(z.number().int().min(1).max(10)),
+  OTP_MAX_RESENDS: z.string().transform(Number).default('3').pipe(z.number().int().min(0).max(10)),
+  OTP_PHONE_SENDS_PER_15_MINUTES: z.string().transform(Number).default('3').pipe(z.number().int().min(1).max(20)),
+  OTP_PHONE_SENDS_PER_DAY: z.string().transform(Number).default('10').pipe(z.number().int().min(1).max(100)),
+  OTP_IP_SENDS_PER_15_MINUTES: z.string().transform(Number).default('20').pipe(z.number().int().min(1).max(200)),
+  OTP_GLOBAL_SENDS_PER_HOUR: z.string().transform(Number).default('500').pipe(z.number().int().min(1)),
+  OTP_PROVIDER_TIMEOUT_MS: z.string().transform(Number).default('8000').pipe(z.number().int().min(1000).max(30000)),
+  AUTH_ALLOWED_COUNTRIES: z.string().default('IN').transform((value) => value.split(',').map((country) => country.trim().toUpperCase()).filter(Boolean)),
+  MESSAGE_PROVIDER: z.enum(['msg91', 'fake']).default('fake'),
+  TRANSACTIONAL_MESSAGING_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  WHATSAPP_CAMPAIGN_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  MSG91_SMS_WELCOME_TEMPLATE_ID: z.string().min(1).optional(),
+  MSG91_WHATSAPP_INTEGRATED_NUMBER: z.string().regex(/^\d{8,15}$/).optional(),
+  MSG91_WHATSAPP_WELCOME_TEMPLATE_NAME: z.string().min(1).optional(),
+  MSG91_WHATSAPP_LANGUAGE: z.string().min(2).max(20).default('en'),
+  MSG91_MESSAGE_TIMEOUT_MS: z.string().transform(Number).default('8000').pipe(z.number().int().min(1000).max(30000)),
   RAZORPAY_KEY_ID: z.string().min(1),
   RAZORPAY_KEY_SECRET: z.string().min(1),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
@@ -66,5 +91,30 @@ export const env = parsed.data;
 
 if (env.NODE_ENV === 'production' && env.GST_PROVIDER === 'fixture') {
   console.error('GST_PROVIDER=fixture is forbidden in production.');
+  process.exit(1);
+}
+
+if (env.NODE_ENV === 'production' && env.OTP_PROVIDER === 'fake') {
+  console.error('OTP_PROVIDER=fake is forbidden in production.');
+  process.exit(1);
+}
+
+if (env.OTP_AUTH_ENABLED && env.OTP_PROVIDER === 'msg91' && (!env.MSG91_AUTHKEY || !env.MSG91_WIDGET_ID)) {
+  console.error('MSG91_AUTHKEY and MSG91_WIDGET_ID are required when OTP_PROVIDER=msg91.');
+  process.exit(1);
+}
+
+if (env.NODE_ENV === 'production' && (env.TRANSACTIONAL_MESSAGING_ENABLED || env.WHATSAPP_CAMPAIGN_DELIVERY_ENABLED) && env.MESSAGE_PROVIDER === 'fake') {
+  console.error('MESSAGE_PROVIDER=fake cannot be used for enabled production messaging.');
+  process.exit(1);
+}
+
+if (env.MESSAGE_PROVIDER === 'msg91' && (env.TRANSACTIONAL_MESSAGING_ENABLED || env.WHATSAPP_CAMPAIGN_DELIVERY_ENABLED) && (!env.MSG91_AUTHKEY || !env.MSG91_WHATSAPP_INTEGRATED_NUMBER)) {
+  console.error('MSG91_AUTHKEY and MSG91_WHATSAPP_INTEGRATED_NUMBER are required for enabled MSG91 messaging.');
+  process.exit(1);
+}
+
+if (env.TRANSACTIONAL_MESSAGING_ENABLED && (!env.MSG91_SMS_WELCOME_TEMPLATE_ID || !env.MSG91_WHATSAPP_WELCOME_TEMPLATE_NAME)) {
+  console.error('MSG91 SMS and WhatsApp welcome templates are required when transactional messaging is enabled.');
   process.exit(1);
 }

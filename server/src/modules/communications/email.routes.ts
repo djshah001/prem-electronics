@@ -6,6 +6,7 @@ import { sendCreated, sendSuccess } from '../../core/utils/responseHandler.js';
 import { createEmailTemplateSchema, previewEmailSchema, publishEmailTemplateSchema, testEmailSchema, updateEmailDraftSchema } from './email.schema.js';
 import { emailMasterService } from './email.service.js';
 import { EMAIL_EVENT_CATALOG } from './emailCatalog.js';
+import { AppError } from '../../core/errors/appError.js';
 
 const router = Router();
 const previewLimiter = rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
@@ -20,7 +21,7 @@ router.post('/templates/:id/publish', ...adminOnly, asyncHandler(async (req, res
 router.post('/templates/:id/restore/:versionId', ...adminOnly, asyncHandler(async (req, res) => sendSuccess(res, await emailMasterService.restore(String(req.params.id), String(req.params.versionId), req.user!.id), 'Version copied into draft.')));
 router.patch('/templates/:id/archive', ...adminOnly, asyncHandler(async (req, res) => sendSuccess(res, await emailMasterService.archive(String(req.params.id), req.user!.id))));
 router.post('/preview', previewLimiter, ...adminOnly, asyncHandler(async (req, res) => sendSuccess(res, emailMasterService.preview(previewEmailSchema.parse(req.body) as never))));
-router.post('/templates/:id/test-send', testLimiter, ...adminOnly, asyncHandler(async (req, res) => { const input = testEmailSchema.parse(req.body); sendSuccess(res, await emailMasterService.testSend(String(req.params.id), input.recipient, input.variables, req.user!.email), 'Test email processed. Inspect its truthful delivery status.'); }));
+router.post('/templates/:id/test-send', testLimiter, ...adminOnly, asyncHandler(async (req, res) => { const input = testEmailSchema.parse(req.body); if (!req.user!.email) throw new AppError('Add a contact email before sending test email.', 409); sendSuccess(res, await emailMasterService.testSend(String(req.params.id), input.recipient, input.variables, req.user!.email), 'Test email processed. Inspect its truthful delivery status.'); }));
 router.get('/logs', ...adminOnly, asyncHandler(async (req, res) => sendSuccess(res, await emailMasterService.logs(Number(req.query.limit) || 100))));
 
 export default router;
