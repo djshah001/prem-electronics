@@ -3,7 +3,7 @@ import { FileText } from 'lucide-react';
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-background mt-16 sm:mt-20 py-8 sm:py-12">
+    <div className="min-h-screen bg-background py-8 sm:py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8">

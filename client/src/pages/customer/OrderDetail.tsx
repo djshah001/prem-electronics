@@ -74,7 +74,7 @@ export default function OrderDetail() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8 animate-pulse">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-pulse">
         <div className="h-8 bg-muted rounded w-48 mb-6" />
         <div className="bg-card rounded-2xl border border-border p-6 mb-4">
           <div className="h-5 bg-muted rounded w-1/3 mb-4" />
@@ -87,7 +87,7 @@ export default function OrderDetail() {
 
   if (!order) {
     return (
-      <div className="max-w-4xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center">
+      <div className="max-w-4xl mx-auto px-4 py-24 text-center">
         <Package className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
         <h1 className="text-xl font-bold font-['Outfit'] mb-2">Order not found</h1>
         <Link to="/account/orders" className="text-primary hover:underline text-sm">Back to orders</Link>
@@ -101,7 +101,7 @@ export default function OrderDetail() {
   const StatusIcon = STATUS_ICONS[order.status] ?? Package;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8 print:p-0 print:m-0 print:max-w-none">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 print:p-0 print:m-0 print:max-w-none">
       {/* Print-only Invoice Header */}
       <div className="hidden print:block mb-8 pb-6 border-b-2 border-foreground/20">
         <div className="flex justify-between items-start">

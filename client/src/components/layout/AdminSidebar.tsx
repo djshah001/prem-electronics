@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   BarChart3, BookOpen, Boxes, ChevronLeft, ChevronRight, CreditCard,
-  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, ReceiptText, Mail, Megaphone, ScrollText, Images, Bell,
+  LayoutDashboard, MessageSquare, Package, ShoppingBag, Tag, Users, X, ReceiptText, Mail, Megaphone, ScrollText, Images, Bell, Navigation,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { adminMobileNavOpenAtom, adminSidebarCollapsedAtom } from '../../store/adminLayoutAtom';
@@ -40,6 +40,7 @@ const groups = [
     label: 'Content', items: [
       { icon: BookOpen, label: 'Blogs', href: '/admin/blogs' },
       { icon: Images, label: 'Banner Master', href: '/admin/banners' },
+      { icon: Navigation, label: 'Navbar Master', href: '/admin/navbar-master' },
     ]
   },
   {

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { SlidersHorizontal, Search, X, ChevronDown, Check } from 'lucide-react';
+import { SlidersHorizontal, Search, X, ChevronDown, Check, Loader2 } from 'lucide-react';
 // Preserved icon imports for future filter re-activation: Star, Sparkles, Flame
 import { api } from '../../api/axiosClient';
 import { ProductCard } from '../../components/shared/ProductCard';
@@ -70,13 +70,11 @@ export default function Shop() {
   const [isFeatured, setIsFeatured] = useState(searchParams.get('isFeatured') === 'true');
   const [isNewArrival, setIsNewArrival] = useState(false);
   const [isBestSeller, setIsBestSeller] = useState(false);
-  const [page, setPage] = useState(1);
   const [mobileFilters, setMobileFilters] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
-  const queryParams: Record<string, string | number | boolean> = {
-    page,
+  const baseQueryParams = useMemo(() => ({
     limit: 12,
     sortBy,
     ...(debouncedSearch && { search: debouncedSearch }),
@@ -89,12 +87,29 @@ export default function Shop() {
     ...(isFeatured && { isFeatured: true }),
     ...(isNewArrival && { isNewArrival: true }),
     ...(isBestSeller && { isBestSeller: true }),
-  };
+  }), [debouncedSearch, categoryId, selectedBrand, minRating, minPrice, maxPrice, inStock, isFeatured, isNewArrival, isBestSeller, sortBy]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', queryParams],
-    queryFn: () => api.get<Product[]>('/products', queryParams as Record<string, unknown>),
-    placeholderData: (prev) => prev,
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ['products-infinite', baseQueryParams],
+    queryFn: ({ pageParam = 1 }) =>
+      api.get<Product[]>('/products', {
+        ...baseQueryParams,
+        page: pageParam,
+      } as Record<string, unknown>),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: any) => {
+      const meta = lastPage?.meta as PaginationMeta | undefined;
+      if (meta && meta.hasNextPage) {
+        return meta.page + 1;
+      }
+      return undefined;
+    },
   });
 
   const { data: categoriesRes } = useQuery({
@@ -102,9 +117,45 @@ export default function Shop() {
     queryFn: () => api.get<Category[]>('/categories'),
   });
 
-  const products = data?.data ?? [];
-  const meta = data?.meta as PaginationMeta | undefined;
+  // Flatten and deduplicate products across all fetched pages
+  const products = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    const list: Product[] = [];
+    for (const page of data.pages) {
+      const items = (page as any)?.data ?? [];
+      for (const item of items) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          list.push(item);
+        }
+      }
+    }
+    return list;
+  }, [data?.pages]);
+
+  const totalCount = (data?.pages?.[0]?.meta as PaginationMeta | undefined)?.total;
   const categories = normalizeCategoryList(categoriesRes);
+
+  // Sentinel ref for infinite scroll
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Synchronize component state with URL searchParams (e.g. from navbar clicks)
   useEffect(() => {
@@ -172,10 +223,6 @@ export default function Shop() {
       });
     }
   };
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, categoryId, selectedBrand, minRating, sortBy, minPrice, maxPrice, inStock, isFeatured, isNewArrival, isBestSeller]);
 
   const clearFilters = () => {
     setSearch('');
@@ -470,7 +517,7 @@ export default function Shop() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -481,9 +528,9 @@ export default function Shop() {
               ? activeCategory.name
               : 'Shop Electronics'}
           </h1>
-          {meta && (
+          {totalCount !== undefined && (
             <p className="text-muted-foreground text-sm mt-1">
-              {meta.total} product{meta.total !== 1 ? 's' : ''} available
+              {totalCount} product{totalCount !== 1 ? 's' : ''} available
             </p>
           )}
         </div>
@@ -590,7 +637,7 @@ export default function Shop() {
       <div className="flex gap-8">
         {/* Desktop Filters */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
-          <div className="sticky top-24 bg-card rounded-2xl border border-border p-5 shadow-sm">
+          <div className="sticky top-14 bg-card rounded-2xl border border-border p-5 shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-foreground font-['Outfit'] text-base">Filters</h2>
               {hasFilters && (
@@ -663,28 +710,20 @@ export default function Shop() {
                 ))}
               </div>
 
-              {/* Pagination */}
-              {meta && meta.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-10">
-                  <button
-                    disabled={!meta.hasPrevPage}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium disabled:opacity-40 hover:border-primary/50 transition-colors"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-4 py-2 text-sm text-muted-foreground">
-                    Page {meta.page} of {meta.totalPages}
-                  </span>
-                  <button
-                    disabled={!meta.hasNextPage}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium disabled:opacity-40 hover:border-primary/50 transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
+              {/* Infinite Scroll Sentinel & Loading Indicator */}
+              <div ref={sentinelRef} className="py-8 flex flex-col justify-center items-center w-full">
+                {isFetchingNextPage && (
+                  <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card border border-border shadow-xs text-xs font-semibold text-foreground animate-pulse">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span>Loading more products...</span>
+                  </div>
+                )}
+                {!hasNextPage && products.length > 0 && (
+                  <p className="text-xs text-muted-foreground/70 pt-4 border-t border-border/40 w-full text-center">
+                    Showing all {products.length} {products.length === 1 ? 'product' : 'products'}
+                  </p>
+                )}
+              </div>
             </>
           )}
         </div>

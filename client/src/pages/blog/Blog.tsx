@@ -22,7 +22,7 @@ export default function BlogPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
-      <div className="gradient-primary mt-16 sm:mt-20 py-16 sm:py-20 text-center text-white relative overflow-hidden">
+      <div className="gradient-primary py-16 sm:py-20 text-center text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-20 w-40 h-40 bg-white rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-20 w-60 h-60 bg-white rounded-full blur-3xl" />

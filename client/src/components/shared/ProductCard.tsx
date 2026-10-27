@@ -11,9 +11,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useCart } from "../../hooks/useCart";
+import { useWishlist } from "../../hooks/useWishlist";
 import type { Product } from "../../types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../api/axiosClient";
 import { useAtomValue } from "jotai";
 import { userAtom } from "../../store/userAtom";
 import { toast } from "sonner";
@@ -38,7 +37,6 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
   const { addToCart, isInCart } = useCart();
   const inCart = isInCart(product.id);
   const user = useAtomValue(userAtom);
-  const qc = useQueryClient();
   const navigate = useNavigate();
 
   // A default inventory variant exists for every product. Only products with
@@ -50,30 +48,9 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
 
   const isOutOfStock = product.stock === 0;
 
-  // Wishlist state
-  const { data: wishlistData } = useQuery({
-    queryKey: ["wishlist"],
-    queryFn: () => api.get<Array<{ productId: string }>>("/wishlists"),
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const isWishlisted =
-    wishlistData?.data?.some((w) => w.productId === product.id) ?? false;
-
-  const wishlistMutation = useMutation({
-    mutationFn: () =>
-      isWishlisted
-        ? api.delete(`/wishlists/${product.id}`)
-        : api.post(`/wishlists/${product.id}`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["wishlist"] });
-      toast.success(
-        isWishlisted ? "Removed from wishlist" : "Saved to wishlist",
-      );
-    },
-    onError: () => toast.error("Failed to update wishlist"),
-  });
+  // Wishlist state via shared hook
+  const { isWishlisted: checkWishlisted, toggleItem, isToggling } = useWishlist();
+  const isWishlisted = checkWishlisted(product.id);
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,7 +59,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
       toast.info("Sign in to save items to your wishlist");
       return;
     }
-    wishlistMutation.mutate();
+    toggleItem(product.id);
   };
 
   const handleAction = (e: React.MouseEvent) => {
@@ -178,7 +155,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
         <motion.button
           type="button"
           onClick={handleWishlist}
-          disabled={wishlistMutation.isPending}
+          disabled={isToggling}
           whileHover={{ scale: 1.12 }}
           whileTap={{ scale: 0.85 }}
           className={cn(

@@ -1,14 +1,16 @@
-import { createBrowserRouter, RouterProvider, Outlet, Navigate, Link } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, Navigate, Link, ScrollRestoration } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Navbar } from './components/layout/Navbar';
 import { CartDrawer } from './components/layout/CartDrawer';
 import { Footer } from './components/layout/Footer';
+import { ScrollToTop } from './components/layout/ScrollToTop';
 import { AdminSidebar } from './components/layout/AdminSidebar';
 import { AdminHeader } from './components/layout/AdminHeader';
 import { ProtectedRoute, AdminRoute } from './routes/ProtectedRoute';
 import { PromoPopup } from './components/ui/PromoPopup';
 import { ThemeProvider } from './components/ui/ThemeProvider';
+import { BackToTop } from './components/shared/BackToTop';
 
 // Pages — Storefront (eager)
 import Home from './pages/storefront/Home';
@@ -70,6 +72,7 @@ const BannerManager = lazy(() => import('./pages/admin/BannerManager'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const Unsubscribe = lazy(() => import('./pages/storefront/Unsubscribe'));
 const MarketingPreferences = lazy(() => import('./pages/customer/MarketingPreferences'));
+const NavbarMasterPage = lazy(() => import('./pages/admin/NavbarMaster'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,9 +93,12 @@ const Spinner = () => (
 // ─── Layouts ─────────────────────────────────────────────────────────────────
 const StorefrontLayout = () => (
   <>
+    <ScrollRestoration />
+    <ScrollToTop />
     <Navbar />
     <CartDrawer />
     <PromoPopup />
+    <BackToTop />
     <Suspense fallback={<Spinner />}>
       <Outlet />
     </Suspense>
@@ -102,6 +108,7 @@ const StorefrontLayout = () => (
 
 const AuthLayout = () => (
   <div className="min-h-screen bg-background">
+    <ScrollToTop />
     <Outlet />
   </div>
 );
@@ -229,6 +236,7 @@ const router = createBrowserRouter([
           { path: '/admin/campaigns', element: <CampaignManager /> },
           { path: '/admin/email-logs', element: <EmailLogs /> },
           { path: '/admin/banners', element: <BannerManager /> },
+          { path: '/admin/navbar-master', element: <NavbarMasterPage /> },
           { path: '/admin/*', element: <AdminNotFound /> },
         ],
       },

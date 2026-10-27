@@ -35,8 +35,7 @@ export interface CategoryConfig {
 }
 
 /**
- * Exact canonical 10-category hierarchy specified in the requirements.
- * Reused by both "All Categories" and individual dropdowns.
+ * Canonical categories hierarchy used for fallback and icon mapping.
  */
 export const CANONICAL_CATEGORIES_CONFIG = [
   {
@@ -44,9 +43,11 @@ export const CANONICAL_CATEGORIES_CONFIG = [
     slug: 'cameras',
     iconName: 'Camera',
     subcategories: [
+      { name: 'Full-Frame Mirrorless Cameras', slug: 'full-frame-mirrorless-cameras' },
+      { name: 'APS-C Mirrorless Cameras', slug: 'aps-c-mirrorless-cameras' },
+      { name: 'Cinema & Broadcast Cameras', slug: 'cinema-broadcast-cameras' },
       { name: 'DSLR Cameras', slug: 'dslr-cameras' },
-      { name: 'Mirrorless Cameras', slug: 'mirrorless-cameras' },
-      { name: 'Video Cameras', slug: 'video-cameras' },
+      { name: 'Compact & Vlog Cameras', slug: 'compact-vlog-cameras' },
     ],
   },
   {
@@ -54,8 +55,49 @@ export const CANONICAL_CATEGORIES_CONFIG = [
     slug: 'camera-lenses',
     iconName: 'Aperture',
     subcategories: [
-      { name: 'DSLR Lenses', slug: 'dslr-lenses' },
-      { name: 'Mirrorless Lenses', slug: 'mirrorless-lenses' },
+      { name: 'Sony E-Mount Full Frame Lenses', slug: 'sony-fe-lenses' },
+      { name: 'Sony E-Mount APS-C Lenses', slug: 'sony-aps-c-lenses' },
+      { name: 'Canon RF Full-Frame Lenses', slug: 'canon-rf-lenses' },
+      { name: 'Canon RF-S APS-C Lenses', slug: 'canon-rf-s-lenses' },
+      { name: 'Canon EF DSLR Lenses', slug: 'canon-ef-lenses' },
+      { name: 'Cinema Prime Lenses', slug: 'cinema-prime-lenses' },
+      { name: 'Lens Converters & Mount Adapters', slug: 'lens-converters-adapters' },
+    ],
+  },
+  {
+    name: 'Action & Pocket Cameras',
+    slug: 'action-pocket-cameras',
+    iconName: 'Video',
+    subcategories: [
+      { name: 'DJI Pocket Series', slug: 'dji-pocket-series' },
+      { name: 'DJI Action Series', slug: 'dji-action-series' },
+    ],
+  },
+  {
+    name: 'Gimbals & Stabilizers',
+    slug: 'gimbals-stabilizers',
+    iconName: 'Compass',
+    subcategories: [
+      { name: 'DJI OM Series', slug: 'dji-om-series' },
+      { name: 'DJI Ronin Stabilizers', slug: 'dji-ronin-stabilizers' },
+    ],
+  },
+  {
+    name: 'Pro Audio & Microphones',
+    slug: 'pro-audio-microphones',
+    iconName: 'Headphones',
+    subcategories: [
+      { name: 'Camera Microphones & Audio Adapters', slug: 'camera-microphones' },
+    ],
+  },
+  {
+    name: 'Camera Accessories & Media',
+    slug: 'camera-accessories-media',
+    iconName: 'Layers',
+    subcategories: [
+      { name: 'Memory Cards & Readers', slug: 'memory-cards-readers' },
+      { name: 'Batteries, Chargers & Grips', slug: 'batteries-chargers-grips' },
+      { name: 'Photo Printers & Consumables', slug: 'photo-printers-consumables' },
     ],
   },
   {
@@ -85,15 +127,6 @@ export const CANONICAL_CATEGORIES_CONFIG = [
     subcategories: [
       { name: 'Microphones', slug: 'microphones' },
       { name: 'Mic Accessories', slug: 'mic-accessories' },
-    ],
-  },
-  {
-    name: 'Gimbals & Stabilizers',
-    slug: 'gimbal-stabilizers',
-    iconName: 'Compass',
-    subcategories: [
-      { name: 'Camera Gimbal', slug: 'camera-gimbal' },
-      { name: 'Smartphone Gimbal', slug: 'smartphone-gimbal' },
     ],
   },
   {
@@ -137,14 +170,40 @@ export const CANONICAL_CATEGORIES_CONFIG = [
 ] as const;
 
 /**
- * Slugs for the four individual dropdown navigation items.
+ * Slugs for individual dropdown navigation items.
  */
 export const INDIVIDUAL_NAVBAR_SLUGS = [
   'cameras',
   'camera-lenses',
+  'action-pocket-cameras',
   'action-cameras',
+  'gimbals-stabilizers',
   'gimbal-stabilizers',
+  'pro-audio-microphones',
+  'camera-accessories-media',
 ] as const;
+
+/**
+ * Determine icon name by keyword heuristics
+ */
+export const getIconNameForCategory = (slug = '', name = ''): string => {
+  const s = slug.toLowerCase();
+  const n = name.toLowerCase();
+  if (s.includes('lens') || n.includes('lens')) return 'Aperture';
+  if (s.includes('action') || s.includes('pocket') || s.includes('video') || n.includes('action') || n.includes('pocket')) return 'Video';
+  if (s.includes('gimbal') || s.includes('stabilizer') || n.includes('gimbal') || n.includes('stabilizer')) return 'Compass';
+  if (s.includes('audio') || s.includes('mic') || s.includes('sound') || n.includes('audio') || n.includes('mic')) return 'Headphones';
+  if (s.includes('storage') || s.includes('card') || s.includes('memory') || n.includes('storage') || n.includes('card') || n.includes('memory')) return 'HardDrive';
+  if (s.includes('tripod') || s.includes('monopod') || n.includes('tripod') || n.includes('monopod')) return 'Maximize2';
+  if (s.includes('light') || n.includes('light')) return 'Sun';
+  if (s.includes('bag') || s.includes('case') || n.includes('bag') || n.includes('case')) return 'Briefcase';
+  if (s.includes('camera') || n.includes('camera')) return 'Camera';
+  if (s.includes('phone') || s.includes('mobile') || n.includes('phone') || n.includes('mobile')) return 'Smartphone';
+  if (s.includes('laptop') || s.includes('computer') || n.includes('laptop') || n.includes('computer')) return 'Laptop';
+  if (s.includes('tv') || s.includes('television') || n.includes('tv') || n.includes('television')) return 'Tv';
+  if (s.includes('accessor') || n.includes('accessor') || s.includes('media') || n.includes('media')) return 'Layers';
+  return 'Package';
+};
 
 /**
  * Map icon component by name
@@ -183,90 +242,114 @@ export const getCategoryIconComponent = (iconName: string) => {
 };
 
 /**
- * Flatten a nested category tree from backend into a lookup map by slug and id
- */
-const buildBackendLookup = (categories: Category[]) => {
-  const bySlug = new Map<string, Category>();
-  const byId = new Map<string, Category>();
-
-  const traverse = (cats: Category[]) => {
-    for (const c of cats) {
-      if (!c) continue;
-      if (c.slug) bySlug.set(c.slug.toLowerCase(), c);
-      if (c.id) byId.set(c.id, c);
-      if (Array.isArray(c.children) && c.children.length > 0) {
-        traverse(c.children);
-      }
-    }
-  };
-
-  traverse(categories);
-  return { bySlug, byId };
-};
-
-/**
- * Merges the canonical menu hierarchy with dynamic category data from the backend.
- * Uses real backend IDs when available while ensuring all 10 categories & subcategories
- * render reliably and link correctly.
+ * Dynamically resolves category hierarchy with subcategories from the backend.
+ * When backendCategories are provided, it automatically extracts all root categories
+ * and dynamically extracts all active child categories from `backendCat.children`.
+ * This ensures that any category/subcategory created or seeded in the database
+ * automatically appears in the dropdown without requiring static configuration changes.
  */
 export const resolveNavCategories = (backendCategories: Category[]): CategoryConfig[] => {
-  const { bySlug } = buildBackendLookup(backendCategories);
+  if (Array.isArray(backendCategories) && backendCategories.length > 0) {
+    // Top-level categories have parentId === null or undefined
+    const rootCats = backendCategories.filter((c) => !c.parentId);
+    const sourceRoots = rootCats.length > 0 ? rootCats : backendCategories;
 
-  return CANONICAL_CATEGORIES_CONFIG.map((catConfig) => {
-    // Match root category by slug or alternative slugs
-    const backendCat =
-      bySlug.get(catConfig.slug.toLowerCase()) ||
-      bySlug.get(catConfig.slug.replace(/-/g, '').toLowerCase());
+    return sourceRoots.map((backendCat) => {
+      // Find matching canonical category for icon name fallback
+      const canonicalMatch = CANONICAL_CATEGORIES_CONFIG.find(
+        (c) =>
+          c.slug.toLowerCase() === backendCat.slug?.toLowerCase() ||
+          c.name.toLowerCase() === backendCat.name?.toLowerCase() ||
+          c.slug.replace(/-/g, '').toLowerCase() === backendCat.slug?.replace(/-/g, '').toLowerCase()
+      );
 
-    const catId = backendCat?.id;
-    const catHref = catId
-      ? `/shop?categoryId=${catId}&categorySlug=${catConfig.slug}`
-      : `/shop?categorySlug=${catConfig.slug}`;
+      const iconName =
+        canonicalMatch?.iconName ||
+        getIconNameForCategory(backendCat.slug || '', backendCat.name || '');
 
-    const subcategories: SubcategoryConfig[] = catConfig.subcategories.map((subConfig) => {
-      // Find subcategory in backend lookup
-      const backendSub =
-        bySlug.get(subConfig.slug.toLowerCase()) ||
-        (backendCat && Array.isArray(backendCat.children)
-          ? backendCat.children.find(
-              (c) =>
-                c.slug?.toLowerCase() === subConfig.slug.toLowerCase() ||
-                c.name?.toLowerCase() === subConfig.name.toLowerCase()
-            )
-          : undefined);
+      const catHref = backendCat.id
+        ? `/shop?categoryId=${backendCat.id}&categorySlug=${backendCat.slug}`
+        : `/shop?categorySlug=${backendCat.slug}`;
 
-      const subId = backendSub?.id;
-      const subHref = subId
-        ? `/shop?categoryId=${subId}&categorySlug=${subConfig.slug}`
-        : `/shop?categorySlug=${subConfig.slug}`;
+      // Dynamically extract all child subcategories directly from backendCat.children or parentId matching
+      let subcategories: SubcategoryConfig[] = [];
+      if (Array.isArray(backendCat.children) && backendCat.children.length > 0) {
+        subcategories = backendCat.children
+          .filter((sub) => sub && sub.isActive !== false)
+          .map((sub) => ({
+            name: sub.name,
+            slug: sub.slug,
+            id: sub.id,
+            href: `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`,
+          }));
+      } else {
+        const flatChildren = backendCategories.filter(
+          (c) => c.parentId && c.parentId === backendCat.id && c.isActive !== false
+        );
+        if (flatChildren.length > 0) {
+          subcategories = flatChildren.map((sub) => ({
+            name: sub.name,
+            slug: sub.slug,
+            id: sub.id,
+            href: `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`,
+          }));
+        } else if (canonicalMatch && canonicalMatch.subcategories.length > 0) {
+          // Fallback to canonical subcategories only if backend children array is empty
+          subcategories = canonicalMatch.subcategories.map((sub) => ({
+            name: sub.name,
+            slug: sub.slug,
+            href: `/shop?categorySlug=${sub.slug}`,
+          }));
+        }
+      }
 
       return {
-        name: subConfig.name,
-        slug: subConfig.slug,
-        id: subId,
-        href: subHref,
+        id: backendCat.id,
+        name: backendCat.name,
+        slug: backendCat.slug,
+        description: backendCat.description,
+        bannerImage: backendCat.bannerImage,
+        href: catHref,
+        iconName,
+        subcategories,
       };
     });
+  }
 
-    return {
-      name: catConfig.name,
-      slug: catConfig.slug,
-      id: catId,
-      description: backendCat?.description,
-      bannerImage: backendCat?.bannerImage,
-      href: catHref,
-      iconName: catConfig.iconName,
-      subcategories,
-    };
-  });
+  // Fallback when backend data is not yet loaded or empty
+  return CANONICAL_CATEGORIES_CONFIG.map((catConfig) => ({
+    name: catConfig.name,
+    slug: catConfig.slug,
+    href: `/shop?categorySlug=${catConfig.slug}`,
+    iconName: catConfig.iconName,
+    subcategories: catConfig.subcategories.map((sub) => ({
+      name: sub.name,
+      slug: sub.slug,
+      href: `/shop?categorySlug=${sub.slug}`,
+    })),
+  }));
 };
 
 /**
- * Returns the four individual dropdown items (Cameras, Camera Lenses, Action Cameras, Gimbals & Stabilizers).
+ * Returns individual dropdown items (Cameras, Camera Lenses, Action & Pocket Cameras, Gimbals & Stabilizers).
  */
 export const getIndividualNavCategories = (backendCategories: Category[]): CategoryConfig[] => {
   const allResolved = resolveNavCategories(backendCategories);
-  return allResolved.filter((cat) =>
-    (INDIVIDUAL_NAVBAR_SLUGS as readonly string[]).includes(cat.slug)
-  );
+
+  // Return all resolved categories from the backend in dynamic order
+  if (allResolved.length > 0) {
+    return allResolved;
+  }
+
+  return CANONICAL_CATEGORIES_CONFIG.map((catConfig) => ({
+    name: catConfig.name,
+    slug: catConfig.slug,
+    href: `/shop?categorySlug=${catConfig.slug}`,
+    iconName: catConfig.iconName,
+    subcategories: catConfig.subcategories.map((sub) => ({
+      name: sub.name,
+      slug: sub.slug,
+      href: `/shop?categorySlug=${sub.slug}`,
+    })),
+  }));
 };

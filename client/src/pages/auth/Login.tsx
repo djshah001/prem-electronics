@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, Smartphone, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api/axiosClient';
 import { useAuth } from '../../hooks/useAuth';
@@ -75,28 +75,63 @@ export default function Login() {
     } finally { if (generation === requestGeneration.current) setBusy(false); }
   };
 
+
   const verifyOtp = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!challenge || code.length !== 6) return toast.error('Enter the 6-digit OTP.');
+
+    if (!challenge || code.length !== 6) {
+      return toast.error('Enter the 6-digit OTP.');
+    }
+
     const generation = ++requestGeneration.current;
     setBusy(true);
+
     try {
-      const response = await api.post<OtpVerifyResponse>(`${endpoints}/verify`, { challengeId: challenge.challengeId, code });
+      const response = await api.post<OtpVerifyResponse>(
+        `${endpoints}/verify`,
+        {
+          challengeId: challenge.challengeId,
+          code,
+        }
+      );
+
       if (generation !== requestGeneration.current) return;
+
+      const data = response.data;
+
       sessionStorage.removeItem(storageKey);
-      if (response.data.onboardingRequired) {
-        if (admin) return toast.error('This number is not provisioned for administrator access.');
-        setOnboardingToken(response.data.onboardingToken);
+
+      if (data.onboardingRequired === true) {
+        if (admin) {
+          return toast.error(
+            'This number is not provisioned for administrator access.'
+          );
+        }
+
+        setOnboardingToken(data.onboardingToken);
         setStep('onboarding');
         setCode('');
-      } else {
-        toast.success(`Welcome back, ${response.data.user.name}.`);
-        await completeAuthentication(response.data.user, searchParams.get('returnTo'));
+        return;
       }
+
+      // TypeScript now knows this response contains a user.
+      toast.success(`Welcome back, ${data.user.name}.`);
+
+      await completeAuthentication(
+        data.user,
+        searchParams.get('returnTo')
+      );
     } catch (error: any) {
-      if (generation === requestGeneration.current) toast.error(error?.message ?? 'OTP verification failed.');
-    } finally { if (generation === requestGeneration.current) setBusy(false); }
+      if (generation === requestGeneration.current) {
+        toast.error(error?.message ?? 'OTP verification failed.');
+      }
+    } finally {
+      if (generation === requestGeneration.current) {
+        setBusy(false);
+      }
+    }
   };
+
 
   const resend = async () => {
     if (!challenge || countdown > 0 || busy) return;
@@ -144,8 +179,22 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_30%_25%,color-mix(in_srgb,var(--primary)_12%,transparent),transparent_34%),radial-gradient(circle_at_75%_75%,color-mix(in_srgb,var(--primary)_8%,transparent),transparent_30%)]" />
       <motion.div initial={reduceMotion ? false : { opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2"><span className="w-10 h-10 rounded-xl gradient-primary grid place-items-center"><Zap className="w-5 h-5 text-white" /></span><span className="font-black text-2xl font-['Outfit']"><span className="gradient-text">Prem</span> Electronics</span></Link>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center gap-3"
+          >
+            <img
+              src="/Symbol.jpg"
+              alt="Prem Electronics logo"
+              className="h-12 w-12 object-contain"
+            />
+
+            <span className="font-black text-2xl font-['Outfit']">
+              <span className="gradient-text">Prem</span> Electronics
+            </span>
+          </Link>
         </div>
         <div className="glass rounded-3xl border border-border p-6 sm:p-8" aria-live="polite">
           <div className="mb-6">
@@ -176,7 +225,7 @@ export default function Login() {
             <button disabled={busy || name.trim().length < 2} className="w-full flex items-center justify-center gap-2 py-3 gradient-primary text-white rounded-xl font-bold disabled:opacity-50">{busy ? 'Creating account…' : <><CheckCircle2 className="w-4 h-4" /> Finish setup</>}</button>
           </form>}
 
-          {!admin && step !== 'onboarding' && <p className="mt-6 pt-5 border-t border-border text-center text-xs text-muted-foreground">No password needed. Your verified mobile number is your sign-in identity.</p>}
+          {!admin && step !== 'onboarding' && <p className="mt-6 pt-5 border-t border-border text-center text-xs text-muted-foreground">No password needed. <br />Your verified mobile number is your sign-in identity.</p>}
           {admin && <p className="mt-6 pt-5 border-t border-border text-center text-xs text-muted-foreground">Only pre-provisioned, enabled administrator numbers can sign in. <Link to="/login" className="text-primary hover:underline">Customer sign in</Link></p>}
         </div>
       </motion.div>
