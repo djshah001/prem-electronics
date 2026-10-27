@@ -46,7 +46,7 @@ export default function BlogDetails() {
   };
 
   if (isLoading) return (
-    <div className="min-h-screen bg-background mt-16 sm:mt-20">
+    <div className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto px-4 py-16 animate-pulse">
         <div className="h-8 bg-muted rounded-xl mb-4 w-3/4" />
         <div className="h-4 bg-muted rounded-xl mb-2 w-1/2" />
@@ -57,7 +57,7 @@ export default function BlogDetails() {
   );
 
   if (isError || !blog) return (
-    <div className="min-h-screen bg-background mt-16 sm:mt-20 flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
         <p className="text-4xl mb-4">📰</p>
         <h1 className="text-2xl font-bold font-['Outfit'] mb-2">Article not found</h1>
@@ -68,7 +68,7 @@ export default function BlogDetails() {
   );
 
   return (
-    <div className="min-h-screen bg-background mt-16 sm:mt-20">
+    <div className="min-h-screen bg-background">
       {/* Hero */}
       {blog.imageUrl && (
         <div className="relative h-72 md:h-96 overflow-hidden">

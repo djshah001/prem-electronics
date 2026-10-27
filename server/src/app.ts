@@ -29,6 +29,7 @@ import emailMasterRoutes from './modules/communications/email.routes.js';
 import { campaignRouter, marketingRouter, unsubscribeRouter } from './modules/communications/campaign.routes.js';
 import { bannerAdminRouter, bannerPublicRouter } from './modules/banners/banners.routes.js';
 import notificationsRoutes from './modules/notifications/notifications.routes.js';
+import navbarMasterRoutes from './modules/navbarMaster/navbarMaster.routes.js';
 
 const app = express();
 
@@ -91,6 +92,7 @@ app.use('/api/v1/unsubscribe', unsubscribeRouter);
 app.use('/api/v1/banners', bannerPublicRouter);
 app.use('/api/v1/admin/banners', bannerAdminRouter);
 app.use('/api/v1/admin/notifications', notificationsRoutes);
+app.use('/api/v1/navbar', navbarMasterRoutes);
 
 // ─── Favicon (prevent 404 noise) ─────────────────────────────────────────
 app.get('/favicon.jpg', (_req, res) => {

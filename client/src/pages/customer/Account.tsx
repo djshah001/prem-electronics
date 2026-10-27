@@ -8,7 +8,7 @@ export default function Account() {
   if (!user) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-3xl font-black font-['Outfit'] mb-8">My Account</h1>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

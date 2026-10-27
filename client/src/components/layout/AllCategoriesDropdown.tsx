@@ -20,15 +20,51 @@ interface AllCategoriesDropdownProps {
 export const AllCategoriesDropdown = ({
   categories,
   onNavigate,
-  overlay = false,
 }: AllCategoriesDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
+  const [alignRight, setAlignRight] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  // Smart responsive alignment detection
+  useEffect(() => {
+    const updateAlignment = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        setAlignRight(viewportWidth - rect.left < 630);
+      }
+    };
+
+    if (isOpen) {
+      updateAlignment();
+      window.addEventListener('resize', updateAlignment);
+      return () => window.removeEventListener('resize', updateAlignment);
+    }
+  }, [isOpen]);
+
+  const getSubcategories = (cat?: CategoryConfig | any) => {
+    if (!cat) return [];
+    if (Array.isArray(cat.subcategories) && cat.subcategories.length > 0) return cat.subcategories;
+    if (Array.isArray(cat.children) && cat.children.length > 0) {
+      return cat.children
+        .filter((sub: any) => sub && sub.isActive !== false)
+        .map((sub: any) => ({
+          name: sub.name,
+          slug: sub.slug,
+          id: sub.id,
+          href: sub.id
+            ? `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`
+            : `/shop?categorySlug=${sub.slug}`,
+        }));
+    }
+    return cat.subcategories || [];
+  };
+
   const activeCategory = categories[activeCategoryIndex] || categories[0];
+  const activeSubcategories = getSubcategories(activeCategory);
   const ActiveIcon = activeCategory
     ? getCategoryIconComponent(activeCategory.iconName)
     : LayoutGrid;
@@ -82,7 +118,7 @@ export const AllCategoriesDropdown = ({
   };
 
   const handleCategoryClick = (category: CategoryConfig) => {
-    if (category.subcategories.length === 0) {
+    if (getSubcategories(category).length === 0) {
       setIsOpen(false);
       onNavigate?.();
       navigate(category.href);
@@ -104,12 +140,10 @@ export const AllCategoriesDropdown = ({
         aria-label="All Categories menu"
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
-        className={`group flex items-center gap-1.5 text-sm font-semibold transition-all duration-200 px-3 py-1.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+        className={`group flex items-center gap-1.5 sm:gap-2 text-xs sm:text-[13px] font-semibold transition-all duration-200 px-2.5 sm:px-3 lg:px-3.5 py-1 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 whitespace-nowrap ${
           isOpen
             ? 'text-primary bg-primary/10 shadow-sm'
-            : overlay
-            ? 'text-white/90 hover:bg-white/10 hover:text-white'
-            : 'text-muted-foreground hover:text-foreground hover:bg-card/70'
+            : 'text-slate-900 hover:text-slate-600 hover:bg-slate-100/80 dark:text-slate-900 dark:hover:text-slate-600'
         }`}
       >
         <LayoutGrid className="w-4 h-4 text-primary" />
@@ -118,9 +152,7 @@ export const AllCategoriesDropdown = ({
           className={`w-3.5 h-3.5 transition-transform duration-200 ${
             isOpen
               ? 'rotate-180 text-primary'
-              : overlay
-              ? 'text-white/70'
-              : 'text-muted-foreground group-hover:text-foreground'
+              : 'text-slate-700 group-hover:text-slate-600'
           }`}
         />
       </button>
@@ -132,8 +164,9 @@ export const AllCategoriesDropdown = ({
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="absolute top-full left-0 mt-2 z-[110] w-[620px] max-w-[95vw] bg-card/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl overflow-hidden"
+            className={`absolute top-full mt-2 z-[110] w-[620px] max-w-[calc(100vw-2rem)] bg-card/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl overflow-hidden ${
+              alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
+            }`}
           >
             {/* Top Bar */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 bg-muted/20">
@@ -163,7 +196,7 @@ export const AllCategoriesDropdown = ({
                 {categories.map((cat, index) => {
                   const Icon = getCategoryIconComponent(cat.iconName);
                   const isSelected = activeCategoryIndex === index;
-                  const hasSub = cat.subcategories.length > 0;
+                  const hasSub = getSubcategories(cat).length > 0;
 
                   return (
                     <div
@@ -225,8 +258,8 @@ export const AllCategoriesDropdown = ({
                             {activeCategory.name}
                           </h4>
                           <p className="text-[11px] text-muted-foreground">
-                            {activeCategory.subcategories.length > 0
-                              ? `${activeCategory.subcategories.length} subcategories available`
+                            {activeSubcategories.length > 0
+                              ? `${activeSubcategories.length} subcategories available`
                               : 'Explore all products in this category'}
                           </p>
                         </div>
@@ -246,12 +279,12 @@ export const AllCategoriesDropdown = ({
                     </div>
 
                     {/* Subcategories Grid */}
-                    {activeCategory.subcategories.length > 0 ? (
+                    {activeSubcategories.length > 0 ? (
                       <div className="grid grid-cols-1 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                        {activeCategory.subcategories.map((sub) => (
+                        {activeSubcategories.map((sub: any) => (
                           <Link
                             key={sub.slug}
-                            to={sub.href}
+                            to={sub.href || (sub.id ? `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}` : `/shop?categorySlug=${sub.slug}`)}
                             onClick={() => {
                               setIsOpen(false);
                               onNavigate?.();

@@ -47,7 +47,7 @@ export default function Addresses() {
 
   const fieldClass = 'mt-1 w-full rounded-xl border border-border bg-background px-3 py-2.5';
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-7">
         <div><h1 className="text-3xl font-black font-['Outfit'] flex items-center gap-2"><MapPin className="w-7 h-7 text-primary" /> My Addresses</h1><p className="text-sm text-muted-foreground mt-1">Manage shipping and billing addresses used at checkout.</p></div>
         <button onClick={() => { closeForm(); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"><Plus className="w-4 h-4" /> Add address</button>

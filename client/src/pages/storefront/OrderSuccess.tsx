@@ -17,10 +17,10 @@ export default function OrderSuccess() {
   const order = data?.data;
   const isConfirmed = order?.paymentStatus === 'paid' && !['cancelled', 'refunded'].includes(order.status);
 
-  if (isLoading) return <div className="max-w-2xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center text-muted-foreground">Loading order…</div>;
-  if (isError || !order) return <div className="max-w-2xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center"><h1 className="text-2xl font-bold">Order not found</h1><Link to="/account/orders" className="inline-block mt-4 text-primary font-semibold">Return to orders</Link></div>;
+  if (isLoading) return <div className="max-w-2xl mx-auto px-4 py-24 text-center text-muted-foreground">Loading order…</div>;
+  if (isError || !order) return <div className="max-w-2xl mx-auto px-4 py-24 text-center"><h1 className="text-2xl font-bold">Order not found</h1><Link to="/account/orders" className="inline-block mt-4 text-primary font-semibold">Return to orders</Link></div>;
 
-  return <div className="max-w-2xl mx-auto px-4 mt-16 sm:mt-20 py-16 text-center print:py-0 print:mt-0">
+  return <div className="max-w-2xl mx-auto px-4 py-16 text-center print:py-0 print:mt-0">
     <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} className="w-24 h-24 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto mb-6 print:hidden"><CheckCircle className="w-12 h-12 text-green-400" /></motion.div>
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
       <h1 className="text-4xl font-black font-['Outfit'] mb-2">{isConfirmed ? 'Order Confirmed!' : 'Order Details'}</h1>

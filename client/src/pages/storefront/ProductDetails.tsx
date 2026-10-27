@@ -1,11 +1,12 @@
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Star, Shield, Truck, Package, Zap, ChevronLeft, ChevronRight, PenLine, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Star, Shield, Truck, Package, Zap, ChevronLeft, ChevronRight, PenLine, AlertCircle, CheckCircle2, Heart } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '../../api/axiosClient';
 import type { Product, Review } from '../../types';
 import { useCart } from '../../hooks/useCart';
+import { useWishlist } from '../../hooks/useWishlist';
 import { useAtomValue } from 'jotai';
 import { userAtom } from '../../store/userAtom';
 import { clsx } from 'clsx';
@@ -106,6 +107,7 @@ export default function ProductDetails() {
   const [reviewPage, setReviewPage] = useState(1);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const { addToCart, isInCart } = useCart();
+  const { isWishlisted, toggleItem, isToggling } = useWishlist();
   const user = useAtomValue(userAtom);
   const navigate = useNavigate();
   const location = useLocation();
@@ -186,7 +188,7 @@ export default function ProductDetails() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid lg:grid-cols-2 gap-12 animate-pulse">
           <div className="aspect-square bg-muted rounded-3xl" />
           <div className="space-y-4">
@@ -203,7 +205,7 @@ export default function ProductDetails() {
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 mt-16 sm:mt-20 py-24 text-center">
+      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
         <Zap className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
         <h1 className="text-2xl font-bold font-['Outfit'] mb-2">Product not found</h1>
         <Link to="/shop" className="text-primary hover:underline">Back to Shop</Link>
@@ -212,7 +214,7 @@ export default function ProductDetails() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
@@ -369,29 +371,54 @@ export default function ProductDetails() {
             <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">{product.description}</p>
           )}
 
-          {/* Add to Cart */}
-          <button
-            id="product-add-to-cart-btn"
-            onClick={() => addToCart(product, 1, selectedVariant)}
-            disabled={activeStock === 0 || (hasOptions && !selectedVariant)}
-            className={clsx(
-              'w-full flex items-center justify-center gap-3 py-4 rounded-2xl text-base sm:text-lg font-bold transition-all mb-4',
-              activeStock === 0 || (hasOptions && !selectedVariant)
-                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+          {/* Actions: Add to Cart and Wishlist */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              id="product-add-to-cart-btn"
+              onClick={() => addToCart(product, 1, selectedVariant)}
+              disabled={activeStock === 0 || (hasOptions && !selectedVariant)}
+              className={clsx(
+                'flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-base sm:text-lg font-bold transition-all',
+                activeStock === 0 || (hasOptions && !selectedVariant)
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : inCart
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
+              )}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {activeStock === 0
+                ? 'Out of Stock'
+                : hasOptions && !selectedVariant
+                ? 'Select Options'
                 : inCart
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
-            )}
-          >
-            <ShoppingCart className="w-5 h-5" />
-            {activeStock === 0
-              ? 'Out of Stock'
-              : hasOptions && !selectedVariant
-              ? 'Select Options'
-              : inCart
-              ? '✓ In Cart'
-              : 'Add to Cart'}
-          </button>
+                ? '✓ In Cart'
+                : 'Add to Cart'}
+            </button>
+
+            <button
+              id="product-wishlist-toggle-btn"
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  toast.info('Sign in to save items to your wishlist');
+                  return;
+                }
+                if (product) toggleItem(product.id);
+              }}
+              disabled={isToggling}
+              className={clsx(
+                'h-14 w-14 rounded-2xl flex items-center justify-center border transition-all shrink-0',
+                product && isWishlisted(product.id)
+                  ? 'bg-rose-500/10 border-rose-500/40 text-rose-500 hover:bg-rose-500/20 shadow-xs'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40'
+              )}
+              title={product && isWishlisted(product.id) ? 'Remove from wishlist' : 'Save to wishlist'}
+              aria-label={product && isWishlisted(product.id) ? 'Remove from wishlist' : 'Save to wishlist'}
+            >
+              <Heart className={clsx('w-6 h-6 transition-transform active:scale-90', product && isWishlisted(product.id) ? 'fill-current text-rose-500' : '')} />
+            </button>
+          </div>
 
           {/* Trust badges */}
           <div className="grid grid-cols-3 gap-3">

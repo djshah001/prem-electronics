@@ -5,7 +5,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Clock,
   Send,
   CheckCircle2,
   ShieldCheck,
@@ -47,7 +46,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-background mt-16 sm:mt-20 py-8 sm:py-12">
+    <div className="min-h-screen bg-background py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8">
@@ -120,14 +119,14 @@ export default function Contact() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Store & Office Location</p>
-                    <p className="text-sm font-bold text-foreground">
-                      Vadodara, Gujarat, India
+                    <p className="text-sm font-bold text-foreground leading-snug">
+                      Shivakruti Complex, Shivaji Road, Dandia Bazar, Vadodara, Gujarat - 390001
                     </p>
-                    <p className="text-[11px] text-muted-foreground">Authorized electronics & creator hub</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Opposite Sayaji Radio & Fire Brigade Station</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-3.5 rounded-xl bg-muted/20">
+                {/* <div className="flex items-start gap-4 p-3.5 rounded-xl bg-muted/20">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Clock className="w-5 h-5" />
                   </div>
@@ -136,7 +135,8 @@ export default function Contact() {
                     <p className="text-sm font-bold text-foreground">Monday – Saturday</p>
                     <p className="text-[11px] text-muted-foreground">10:00 AM to 8:00 PM IST (Sunday closed)</p>
                   </div>
-                </div>
+                </div> */}
+
               </div>
             </div>
 
@@ -266,6 +266,43 @@ export default function Contact() {
                 )}
               </form>
             </div>
+          </div>
+        </div>
+
+        {/* Google Maps Location Section */}
+        <div className="mt-14 sm:mt-16 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] text-foreground">
+                Visit Our Store in Vadodara
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Shivakruti Complex, Shivaji Road, Dandia Bazar, Vadodara, Gujarat - 390001
+              </p>
+            </div>
+            <a
+              href="https://maps.google.com/?q=Prem+Electronics,+Shivakruti+Complex,+Shivaji+Road,+Dandia+Bazar,+Vadodara,+Gujarat+390001"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold transition-colors shrink-0"
+            >
+              <MapPin className="w-4 h-4" />
+              <span>Open in Google Maps →</span>
+            </a>
+          </div>
+
+          <div className="w-full h-[380px] sm:h-[450px] lg:h-[500px] rounded-2xl overflow-hidden border border-border shadow-sm bg-card relative">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d59062.78955405105!2d73.1244819486328!3d22.299785699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395fc50032b197d5%3A0xd87b218f806867f8!2sPrem%20electronics!5e0!3m2!1sen!2sin!4v1793128255779!5m2!1sen!2sin"
+              title="Prem Electronics Location Map"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              className="w-full h-full"
+            />
           </div>
         </div>
       </div>
