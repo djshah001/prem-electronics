@@ -17,6 +17,7 @@ import { useAtomValue } from "jotai";
 import { userAtom } from "../../store/userAtom";
 import { toast } from "sonner";
 import { cn } from "../../lib/utils";
+import { getProductThumbnailUrl } from "../../lib/image";
 
 interface ProductCardProps {
   product: Product;
@@ -95,7 +96,7 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
         >
           {product.images?.[0] ? (
             <img
-              src={product.images[0]}
+              src={getProductThumbnailUrl(product.images[0])}
               alt={product.title}
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-108 will-change-transform"

@@ -4,6 +4,7 @@ import type { WishlistItem } from '../../types';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { toast } from 'sonner';
+import { getProductThumbnailUrl } from '../../lib/image';
 
 const formatPrice = (p: string | number) =>
   new Intl.NumberFormat('en-IN', {
@@ -99,7 +100,7 @@ export default function Wishlist() {
                   >
                     {p.images[0] ? (
                       <img
-                        src={p.images[0]}
+                        src={getProductThumbnailUrl(p.images[0])}
                         alt={p.title}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />

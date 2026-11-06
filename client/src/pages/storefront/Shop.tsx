@@ -10,6 +10,7 @@ import type { Product, Category, PaginationMeta } from '../../types';
 import { useDebounce } from '../../hooks/useDebounce';
 import { normalizeCategoryList } from '../../hooks/useCategories';
 import { clsx } from 'clsx';
+import { SEO } from '../../components/shared/SEO';
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest First' },
@@ -518,6 +519,11 @@ export default function Shop() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <SEO
+        title={activeCategory ? `${activeCategory.name} — Shop Online` : debouncedSearch ? `Search "${debouncedSearch}"` : 'Shop Electronics'}
+        description={`Explore premium electronics, gadgets, and accessories at Prem Electronics.${activeCategory ? ` Browse top deals in ${activeCategory.name}.` : ''}`}
+        keywords={`${activeCategory?.name || 'electronics'}, smartphones, laptops, audio, accessories, shop online India`}
+      />
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>

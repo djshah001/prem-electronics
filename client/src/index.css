@@ -92,65 +92,65 @@
 }
 
 /* =========================================================
-   DARK THEME
+   DARK THEME — DEEP OBSIDIAN & LUMINOUS CRIMSON
    Applied when html has class="dark"
    ========================================================= */
 html.dark {
   color-scheme: dark;
 
-  /* Deep Obsidian Charcoal with subtle rose ambient warmth */
-  --background: 225 15% 7%;
-  --foreground: 210 20% 96%;
+  /* Deep Obsidian-Slate Base (Eliminates muddy grey/brown cast) */
+  --background: 228 28% 6%;        /* #0B0D14 */
+  --foreground: 220 25% 96%;       /* #F2F4F8 */
 
-  --card: 225 14% 10%;
-  --card-foreground: 210 20% 96%;
+  /* Stepped Elevated Surfaces */
+  --card: 228 24% 9.5%;            /* #121521 */
+  --card-foreground: 220 25% 96%;
 
-  --popover: 225 14% 11%;
-  --popover-foreground: 210 20% 96%;
+  --popover: 228 24% 10.5%;        /* #141824 */
+  --popover-foreground: 220 25% 96%;
 
-  /* Signature Logo Pink calibrated for dark contrast (#E6355D) */
-  --primary: 346 78% 55%;
-  --primary-hover: 346 84% 62%;
-  --primary-active: 346 73% 51%;
+  /* Luminous Brand Crimson for Dark Surfaces */
+  --primary: 346 89% 60%;          /* #F43F68 (Brighter logo pink for dark contrast) */
+  --primary-hover: 346 95% 66%;    /* #FB5C81 */
+  --primary-active: 346 73% 51%;   /* #D82D53 */
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary */
-  --secondary: 225 12% 15%;
-  --secondary-foreground: 210 15% 90%;
+  /* Secondary — Crisp Gunmetal Surface */
+  --secondary: 228 20% 14%;        /* #1C202E */
+  --secondary-foreground: 220 20% 92%;
 
   /* Muted */
-  --muted: 225 12% 14%;
-  --muted-foreground: 215 12% 65%;
+  --muted: 228 20% 13%;            /* #1A1E2B */
+  --muted-foreground: 220 14% 66%; /* #9BA3B5 */
 
-  /* Brand Pink Accent Surfaces */
-  --accent: 346 45% 16%;
-  --accent-foreground: 346 95% 85%;
-  --pink-surface: rgba(216, 45, 83, 0.12);
-  --pink-border: rgba(244, 63, 104, 0.3);
+  /* Brand Pink Accent Surfaces on Dark */
+  --accent: 346 50% 16%;           /* #3D1420 */
+  --accent-foreground: 346 100% 82%; /* #FFA3B8 */
+  --pink-surface: rgba(244, 63, 104, 0.14);
+  --pink-border: rgba(244, 63, 104, 0.35);
 
   /* Semantic Status Tokens */
-  --success: 152 62% 45%;
+  --success: 152 68% 46%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 55%;
-  --warning-foreground: 225 15% 7%;
-  --destructive: 0 74% 58%;
+  --warning: 38 95% 56%;
+  --warning-foreground: 228 28% 6%;
+  --destructive: 0 80% 62%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Borders & Inputs */
-  --border: 225 12% 18%;
-  --input: 225 12% 20%;
-  --ring: 346 78% 55%;
+  /* Crisp Slate Borders & Inputs */
+  --border: 228 18% 17%;           /* #232838 */
+  --input: 228 18% 19%;            /* #272D3F */
+  --ring: 346 89% 60%;
 
-  /* Dark Shadows with Pink Neon Bloom */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.7);
-  --shadow-xl: 0 26px 58px rgba(0, 0, 0, 0.8);
-  --shadow-brand: 0 8px 28px rgba(216, 45, 83, 0.36), 0 2px 8px rgba(216, 45, 83, 0.2);
-  --shadow-brand-lg: 0 16px 40px rgba(216, 45, 83, 0.48), 0 4px 12px rgba(216, 45, 83, 0.28);
+  /* Dark Shadows with Crimson Bloom */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.75), 0 4px 16px rgba(216, 45, 83, 0.1);
+  --shadow-xl: 0 26px 58px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(216, 45, 83, 0.16);
+  --shadow-brand: 0 8px 28px rgba(244, 63, 104, 0.38), 0 2px 8px rgba(216, 45, 83, 0.24);
+  --shadow-brand-lg: 0 16px 42px rgba(244, 63, 104, 0.5), 0 4px 14px rgba(216, 45, 83, 0.32);
 }
-
 /* =========================================================
    TAILWIND CSS v4 THEME MAPPING
    ========================================================= */

@@ -48,6 +48,7 @@ export const getCategoryIcon = (slugOrName: string) => {
   return Package;
 };
 
+// NavCategoryDropdown.tsx
 export const NavCategoryDropdown = ({
   category,
   onNavigate,
@@ -56,7 +57,33 @@ export const NavCategoryDropdown = ({
   const [alignRight, setAlignRight] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
+  // 1. Unconditional hooks at top level
+  useEffect(() => {
+    if (!category) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [category]);
+  useEffect(() => {
+    if (!category || !isOpen) return;
+    const updateAlignment = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setAlignRight(window.innerWidth - rect.left < 400);
+      }
+    };
+    updateAlignment();
+    window.addEventListener("resize", updateAlignment);
+    return () => window.removeEventListener("resize", updateAlignment);
+  }, [category, isOpen]);
+  // 2. Early return safe here:
   if (!category) return null;
 
   // Extract subcategories safely from either CategoryConfig or Category
@@ -66,9 +93,12 @@ export const NavCategoryDropdown = ({
     id?: string;
     href?: string;
     description?: string;
-  }> = Array.isArray((category as any).subcategories) && (category as any).subcategories.length > 0
+  }> =
+    Array.isArray((category as any).subcategories) &&
+    (category as any).subcategories.length > 0
       ? (category as any).subcategories
-      : Array.isArray((category as Category).children) && (category as Category).children!.length > 0
+      : Array.isArray((category as Category).children) &&
+          (category as Category).children!.length > 0
         ? ((category as Category).children || [])
             .filter((sub) => sub && sub.isActive !== false)
             .map((sub) => ({
@@ -96,36 +126,6 @@ export const NavCategoryDropdown = ({
       ? `/shop?categoryId=${(category as any).id}&categorySlug=${category.slug}`
       : `/shop?categorySlug=${category.slug}`);
 
-  // Close on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-
-  // Smart alignment: check if dropdown would overflow the right viewport boundary
-  useEffect(() => {
-    const updateAlignment = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        setAlignRight(viewportWidth - rect.left < 400);
-      }
-    };
-
-    if (isOpen) {
-      updateAlignment();
-      window.addEventListener("resize", updateAlignment);
-      return () => window.removeEventListener("resize", updateAlignment);
-    }
-  }, [isOpen]);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -221,7 +221,10 @@ export const NavCategoryDropdown = ({
                   </h4>
                   <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
                     {subcategories.length}{" "}
-                    {subcategories.length === 1 ? "subcategory" : "subcategories"} available
+                    {subcategories.length === 1
+                      ? "subcategory"
+                      : "subcategories"}{" "}
+                    available
                   </p>
                 </div>
               </div>

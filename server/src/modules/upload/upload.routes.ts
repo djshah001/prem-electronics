@@ -10,93 +10,47 @@ import { sendSuccess } from '../../core/utils/responseHandler.js';
 import { AppError } from '../../core/errors/appError.js';
 import { db } from '../../infrastructure/database/db.js';
 import { mediaAssets } from '../../infrastructure/database/schema/index.js';
-import { bannerUploadDirectory } from '../../core/utils/uploadPaths.js';
+import { bannerUploadDirectory, serverUploadRoot } from '../../core/utils/uploadPaths.js';
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/tiff'];
 const MAX_SIZE_MB = 15;
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
-
 const upload = multer({
-  storage,
-  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new AppError('Only JPEG, PNG, WebP and GIF files are allowed.', 400) as any);
+      cb(new AppError('Only JPEG, PNG, WebP, GIF, and AVIF image files are allowed.', 400) as any);
     }
   },
 });
-
-const isValidImageHeader = async (filePath: string): Promise<boolean> => {
-  try {
-    const handle = await fs.open(filePath, 'r');
-    const buf = Buffer.alloc(12);
-    const { bytesRead } = await handle.read(buf, 0, 12, 0);
-    await handle.close();
-
-    if (bytesRead < 4) return false;
-
-    // JPEG: FF D8 FF
-    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true;
-    // PNG: 89 50 4E 47
-    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return true;
-    // GIF: 47 49 46 (GIF87a / GIF89a)
-    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return true;
-    // WebP: RIFF (bytes 0-3) and WEBP (bytes 8-11)
-    if (
-      bytesRead >= 12 &&
-      buf[0] === 0x52 &&
-      buf[1] === 0x49 &&
-      buf[2] === 0x46 &&
-      buf[3] === 0x46 &&
-      buf[8] === 0x57 &&
-      buf[9] === 0x45 &&
-      buf[10] === 0x42 &&
-      buf[11] === 0x50
-    ) {
-      return true;
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-};
-
-const router = Router();
 
 const bannerUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_SIZE_MB * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+    cb(null, ['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.mimetype));
   },
 });
+
+const router = Router();
 
 router.post(
   '/banner-assets',
   ...adminOnly,
   bannerUpload.single('image'),
   asyncHandler(async (req: Request, res: Response) => {
-    if (!req.file) throw new AppError('Select a JPEG, PNG, or WebP image.', 400);
+    if (!req.file) throw new AppError('Select a JPEG, PNG, WebP, or AVIF image.', 400);
     let sourceMetadata: Metadata;
     try {
       sourceMetadata = await sharp(req.file.buffer, { limitInputPixels: 40_000_000, animated: true }).metadata();
     } catch {
       throw new AppError('The uploaded file could not be safely decoded as an image.', 400);
     }
-    if (!['jpeg', 'png', 'webp'].includes(sourceMetadata.format ?? '')) {
-      throw new AppError('Only decoded JPEG, PNG, and WebP images are supported.', 400);
+    if (!['jpeg', 'png', 'webp', 'avif'].includes(sourceMetadata.format ?? '')) {
+      throw new AppError('Only decoded JPEG, PNG, WebP, and AVIF images are supported.', 400);
     }
     if ((sourceMetadata.pages ?? 1) > 1) throw new AppError('Animated banner images are not supported.', 400);
     if (!sourceMetadata.width || !sourceMetadata.height || sourceMetadata.width < 320 || sourceMetadata.height < 180) {
@@ -108,19 +62,36 @@ router.post(
 
     let normalized: Buffer;
     try {
+      // High-fidelity WebP compression without perceptible quality decrease
       normalized = await sharp(req.file.buffer, { limitInputPixels: 40_000_000, animated: false })
         .rotate()
-        .webp({ quality: 88, effort: 4 })
+        .resize({ width: 2560, height: 1440, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 88, effort: 5, smartSubsample: true, alphaQuality: 95 })
         .toBuffer();
     } catch {
       throw new AppError('The uploaded image failed full decode validation.', 400);
     }
+
     const metadata = await sharp(normalized).metadata();
     const fileName = `${Date.now()}-${randomUUID()}.webp`;
     const directory = bannerUploadDirectory;
     const filePath = path.join(directory, fileName);
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(filePath, normalized, { flag: 'wx' });
+
+    // Also generate a lightweight banner preview thumbnail (640x360 max)
+    try {
+      const thumbBuffer = await sharp(req.file.buffer, { limitInputPixels: 40_000_000, animated: false })
+        .rotate()
+        .resize({ width: 640, height: 360, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 85, effort: 4 })
+        .toBuffer();
+      const thumbFileName = fileName.replace(/\.webp$/, '-thumb.webp');
+      await fs.writeFile(path.join(directory, thumbFileName), thumbBuffer, { flag: 'wx' });
+    } catch {
+      // Non-blocking thumbnail creation
+    }
+
     try {
       const [asset] = await db.insert(mediaAssets).values({
         kind: 'banner',
@@ -132,7 +103,7 @@ router.post(
         byteSize: normalized.byteLength,
         uploadedBy: req.user!.id,
       }).returning();
-      sendSuccess(res, { asset }, 'Banner image uploaded.', 201);
+      sendSuccess(res, { asset }, 'Banner image uploaded and optimized successfully.', 201);
     } catch (error) {
       await fs.unlink(filePath).catch(() => undefined);
       throw error;
@@ -148,18 +119,104 @@ router.post(
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) throw new AppError('No files uploaded.', 400);
 
-    // Validate magic bytes to prevent spoofed/malformed uploads
-    for (const f of files) {
-      const valid = await isValidImageHeader(f.path);
-      if (!valid) {
-        await Promise.allSettled(files.map((file) => fs.unlink(file.path)));
-        throw new AppError(`Invalid or corrupted image format detected in ${f.originalname}.`, 400);
-      }
-    }
+    const processedFiles: Array<{
+      url: string;
+      thumbnailUrl: string;
+      fileName: string;
+      thumbFileName: string;
+      width: number;
+      height: number;
+      size: number;
+      thumbWidth: number;
+      thumbHeight: number;
+      thumbSize: number;
+    }> = [];
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const urls = files.map((f) => `${baseUrl}/uploads/${f.filename}`);
-    sendSuccess(res, { urls }, 'Files uploaded successfully.');
+    const createdPaths: string[] = [];
+
+    try {
+      await fs.mkdir(serverUploadRoot, { recursive: true });
+
+      for (const file of files) {
+        let sourceMetadata: Metadata;
+        try {
+          sourceMetadata = await sharp(file.buffer, { limitInputPixels: 45_000_000, animated: false }).metadata();
+        } catch {
+          throw new AppError(`The file "${file.originalname}" could not be safely decoded as an image.`, 400);
+        }
+
+        if (!sourceMetadata.format || !ALLOWED_MIME.some((mime) => mime.includes(sourceMetadata.format!))) {
+          throw new AppError(`Unsupported image format in "${file.originalname}".`, 400);
+        }
+
+        if (!sourceMetadata.width || !sourceMetadata.height || sourceMetadata.width < 10 || sourceMetadata.height < 10) {
+          throw new AppError(`Image "${file.originalname}" is too small or corrupt.`, 400);
+        }
+
+        const uniqueBase = `${Date.now()}-${randomUUID()}`;
+        const mainFileName = `${uniqueBase}.webp`;
+        const thumbFileName = `${uniqueBase}-thumb.webp`;
+
+        const mainFilePath = path.join(serverUploadRoot, mainFileName);
+        const thumbFilePath = path.join(serverUploadRoot, thumbFileName);
+
+        // 1. High-fidelity WebP compression without visual quality degradation:
+        // - Auto-orient EXIF (.rotate())
+        // - Resize to max 1600 × 1600 px (fit: 'inside', withoutEnlargement: true)
+        // - WebP quality 88 with Lanczos3 resampling and smart subsampling
+        const mainBuffer = await sharp(file.buffer, { limitInputPixels: 45_000_000, animated: false })
+          .rotate()
+          .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 88, effort: 5, smartSubsample: true, alphaQuality: 95 })
+          .toBuffer();
+
+        const mainMeta = await sharp(mainBuffer).metadata();
+
+        // 2. High-performance Product Thumbnail:
+        // - Scaled down to max 400 × 400 px
+        // - WebP quality 85 for ultra-fast card and list loading (~15-25 KB)
+        const thumbBuffer = await sharp(file.buffer, { limitInputPixels: 45_000_000, animated: false })
+          .rotate()
+          .resize({ width: 400, height: 400, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 85, effort: 4, smartSubsample: true, alphaQuality: 90 })
+          .toBuffer();
+
+        const thumbMeta = await sharp(thumbBuffer).metadata();
+
+        await fs.writeFile(mainFilePath, mainBuffer, { flag: 'wx' });
+        createdPaths.push(mainFilePath);
+
+        await fs.writeFile(thumbFilePath, thumbBuffer, { flag: 'wx' });
+        createdPaths.push(thumbFilePath);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        processedFiles.push({
+          url: `${baseUrl}/uploads/${mainFileName}`,
+          thumbnailUrl: `${baseUrl}/uploads/${thumbFileName}`,
+          fileName: mainFileName,
+          thumbFileName: thumbFileName,
+          width: mainMeta.width ?? 0,
+          height: mainMeta.height ?? 0,
+          size: mainBuffer.byteLength,
+          thumbWidth: thumbMeta.width ?? 0,
+          thumbHeight: thumbMeta.height ?? 0,
+          thumbSize: thumbBuffer.byteLength,
+        });
+      }
+
+      sendSuccess(
+        res,
+        {
+          urls: processedFiles.map((f) => f.url),
+          thumbnails: processedFiles.map((f) => f.thumbnailUrl),
+          items: processedFiles,
+        },
+        'Files uploaded, compressed, and thumbnails generated successfully.'
+      );
+    } catch (error) {
+      await Promise.allSettled(createdPaths.map((p) => fs.unlink(p).catch(() => undefined)));
+      throw error;
+    }
   })
 );
 

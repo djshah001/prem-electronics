@@ -11,6 +11,7 @@ import { useAtomValue } from 'jotai';
 import { userAtom } from '../../store/userAtom';
 import { clsx } from 'clsx';
 import { toast } from 'sonner';
+import { SEO } from '../../components/shared/SEO';
 
 const formatPrice = (p: string | number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
@@ -186,6 +187,31 @@ export default function ProductDetails() {
 
   const attrs = Array.isArray(product?.attributes) ? product!.attributes : [];
 
+  const jsonLd = useMemo(() => {
+    if (!product) return undefined;
+    const priceValue = product.salePrice ? Number(product.salePrice) : Number(product.price);
+    return {
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      name: product.title,
+      image: images,
+      description: product.description || `${product.title} from Prem Electronics`,
+      sku: activeSku || product.sku,
+      brand: {
+        '@type': 'Brand',
+        name: product.brand || 'Prem Electronics',
+      },
+      offers: {
+        '@type': 'Offer',
+        url: window.location.href,
+        priceCurrency: 'INR',
+        price: priceValue,
+        availability: activeStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        itemCondition: 'https://schema.org/NewCondition',
+      },
+    };
+  }, [product, images, activeSku, activeStock]);
+
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -215,6 +241,14 @@ export default function ProductDetails() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <SEO
+        title={product.title}
+        description={product.description?.slice(0, 160) || `Buy ${product.title} online at the best price from Prem Electronics.`}
+        keywords={`${product.title}, ${product.brand || ''}, electronics, buy online India`}
+        ogType="product"
+        ogImage={images[0]}
+        jsonLd={jsonLd}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link to="/" className="hover:text-foreground transition-colors">Home</Link>

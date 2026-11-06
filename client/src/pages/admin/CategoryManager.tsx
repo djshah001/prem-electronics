@@ -12,6 +12,7 @@ import { clsx } from 'clsx';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
 import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
+import { IMAGE_SPECS } from '../../lib/image';
 
 const EMPTY_FORM = { name: '', slug: '', description: '', bannerImage: '', parentId: '', isActive: true };
 
@@ -349,7 +350,12 @@ export default function CategoryManager() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Banner Image</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium">Banner Image</label>
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      {IMAGE_SPECS.category.recommendedDimensions} ({IMAGE_SPECS.category.aspectRatio})
+                    </span>
+                  </div>
                   <div className="space-y-2">
                     {form.bannerImage && (
                       <div className="relative w-full h-32 rounded-xl overflow-hidden border border-border group bg-muted/30">
@@ -400,6 +406,9 @@ export default function CategoryManager() {
                         )}
                       </button>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Recommended: {IMAGE_SPECS.category.recommendedDimensions} • Min: {IMAGE_SPECS.category.minDimensions} • Auto-compressed via Sharp to high-fidelity WebP
+                    </p>
                   </div>
                 </div>
                 <div>
