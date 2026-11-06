@@ -28,6 +28,7 @@ import { Link } from 'react-router-dom';
 import type { Product, PaginationMeta, Category } from '../../types';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { getProductThumbnailUrl, IMAGE_SPECS } from '../../lib/image';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, dataTableFeatures } from '../../components/ui/DataTable';
 import { ModuleStatsCards } from '../../components/shared/ModuleStatsCards';
@@ -641,7 +642,7 @@ export default function ProductManager() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
               {p.images?.[0] ? (
-                <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                <img src={getProductThumbnailUrl(p.images[0])} alt="" className="w-full h-full object-cover" />
               ) : (
                 <Package className="w-4 h-4 m-3 text-muted-foreground" />
               )}
@@ -1476,6 +1477,33 @@ export default function ProductManager() {
                     className="hidden"
                     onChange={handleFileUpload}
                   />
+                </div>
+
+                {/* Image Specifications Callout */}
+                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-semibold text-primary flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{IMAGE_SPECS.product.label} — Upload Guidelines</span>
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      Sharp WebP Auto-Compressed
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-muted-foreground text-[11px] mt-1 pt-1.5 border-t border-primary/10">
+                    <div>
+                      <span className="font-medium text-foreground block">Dimensions:</span>
+                      <span>Recommended: <strong className="text-foreground">{IMAGE_SPECS.product.recommendedDimensions}</strong> (Min: {IMAGE_SPECS.product.minDimensions})</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground block">Aspect Ratio:</span>
+                      <span>{IMAGE_SPECS.product.aspectRatio}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground block">Optimization:</span>
+                      <span>{IMAGE_SPECS.product.thumbnail}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {form.images.filter(Boolean).length > 0 && (

@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { Link, useNavigate } from "react-router-dom";
 import { cartDrawerOpenAtom } from "../../store/cartAtom";
 import { useCart } from "../../hooks/useCart";
+import { getProductThumbnailUrl } from "../../lib/image";
 
 export const CartDrawer = () => {
   const [open, setOpen] = useAtom(cartDrawerOpenAtom);
@@ -86,7 +87,7 @@ export const CartDrawer = () => {
                     <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-100">
                       {item.image ? (
                         <img
-                          src={item.image}
+                          src={getProductThumbnailUrl(item.image)}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />

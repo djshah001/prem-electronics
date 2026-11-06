@@ -23,6 +23,7 @@ import { ProductCard } from "../../components/shared/ProductCard";
 import type { Product } from "../../types";
 import { HeroBannerCarousel } from "../../components/banner/HeroBannerCarousel";
 import { HomeImageBento } from "../../components/home/HomeImageBento";
+import { SEO } from "../../components/shared/SEO";
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -145,6 +146,33 @@ function FeatureCard({
   );
 }
 
+const homeJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Prem Electronics",
+    url: "https://premelectronics.in",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://premelectronics.in/shop?search={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Prem Electronics",
+    url: "https://premelectronics.in",
+    logo: "https://premelectronics.in/logo.png",
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      areaServed: "IN",
+      availableLanguage: ["en", "hi"],
+    },
+  },
+];
+
 export default function Home() {
   const [copied, setCopied] = useState(false);
 
@@ -163,6 +191,12 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background">
+      <SEO
+        title="Premium Electronics at Best Prices in India"
+        description="Shop authentic smartphones, laptops, audio, TVs, drones, and cameras at Prem Electronics. Best prices, fast delivery, and 1-year warranty on all products."
+        keywords="electronics, smartphones, laptops, audio, TV, cameras, drones, online shopping India"
+        jsonLd={homeJsonLd}
+      />
       <h1 className="sr-only">Prem Electronics online electronics store</h1>
       <HeroBannerCarousel />
 

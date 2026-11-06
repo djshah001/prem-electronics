@@ -23,4 +23,36 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router') || id.includes('/scheduler/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@react-email')) {
+              return 'vendor-email-editor';
+            }
+            if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-framer';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-lucide';
+            }
+            if (id.includes('@radix-ui') || id.includes('@base-ui')) {
+              return 'vendor-radix';
+            }
+            if (id.includes('@tanstack/react-query') || id.includes('@tanstack/react-table')) {
+              return 'vendor-tanstack';
+            }
+          }
+        },
+      },
+    },
+  },
 })

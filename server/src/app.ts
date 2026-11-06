@@ -2,6 +2,9 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs/promises';
+import sharp from 'sharp';
 import { env } from './config/env.js';
 import { errorHandler } from './core/middlewares/errorHandler.js';
 import { publicLimiter } from './core/middlewares/rateLimiter.js';
@@ -30,6 +33,7 @@ import { campaignRouter, marketingRouter, unsubscribeRouter } from './modules/co
 import { bannerAdminRouter, bannerPublicRouter } from './modules/banners/banners.routes.js';
 import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import navbarMasterRoutes from './modules/navbarMaster/navbarMaster.routes.js';
+import { seoRouter } from './modules/seo/seo.routes.js';
 
 const app = express();
 
@@ -53,7 +57,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(publicLimiter);
 
-// ─── Static Uploads ─────────────────────────────────────────────────────────
+// ─── Static Uploads & On-Demand Thumbnail Generator ────────────────────────
 app.use(
   '/uploads',
   (_req, res, next) => {
@@ -61,13 +65,58 @@ app.use(
     res.setHeader('Access-Control-Allow-Origin', '*');
     next();
   },
-  express.static(serverUploadRoot)
+  async (req, res, next) => {
+    if (req.method !== 'GET') return next();
+    const match = req.path.match(/^\/(.+)-thumb(\.[a-zA-Z0-9]+)$/);
+    if (!match) return next();
+
+    const requestedThumbPath = path.join(serverUploadRoot, req.path);
+    try {
+      await fs.access(requestedThumbPath);
+      return next(); // Thumbnail exists, pass to express.static
+    } catch {
+      // Thumbnail missing: search for source image to dynamically generate and cache it
+      const baseName = match[1];
+      const ext = match[2];
+      const candidates = [
+        path.join(serverUploadRoot, `${baseName}${ext}`),
+        path.join(serverUploadRoot, `${baseName}.webp`),
+        path.join(serverUploadRoot, `${baseName}.jpg`),
+        path.join(serverUploadRoot, `${baseName}.jpeg`),
+        path.join(serverUploadRoot, `${baseName}.png`),
+      ];
+
+      for (const candidatePath of candidates) {
+        try {
+          await fs.access(candidatePath);
+          const thumbBuffer = await sharp(candidatePath, { limitInputPixels: 45_000_000 })
+            .rotate()
+            .resize({ width: 400, height: 400, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 85, effort: 4, smartSubsample: true })
+            .toBuffer();
+
+          await fs.writeFile(requestedThumbPath, thumbBuffer).catch(() => undefined);
+          res.setHeader('Content-Type', 'image/webp');
+          res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+          return res.send(thumbBuffer);
+        } catch {
+          continue;
+        }
+      }
+      next();
+    }
+  },
+  express.static(serverUploadRoot, { maxAge: '30d' })
 );
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
   res.json({ success: true, message: 'Prem Electronics API is running 🚀', timestamp: new Date().toISOString() });
 });
+
+// ─── SEO Routes (sitemap.xml & robots.txt) ────────────────────────────────────
+app.use(seoRouter);
+app.use('/api/v1', seoRouter);
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);

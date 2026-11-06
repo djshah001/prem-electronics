@@ -5,8 +5,9 @@ import { ArrowLeft, Calendar, User, Link2 } from 'lucide-react';
 import { api } from '../../api/axiosClient';
 import type { Blog } from '../../types';
 import { toast } from 'sonner';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { cn } from '../../lib/utils';
+import { SEO } from '../../components/shared/SEO';
 
 export default function BlogDetails() {
   const { slug } = useParams<{ slug: string }>();
@@ -24,17 +25,24 @@ export default function BlogDetails() {
       navigate(`/blog/${blog.slug}`, { replace: true });
     }
   }, [blog?.redirectedFrom, blog?.slug, navigate, slug]);
-  useEffect(() => {
-    if (!blog) return;
-    const previousTitle = document.title;
-    document.title = blog.seoTitle || `${blog.title} | Prem Electronics`;
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const created = !meta;
-    if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.appendChild(meta); }
-    const previousDescription = meta.content;
-    meta.content = blog.seoDescription || blog.excerpt || '';
-    return () => { document.title = previousTitle; if (created) meta?.remove(); else if (meta) meta.content = previousDescription; };
+
+  const jsonLd = useMemo(() => {
+    if (!blog) return undefined;
+    return {
+      '@context': 'https://schema.org/',
+      '@type': 'BlogPosting',
+      headline: blog.title,
+      description: blog.seoDescription || blog.excerpt || blog.title,
+      image: blog.imageUrl ? [blog.imageUrl] : [],
+      datePublished: blog.publishedAt,
+      dateModified: blog.updatedAt,
+      author: {
+        '@type': 'Organization',
+        name: 'Prem Electronics',
+      },
+    };
   }, [blog]);
+
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
   const title = blog?.title ?? '';
 
@@ -69,6 +77,13 @@ export default function BlogDetails() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={blog.seoTitle || blog.title}
+        description={blog.seoDescription || blog.excerpt || blog.title}
+        ogType="article"
+        ogImage={blog.imageUrl || undefined}
+        jsonLd={jsonLd}
+      />
       {/* Hero */}
       {blog.imageUrl && (
         <div className="relative h-72 md:h-96 overflow-hidden">

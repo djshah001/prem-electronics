@@ -42,7 +42,7 @@ const fromBanner = (banner?: AdminBanner | null): Draft => banner ? {
   startsAt: toIstInput(banner.startsAt), endsAt: toIstInput(banner.endsAt),
 } : { ...empty };
 
-function AssetUploader({ label, guidance, asset, required, onChange }: { label: string; guidance: string; asset: BannerAsset | null; required?: boolean; onChange: (asset: BannerAsset | null) => void }) {
+function AssetUploader({ label, guidance, dimensions, asset, required, onChange }: { label: string; guidance: string; dimensions?: string; asset: BannerAsset | null; required?: boolean; onChange: (asset: BannerAsset | null) => void }) {
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
@@ -67,8 +67,19 @@ function AssetUploader({ label, guidance, asset, required, onChange }: { label: 
       setLocalPreview(null); previewRef.current = null; URL.revokeObjectURL(preview);
     } finally { setUploading(false); controller.current = null; }
   };
-  return <div className="rounded-xl border border-border p-3">
-    <div className="mb-2 flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{label}{required && ' *'}</p><p className="text-xs text-muted-foreground">{guidance}</p></div>{asset && !required && <button type="button" onClick={() => onChange(null)} className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label={`Remove ${label}`}><X className="h-4 w-4" /></button>}</div>
+  return <div className="rounded-xl border border-border p-3.5 bg-card">
+    <div className="mb-2.5 flex items-start justify-between gap-3">
+      <div>
+        <p className="text-sm font-semibold">{label}{required && ' *'}</p>
+        <p className="text-xs text-muted-foreground">{guidance}</p>
+        {dimensions && (
+          <p className="text-[11px] font-mono text-primary mt-0.5 bg-primary/10 px-2 py-0.5 rounded inline-block">
+            {dimensions}
+          </p>
+        )}
+      </div>
+      {asset && !required && <button type="button" onClick={() => onChange(null)} className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label={`Remove ${label}`}><X className="h-4 w-4" /></button>}
+    </div>
     {(localPreview || asset?.url) ? <img src={localPreview || asset!.url} alt="" className="mb-3 aspect-[3/1] w-full rounded-lg object-cover" /> : <div className="mb-3 grid aspect-[3/1] place-items-center rounded-lg bg-muted"><ImagePlus className="h-7 w-7 text-muted-foreground" /></div>}
     <div className="flex gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"><UploadCloud className="h-4 w-4" />{asset ? 'Replace' : 'Upload'}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(event) => void upload(event.target.files?.[0])} /></label>
       {uploading && <button type="button" onClick={() => controller.current?.abort()} className="rounded-lg border border-border px-3 py-2 text-xs">Cancel upload</button>}</div>
@@ -124,7 +135,23 @@ export function BannerForm({ banner, saving, onSave, onCancel }: { banner?: Admi
       <Field label="Mode"><select value={draft.contentMode} onChange={(event) => set('contentMode', event.target.value as BannerContentMode)} className={inputClass}><option value="overlay">Overlay text</option><option value="artwork">Text already in artwork</option></select></Field>
     </section>
     <section className="rounded-xl border border-border p-4"><h3 className="mb-1 font-bold">Images</h3><p className="mb-4 text-xs text-muted-foreground">Recommended: desktop 1920 × 1080 px (16:9), mobile 1080 × 1920 px (9:16). JPEG, PNG or WebP; maximum 15 MB and 40 MP.</p>
-      <div className="grid gap-4 md:grid-cols-2"><AssetUploader label="Desktop image" guidance="Required, full-screen 16:9 artwork" asset={draft.desktopAsset} required onChange={(asset) => set('desktopAsset', asset)} /><AssetUploader label="Mobile image" guidance="Optional 9:16 artwork; desktop image is the fallback" asset={draft.mobileAsset} onChange={(asset) => set('mobileAsset', asset)} /></div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <AssetUploader
+          label="Desktop image"
+          guidance="Required full-screen 16:9 artwork"
+          dimensions="1920 × 1080 px (16:9) • Min 1280 × 720 px"
+          asset={draft.desktopAsset}
+          required
+          onChange={(asset) => set('desktopAsset', asset)}
+        />
+        <AssetUploader
+          label="Mobile image"
+          guidance="Optional 9:16 vertical portrait artwork (desktop fallback)"
+          dimensions="1080 × 1920 px (9:16) • Min 720 × 1280 px"
+          asset={draft.mobileAsset}
+          onChange={(asset) => set('mobileAsset', asset)}
+        />
+      </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2"><Field label={`Desktop alt text${draft.contentMode === 'artwork' ? ' *' : ''}`}><input value={draft.desktopAltText} onChange={(event) => set('desktopAltText', event.target.value)} maxLength={240} className={inputClass} /></Field><Field label="Mobile alt text (optional)"><input value={draft.mobileAltText} onChange={(event) => set('mobileAltText', event.target.value)} maxLength={240} className={inputClass} /></Field></div>
     </section>
     {draft.contentMode === 'overlay' ? <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2"><h3 className="font-bold md:col-span-2">Overlay copy and CTA</h3>

@@ -1,0 +1,16 @@
+# robots.txt for Prem Electronics
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /admin
+Disallow: /account/
+Disallow: /account
+Disallow: /checkout
+Disallow: /order-success/
+Disallow: /verify-otp
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /api/
+
+Sitemap: https://premelectronics.in/sitemap.xml
+
