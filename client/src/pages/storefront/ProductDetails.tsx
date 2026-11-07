@@ -148,7 +148,7 @@ export default function ProductDetails() {
     }
     return list
       .filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
-      .slice(0, 4);
+    // .slice(0, 4);
   }, [product?.images]);
 
   const activeImageIndex = Math.min(selectedImage, Math.max(0, displayImages.length - 1));
@@ -413,7 +413,7 @@ export default function ProductDetails() {
 
           {/* Product Image Thumbnails (Dynamically fetched from backend) */}
           {displayImages.length > 0 && (
-            <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-4">
+            <div className="grid grid-cols-6 gap-3 sm:gap-4 mt-4">
               {displayImages.map((img, i) => {
                 const isSelected = activeImageIndex === i;
                 return (
@@ -458,7 +458,7 @@ export default function ProductDetails() {
           {product.reviewCount > 0 && (
             <div className="flex items-center gap-2 mb-4">
               <div className="flex">
-                {[1,2,3,4,5].map(s => (
+                {[1, 2, 3, 4, 5].map(s => (
                   <Star key={s} className={clsx('w-4 h-4', s <= Math.round(Number(product.avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                 ))}
               </div>
@@ -583,18 +583,18 @@ export default function ProductDetails() {
                 activeStock === 0 || (hasOptions && !selectedVariant)
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : inCart
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                  : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
               )}
             >
               <ShoppingCart className="w-5 h-5" />
               {activeStock === 0
                 ? 'Out of Stock'
                 : hasOptions && !selectedVariant
-                ? 'Select Options'
-                : inCart
-                ? '✓ In Cart'
-                : 'Add to Cart'}
+                  ? 'Select Options'
+                  : inCart
+                    ? '✓ In Cart'
+                    : 'Add to Cart'}
             </button>
 
             <button
@@ -736,7 +736,7 @@ export default function ProductDetails() {
             {reviews.map((review) => (
               <div key={review.id} className="bg-card rounded-2xl border border-border p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  {[1,2,3,4,5].map(s => (
+                  {[1, 2, 3, 4, 5].map(s => (
                     <Star key={s} className={clsx('w-4 h-4', s <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                   ))}
                   {review.isVerifiedBuyer && (
