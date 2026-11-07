@@ -7,24 +7,36 @@ import { useLocation, useNavigationType } from 'react-router-dom';
  * scroll restoration history.
  */
 export const ScrollToTop = () => {
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const navType = useNavigationType();
 
   useEffect(() => {
-    // Only reset scroll on PUSH or REPLACE (clicking links, internal navigation)
+    // Only reset scroll on PUSH or REPLACE (clicking links, internal navigation without hash)
     // Do NOT reset on POP so browser back and forward buttons restore the previous position
-    if (navType !== 'POP') {
-      window.scrollTo(0, 0);
+    if (navType !== 'POP' && !hash) {
+      const resetScroll = () => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+        if (document.documentElement) {
+          document.documentElement.scrollTop = 0;
+        }
+        if (document.body) {
+          document.body.scrollTop = 0;
+        }
+      };
 
-      // Handle documentElement and body for full cross-browser reliability
-      if (document.documentElement) {
-        document.documentElement.scrollTop = 0;
-      }
-      if (document.body) {
-        document.body.scrollTop = 0;
-      }
+      // Reset immediately
+      resetScroll();
+
+      // Also reset on next frame and after tick to handle lazy-loaded Suspense mounts
+      const rafId = requestAnimationFrame(resetScroll);
+      const timerId = setTimeout(resetScroll, 50);
+
+      return () => {
+        cancelAnimationFrame(rafId);
+        clearTimeout(timerId);
+      };
     }
-  }, [pathname, search, navType]);
+  }, [pathname, search, hash, navType]);
 
   return null;
 };

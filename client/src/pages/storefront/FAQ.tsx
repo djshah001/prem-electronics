@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,7 +35,7 @@ const FAQS: FAQItem[] = [
     category: 'orders',
     question: 'Is shipping free?',
     answer:
-      'We offer free insured delivery on all orders above ₹999. For orders below ₹999, a nominal standard shipping fee of ₹99 applies.',
+      'We offer free delivery across India (PAN India).',
   },
   {
     category: 'warranty',
@@ -67,6 +67,12 @@ export default function FAQ() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, []);
 
   const filteredFaqs = FAQS.filter((faq) => {
     const matchesSearch =

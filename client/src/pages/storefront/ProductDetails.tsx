@@ -1,8 +1,8 @@
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Star, Shield, Truck, Package, Zap, ChevronLeft, ChevronRight, PenLine, AlertCircle, CheckCircle2, Heart } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { ShoppingCart, Star, Shield, Truck, Package, Zap, ChevronLeft, ChevronRight, PenLine, AlertCircle, CheckCircle2, Heart, ZoomIn } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { api } from '../../api/axiosClient';
 import type { Product, Review } from '../../types';
 import { useCart } from '../../hooks/useCart';
@@ -105,6 +105,11 @@ function ReviewForm({ productId, onSuccess }: { productId: string; onSuccess: ()
 export default function ProductDetails() {
   const { slug } = useParams<{ slug: string }>();
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isZooming, setIsZooming] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
+  const [lensPosition, setLensPosition] = useState({ x: 0, y: 0, size: 140 });
+  const mainImageRef = useRef<HTMLDivElement>(null);
+
   const [reviewPage, setReviewPage] = useState(1);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const { addToCart, isInCart } = useCart();
@@ -119,6 +124,73 @@ export default function ProductDetails() {
   });
 
   const product = data?.data;
+
+  // Reset selected image and zoom state when navigating between products
+  useEffect(() => {
+    setSelectedImage(0);
+    setIsZooming(false);
+  }, [slug]);
+
+  // Dynamically extract up to four product images provided by backend
+  const displayImages = useMemo(() => {
+    const raw = product?.images;
+    if (!raw) return [];
+    let list: unknown[] = [];
+    if (Array.isArray(raw)) {
+      list = raw;
+    } else if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        list = Array.isArray(parsed) ? parsed : [raw];
+      } catch {
+        list = [raw];
+      }
+    }
+    return list
+      .filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+    // .slice(0, 4);
+  }, [product?.images]);
+
+  const activeImageIndex = Math.min(selectedImage, Math.max(0, displayImages.length - 1));
+  const currentImage = displayImages[activeImageIndex] || displayImages[0] || '';
+
+  const handleMouseEnter = () => {
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+      setIsZooming(true);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (typeof window !== 'undefined' && window.matchMedia && !window.matchMedia('(pointer: fine)').matches) {
+      return;
+    }
+    if (!mainImageRef.current) return;
+    const rect = mainImageRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
+
+    const clampedX = Math.max(0, Math.min(rect.width, clientX));
+    const clampedY = Math.max(0, Math.min(rect.height, clientY));
+
+    const xPercent = (clampedX / rect.width) * 100;
+    const yPercent = (clampedY / rect.height) * 100;
+
+    const lensSize = Math.min(rect.width * 0.5, 240);
+    const halfLens = lensSize / 2;
+
+    const lensX = Math.max(0, Math.min(rect.width - lensSize, clampedX - halfLens));
+    const lensY = Math.max(0, Math.min(rect.height - lensSize, clampedY - halfLens));
+
+    setZoomPosition({ x: xPercent, y: yPercent });
+    setLensPosition({ x: lensX, y: lensY, size: lensSize });
+    if (!isZooming) setIsZooming(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsZooming(false);
+  };
 
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['product-reviews', product?.id, reviewPage],
@@ -137,7 +209,6 @@ export default function ProductDetails() {
   const reviews = reviewsData?.data ?? [];
   const meta = reviewsData?.meta;
   const myReview = myReviewData?.data;
-  const images = product?.images ?? [];
 
   // Options & Variants state
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -194,7 +265,7 @@ export default function ProductDetails() {
       '@context': 'https://schema.org/',
       '@type': 'Product',
       name: product.title,
-      image: images,
+      image: displayImages,
       description: product.description || `${product.title} from Prem Electronics`,
       sku: activeSku || product.sku,
       brand: {
@@ -210,7 +281,7 @@ export default function ProductDetails() {
         itemCondition: 'https://schema.org/NewCondition',
       },
     };
-  }, [product, images, activeSku, activeStock]);
+  }, [product, displayImages, activeSku, activeStock]);
 
   if (isLoading) {
     return (
@@ -246,7 +317,7 @@ export default function ProductDetails() {
         description={product.description?.slice(0, 160) || `Buy ${product.title} online at the best price from Prem Electronics.`}
         keywords={`${product.title}, ${product.brand || ''}, electronics, buy online India`}
         ogType="product"
-        ogImage={images[0]}
+        ogImage={displayImages[0]}
         jsonLd={jsonLd}
       />
       {/* Breadcrumb */}
@@ -258,33 +329,122 @@ export default function ProductDetails() {
         <span className="text-foreground line-clamp-1">{product.title}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-2 gap-12 mb-16">
-        {/* Images */}
-        <div>
-          <motion.div
-            key={selectedImage}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="aspect-square rounded-3xl overflow-hidden bg-card border border-border mb-4"
+      <div className="grid lg:grid-cols-2 gap-12 mb-16 relative">
+        {/* Images Gallery */}
+        <div className="relative">
+          {/* Main Display Image */}
+          <div
+            ref={mainImageRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            className="group relative aspect-square rounded-3xl overflow-hidden bg-card border border-border shadow-xs cursor-crosshair select-none"
           >
-            {images[selectedImage] ? (
-              <img src={images[selectedImage]} alt={product.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Zap className="w-24 h-24 text-muted-foreground/20" />
+            <motion.div
+              key={`${slug}-${activeImageIndex}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full"
+            >
+              {currentImage ? (
+                <img
+                  src={currentImage}
+                  alt={product.title}
+                  className="w-full h-full object-cover select-none pointer-events-none"
+                  draggable={false}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Zap className="w-24 h-24 text-muted-foreground/20" />
+                </div>
+              )}
+            </motion.div>
+
+            {/* Viewfinder Lens Overlay on Main Image */}
+            {isZooming && currentImage && (
+              <div
+                className="pointer-events-none absolute border-2 border-primary/70 bg-primary/15 rounded-2xl shadow-inner backdrop-blur-[0.5px] hidden lg:block"
+                style={{
+                  width: `${lensPosition.size}px`,
+                  height: `${lensPosition.size}px`,
+                  transform: `translate3d(${lensPosition.x}px, ${lensPosition.y}px, 0)`,
+                  left: 0,
+                  top: 0,
+                }}
+              />
+            )}
+
+            {/* Desktop Hover to Zoom Prompt */}
+            {currentImage && (
+              <div className="absolute bottom-3 right-3 pointer-events-none hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-medium border border-white/10 opacity-75 group-hover:opacity-0 transition-opacity">
+                <ZoomIn className="w-3 h-3 text-primary" />
+                <span>Hover to zoom</span>
               </div>
             )}
-          </motion.div>
+          </div>
 
-          {images.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {images.map((img, i) => (
-                <button key={i} onClick={() => setSelectedImage(i)}
-                  className={clsx('w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all',
-                    selectedImage === i ? 'border-primary' : 'border-border hover:border-primary/50')}>
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
+          {/* Separate Square Zoom Box */}
+          <AnimatePresence>
+            {isZooming && currentImage && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-[calc(100%+1.5rem)] top-0 z-50 w-[112%] aspect-square rounded-3xl overflow-hidden border border-border/80 bg-card shadow-2xl pointer-events-none hidden lg:block"
+              >
+                <div
+                  className="w-full h-full"
+                  style={{
+                    backgroundImage: `url(${currentImage})`,
+                    backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                    backgroundSize: '200% 200%',
+                    backgroundRepeat: 'no-repeat',
+                  }}
+                />
+                <div className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-semibold border border-white/20 flex items-center gap-1.5 shadow-xs">
+                  <ZoomIn className="w-3.5 h-3.5 text-primary" />
+                  <span>2.0× Zoom</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Product Image Thumbnails (Dynamically fetched from backend) */}
+          {displayImages.length > 0 && (
+            <div className="grid grid-cols-6 gap-3 sm:gap-4 mt-4">
+              {displayImages.map((img, i) => {
+                const isSelected = activeImageIndex === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(i);
+                      setIsZooming(false);
+                    }}
+                    className={clsx(
+                      'group relative aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                      isSelected
+                        ? 'border-primary shadow-md shadow-primary/20 scale-[1.02] ring-2 ring-primary/30 bg-card'
+                        : 'border-border/80 opacity-70 hover:opacity-100 hover:border-primary/50 bg-card/60'
+                    )}
+                    aria-label={`View product image ${i + 1}`}
+                    aria-selected={isSelected}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.title} thumbnail ${i + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -298,7 +458,7 @@ export default function ProductDetails() {
           {product.reviewCount > 0 && (
             <div className="flex items-center gap-2 mb-4">
               <div className="flex">
-                {[1,2,3,4,5].map(s => (
+                {[1, 2, 3, 4, 5].map(s => (
                   <Star key={s} className={clsx('w-4 h-4', s <= Math.round(Number(product.avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                 ))}
               </div>
@@ -409,25 +569,32 @@ export default function ProductDetails() {
           <div className="flex items-center gap-3 mb-4">
             <button
               id="product-add-to-cart-btn"
-              onClick={() => addToCart(product, 1, selectedVariant)}
+              onClick={() => {
+                if (!user) {
+                  toast.info('Please sign in to add items to your cart.');
+                  navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
+                  return;
+                }
+                addToCart(product, 1, selectedVariant);
+              }}
               disabled={activeStock === 0 || (hasOptions && !selectedVariant)}
               className={clsx(
                 'flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl text-base sm:text-lg font-bold transition-all',
                 activeStock === 0 || (hasOptions && !selectedVariant)
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : inCart
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                  : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'gradient-primary text-white hover:opacity-90 hover:scale-[1.01] shadow-lg shadow-blue-500/20'
               )}
             >
               <ShoppingCart className="w-5 h-5" />
               {activeStock === 0
                 ? 'Out of Stock'
                 : hasOptions && !selectedVariant
-                ? 'Select Options'
-                : inCart
-                ? '✓ In Cart'
-                : 'Add to Cart'}
+                  ? 'Select Options'
+                  : inCart
+                    ? '✓ In Cart'
+                    : 'Add to Cart'}
             </button>
 
             <button
@@ -435,7 +602,8 @@ export default function ProductDetails() {
               type="button"
               onClick={() => {
                 if (!user) {
-                  toast.info('Sign in to save items to your wishlist');
+                  toast.info('Please sign in to save items to your wishlist.');
+                  navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
                   return;
                 }
                 if (product) toggleItem(product.id);
@@ -568,7 +736,7 @@ export default function ProductDetails() {
             {reviews.map((review) => (
               <div key={review.id} className="bg-card rounded-2xl border border-border p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  {[1,2,3,4,5].map(s => (
+                  {[1, 2, 3, 4, 5].map(s => (
                     <Star key={s} className={clsx('w-4 h-4', s <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30')} />
                   ))}
                   {review.isVerifiedBuyer && (

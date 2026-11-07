@@ -57,7 +57,8 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      toast.info("Sign in to save items to your wishlist");
+      toast.info("Please sign in to save items to your wishlist.");
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     toggleItem(product.id);
@@ -69,9 +70,16 @@ export const ProductCard = ({ product, className }: ProductCardProps) => {
 
     if (hasVariants) {
       navigate(`/products/${product.slug}#product-options`);
-    } else {
-      addToCart(product);
+      return;
     }
+
+    if (!user) {
+      toast.info("Please sign in to add items to your cart.");
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+
+    addToCart(product);
   };
 
   return (

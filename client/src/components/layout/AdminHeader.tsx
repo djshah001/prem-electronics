@@ -7,7 +7,6 @@ import {
   Bell,
   CheckCheck,
   ChevronRight,
-  Command,
   CreditCard,
   Layers,
   Loader2,
@@ -228,9 +227,6 @@ export const AdminHeader = () => {
             >
               <Search className="w-3.5 h-3.5 text-[#ff6b8b]" />
               <span>Search modules...</span>
-              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300 bg-white/10 border border-white/10 rounded">
-                <Command className="w-3 h-3" />K
-              </kbd>
             </motion.button>
 
             {/* View Storefront */}
@@ -580,8 +576,7 @@ export const AdminHeader = () => {
                 )}
               </div>
 
-              <div className="px-3 py-2 border-t border-white/10 bg-white/5 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Use arrow keys to navigate</span>
+              <div className="px-3 py-2 border-t border-white/10 bg-white/5 flex items-center justify-end text-[11px] text-slate-400">
                 <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px]">
                   ESC to close
                 </kbd>

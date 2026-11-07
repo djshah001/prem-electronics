@@ -102,12 +102,10 @@ const assertSendBudget = async (tx: any, canonicalPhone: string, context: Reques
 
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`otp:${canonicalPhone}`}))`);
   const sends = sql<number>`coalesce(sum(1 + ${otpChallenges.resendCount}), 0)`;
-  const [[phoneShort], [phoneDaily], [ipShort], [globalHourly]] = await Promise.all([
-    tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.canonicalPhone, canonicalPhone), gte(otpChallenges.createdAt, fifteenMinutesAgo))),
-    tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.canonicalPhone, canonicalPhone), gte(otpChallenges.createdAt, dayAgo))),
-    tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.ipHash, ipHash), gte(otpChallenges.createdAt, fifteenMinutesAgo))),
-    tx.select({ value: sends }).from(otpChallenges).where(gte(otpChallenges.createdAt, hourAgo)),
-  ]);
+  const [phoneShort] = await tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.canonicalPhone, canonicalPhone), gte(otpChallenges.createdAt, fifteenMinutesAgo)));
+  const [phoneDaily] = await tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.canonicalPhone, canonicalPhone), gte(otpChallenges.createdAt, dayAgo)));
+  const [ipShort] = await tx.select({ value: sends }).from(otpChallenges).where(and(eq(otpChallenges.ipHash, ipHash), gte(otpChallenges.createdAt, fifteenMinutesAgo)));
+  const [globalHourly] = await tx.select({ value: sends }).from(otpChallenges).where(gte(otpChallenges.createdAt, hourAgo));
   if (Number(phoneShort.value) >= env.OTP_PHONE_SENDS_PER_15_MINUTES) fail('Too many OTP requests. Try again later.', 429, 'rate_limited', new Date(Date.now() + 15 * 60_000));
   if (Number(phoneDaily.value) >= env.OTP_PHONE_SENDS_PER_DAY) fail('Daily OTP limit reached. Try again tomorrow.', 429, 'rate_limited', new Date(Date.now() + 24 * 60 * 60_000));
   if (Number(ipShort.value) >= env.OTP_IP_SENDS_PER_15_MINUTES) fail('Too many OTP requests from this network.', 429, 'rate_limited', new Date(Date.now() + 15 * 60_000));
