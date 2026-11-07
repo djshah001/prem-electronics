@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   ChevronDown,
@@ -10,66 +10,66 @@ import {
   CreditCard,
   Sparkles,
   MessageSquare,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface FAQItem {
   question: string;
   answer: string;
-  category: 'orders' | 'warranty' | 'payments';
+  category: "orders" | "warranty" | "payments";
 }
 
 const FAQS: FAQItem[] = [
   {
-    category: 'orders',
-    question: 'How long does delivery take across India?',
+    category: "orders",
+    question: "How long does delivery take across India?",
     answer:
-      'Most metro and tier-1 orders are delivered within 2 to 4 business days. Regional and rest of India orders typically take 4 to 6 business days. All shipments are fully insured and tracked with live tracking numbers sent via SMS/Email.',
+      "Most metro and tier-1 orders are delivered within 2 to 4 business days. Regional and rest of India orders typically take 4 to 6 business days. All shipments are fully insured and tracked with live tracking numbers sent via SMS/Email.",
   },
   {
-    category: 'orders',
-    question: 'Are high-value cameras and lenses safely packaged?',
+    category: "orders",
+    question: "Are high-value cameras and lenses safely packaged?",
     answer:
-      'Yes. All camera bodies, lenses, and sensitive electronic equipment are shipped in reinforced tamper-evident outer packaging with multi-layer bubble wrap and shock-absorbing air pillows.',
+      "Yes. All camera bodies, lenses, and sensitive electronic equipment are shipped in reinforced tamper-evident outer packaging with multi-layer bubble wrap and shock-absorbing air pillows.",
   },
   {
-    category: 'orders',
-    question: 'Is shipping free?',
-    answer:
-      'We offer free delivery across India (PAN India).',
+    category: "orders",
+    question: "Is shipping free?",
+    answer: "We offer free delivery across India (PAN India).",
   },
   {
-    category: 'warranty',
-    question: 'Are all products 100% original with official manufacturer warranty?',
+    category: "warranty",
+    question:
+      "Are all products 100% original with official manufacturer warranty?",
     answer:
-      'Yes, absolutely. Prem Electronics only retails genuine inventory sourced straight from certified Indian brand distributors. Each item contains authentic brand warranty cards and serial numbers registered for Indian service centers.',
+      "Yes, absolutely. Prem Electronics only retails genuine inventory sourced straight from certified Indian brand distributors. Each item contains authentic brand warranty cards and serial numbers registered for Indian service centers.",
   },
   {
-    category: 'warranty',
-    question: 'How do I claim a warranty if an issue arises?',
+    category: "warranty",
+    question: "How do I claim a warranty if an issue arises?",
     answer:
-      'You can visit any authorized brand service center across India with your Prem Electronics tax invoice. You can also contact our support team at support@premelectronics.com to assist with service center documentation.',
+      "You can visit any authorized brand service center across India with your Prem Electronics tax invoice. You can also contact our support team at support@premelectronics.com to assist with service center documentation.",
   },
   {
-    category: 'payments',
-    question: 'Can I get a GST Input Tax Credit invoice for my business?',
+    category: "payments",
+    question: "Can I get a GST Input Tax Credit invoice for my business?",
     answer:
-      'Yes! During checkout, enter your business GSTIN and legal business name. Your generated tax invoice will include your GSTIN, allowing you to claim full input tax credit.',
+      "Yes! During checkout, enter your business GSTIN and legal business name. Your generated tax invoice will include your GSTIN, allowing you to claim full input tax credit.",
   },
   {
-    category: 'payments',
-    question: 'What payment methods do you accept?',
+    category: "payments",
+    question: "What payment methods do you accept?",
     answer:
-      'We accept all major Credit/Debit Cards (Visa, MasterCard, RuPay, Amex), Net Banking, UPI (Google Pay, PhonePe, Paytm), and Razorpay secure payment gateways.',
+      "We accept all major Credit/Debit Cards (Visa, MasterCard, RuPay, Amex), Net Banking, UPI (Google Pay, PhonePe, Paytm), and Razorpay secure payment gateways.",
   },
 ];
 
 export default function FAQ() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
     if (document.documentElement) document.documentElement.scrollTop = 0;
     if (document.body) document.body.scrollTop = 0;
   }, []);
@@ -79,7 +79,7 @@ export default function FAQ() {
       faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
       faq.answer.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
-      selectedCategory === 'all' || faq.category === selectedCategory;
+      selectedCategory === "all" || faq.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -92,7 +92,9 @@ export default function FAQ() {
             Home
           </Link>
           <span>/</span>
-          <span className="text-foreground font-medium">Frequently Asked Questions</span>
+          <span className="text-foreground font-medium">
+            Frequently Asked Questions
+          </span>
         </nav>
 
         {/* Header */}
@@ -105,7 +107,8 @@ export default function FAQ() {
             Frequently Asked <span className="text-primary">Questions</span>
           </h1>
           <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Quick answers about shipping, genuine warranties, authorized gear, and GST invoicing for your camera gear.
+            Quick answers about shipping, genuine warranties, authorized gear,
+            and GST invoicing for your camera gear.
           </p>
         </div>
 
@@ -124,10 +127,10 @@ export default function FAQ() {
         {/* Category Filter Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 text-xs font-semibold">
           {[
-            { id: 'all', label: 'All Questions', icon: Sparkles },
-            { id: 'orders', label: 'Orders & Shipping', icon: Truck },
-            { id: 'warranty', label: 'Genuine Warranty', icon: ShieldCheck },
-            { id: 'payments', label: 'Payments & GST', icon: CreditCard },
+            { id: "all", label: "All Questions", icon: Sparkles },
+            { id: "orders", label: "Orders & Shipping", icon: Truck },
+            { id: "warranty", label: "Genuine Warranty", icon: ShieldCheck },
+            { id: "payments", label: "Payments & GST", icon: CreditCard },
           ].map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -137,8 +140,8 @@ export default function FAQ() {
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-colors ${
                   isSelected
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -167,7 +170,7 @@ export default function FAQ() {
                     <span className="pr-4">{faq.question}</span>
                     <ChevronDown
                       className={`w-4 h-4 shrink-0 transition-transform duration-200 text-muted-foreground ${
-                        isExpanded ? 'rotate-180 text-primary' : ''
+                        isExpanded ? "rotate-180 text-primary" : ""
                       }`}
                     />
                   </button>
@@ -176,7 +179,7 @@ export default function FAQ() {
                     {isExpanded && (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
+                        animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden border-t border-border/40 bg-muted/20"
@@ -196,7 +199,8 @@ export default function FAQ() {
                 No matching questions found
               </p>
               <p className="text-xs text-muted-foreground">
-                Try searching for another keyword or reach out directly to our specialists.
+                Try searching for another keyword or reach out directly to our
+                specialists.
               </p>
             </div>
           )}
@@ -208,7 +212,8 @@ export default function FAQ() {
             Still need assistance with your equipment?
           </h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            Our expert electronics team is available Monday to Saturday to answer queries on compatibility, shipping, or warranty.
+            Our expert electronics team is available Monday to Saturday to
+            answer queries on compatibility, shipping, or warranty.
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Link
