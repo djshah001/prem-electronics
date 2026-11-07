@@ -24,6 +24,9 @@ const startServer = async () => {
     logger.info(`🚀 Prem Electronics API running on http://localhost:${env.PORT}`);
     logger.info(`📡 Environment: ${env.NODE_ENV}`);
     logger.info(`🔗 CORS allowed from: ${env.CLIENT_URL}`);
+    if (process.send) {
+      process.send('ready');
+    }
   });
 
   // Retry durable post-commit email jobs without affecting successful payments.
