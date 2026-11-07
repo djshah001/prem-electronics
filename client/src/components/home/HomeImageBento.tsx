@@ -29,10 +29,47 @@ interface BentoItem {
   isHero?: boolean;
 }
 
+/**
+ * ============================================================================
+ * DESIGN TEAM GUIDE: RECOMMENDED BENTO GRID IMAGE DIMENSIONS & ASSET SPECS
+ * ============================================================================
+ * The "Creator Ecosystem" Bento Grid uses a 12-column responsive layout.
+ * Images are styled with `object-cover` to fill their dynamic card bounds.
+ *
+ * GENERAL RECOMMENDATIONS:
+ * - File Format: Optimized WebP or JPG (compressed with 80-85% quality, < 250 KB)
+ * - Color Profile: sRGB
+ * - DPI: 72 DPI (Standard Web)
+ * - Safe Area: Keep primary product subjects centered or vertically biased
+ *   towards the top/center to ensure visibility behind bottom text overlays.
+ *
+ * ITEM BREAKDOWN & DIMENSIONS:
+ * 1. 360-camera (Hero Card - lg:col-span-8):
+ *    - Recommended Dimensions: 1200 x 800 px (Min: 960 x 640 px)
+ *    - Aspect Ratio: ~3:2 Landscape (Wide Hero)
+ *
+ * 2. compact-drone (Standard Card - lg:col-span-4):
+ *    - Recommended Dimensions: 600 x 800 px (Min: 480 x 640 px)
+ *    - Aspect Ratio: ~3:4 Portrait / Vertical
+ *
+ * 3. wireless-audio (Standard Card - lg:col-span-4):
+ *    - Recommended Dimensions: 600 x 800 px (Min: 480 x 640 px)
+ *    - Aspect Ratio: ~3:4 Portrait / Vertical
+ *
+ * 4. mobile-gimbal (Standard Card - lg:col-span-4):
+ *    - Recommended Dimensions: 600 x 800 px (Min: 480 x 640 px)
+ *    - Aspect Ratio: ~3:4 Portrait / Vertical
+ *
+ * 5. camera-drones (Standard Card - lg:col-span-4):
+ *    - Recommended Dimensions: 600 x 800 px (Min: 480 x 640 px)
+ *    - Aspect Ratio: ~3:4 Portrait / Vertical
+ * ============================================================================
+ */
 const SHOWCASE_IMAGES: BentoItem[] = [
   {
     id: "360-camera",
     src: image360Camera,
+    // [RECOMMENDED IMAGE DIMENSIONS]: 1200 x 800 px | Aspect Ratio: 3:2 Landscape (Hero Item, spans 8 cols on desktop)
     alt: "Compact 360-degree action cameras",
     eyebrow: "Immersive capture",
     badge: "Flagship Gear",
@@ -52,6 +89,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
   {
     id: "compact-drone",
     src: imageCompactDrone,
+    // [RECOMMENDED IMAGE DIMENSIONS]: 600 x 800 px | Aspect Ratio: 3:4 Portrait (Spans 4 cols on desktop)
     alt: "Compact camera drone on a sculpted white surface",
     eyebrow: "Next-gen flight",
     badge: "Sub-249g",
@@ -66,6 +104,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
   {
     id: "wireless-audio",
     src: imageWirelessAudio,
+    // [RECOMMENDED IMAGE DIMENSIONS]: 600 x 800 px | Aspect Ratio: 3:4 Portrait (Spans 4 cols on desktop)
     alt: "Wireless microphone system floating above its charging case",
     eyebrow: "Wireless audio",
     badge: "Studio Grade",
@@ -80,6 +119,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
   {
     id: "mobile-gimbal",
     src: imageMobileGimbal,
+    // [RECOMMENDED IMAGE DIMENSIONS]: 600 x 800 px | Aspect Ratio: 3:4 Portrait (Spans 4 cols on desktop)
     alt: "Smartphone filming gimbals arranged on a light studio background",
     eyebrow: "Mobile filmmaking",
     badge: "Stabilization",
@@ -94,6 +134,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
   {
     id: "camera-drones",
     src: imageCameraDrones,
+    // [RECOMMENDED IMAGE DIMENSIONS]: 600 x 800 px | Aspect Ratio: 3:4 Portrait (Spans 4 cols on desktop)
     alt: "Two folded camera drones displayed on geometric platforms",
     eyebrow: "Aerial imaging",
     badge: "Pro Series",
@@ -331,7 +372,19 @@ export function HomeImageBento() {
           </Link>
         </motion.div>
 
-        {/* Full-Height Maximized Bento Grid */}
+        {/* 
+          Full-Height Maximized Bento Grid
+          ----------------------------------------------------------------------
+          GRID LAYOUT & RECOMMENDED IMAGE SIZES FOR DESIGNERS:
+          - Layout: 12-column dynamic grid (lg:grid-cols-12)
+          - Card 1 (360-camera Hero): lg:col-span-8 -> Recommended: 1200 x 800 px (3:2 Landscape)
+          - Card 2 (compact-drone):    lg:col-span-4 -> Recommended: 600 x 800 px (3:4 Portrait)
+          - Card 3 (wireless-audio):   lg:col-span-4 -> Recommended: 600 x 800 px (3:4 Portrait)
+          - Card 4 (mobile-gimbal):    lg:col-span-4 -> Recommended: 600 x 800 px (3:4 Portrait)
+          - Card 5 (camera-drones):    lg:col-span-4 -> Recommended: 600 x 800 px (3:4 Portrait)
+          All images use object-cover with safe centered/upper-third subject framing.
+          ----------------------------------------------------------------------
+        */}
         <motion.div
           variants={reduceMotion ? undefined : gridVariants}
           initial={reduceMotion ? false : "hidden"}

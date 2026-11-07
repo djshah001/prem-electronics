@@ -103,7 +103,6 @@ const navGroups: NavGroup[] = [
             icon: Tag,
             label: "Categories",
             href: "/admin/categories",
-            badge: "Step 1",
           },
           {
             icon: Package,
@@ -345,11 +344,11 @@ const SidebarContent = ({
   const isSearching = searchQuery.trim().length > 0;
 
   return (
-    <div className="flex flex-col h-full select-none">
+    <div className="flex flex-col h-full select-none text-slate-200">
       {/* ── Top Brand Header ── */}
       <div
         className={clsx(
-          "relative h-16 border-b border-slate-200/70 dark:border-[#232838] flex items-center gap-3 px-4 shrink-0",
+          "relative h-16 border-b border-white/10 flex items-center gap-3 px-4 shrink-0",
           collapsed && "justify-center px-2",
         )}
       >
@@ -363,7 +362,7 @@ const SidebarContent = ({
           <motion.span
             whileHover={reduceMotion ? undefined : { scale: 1.05, rotate: 2 }}
             whileTap={reduceMotion ? undefined : { scale: 0.95 }}
-            className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-[#D82D53]/20 via-[#D82D53]/5 to-transparent dark:from-[#f43f68]/30 dark:via-[#D82D53]/10 dark:to-[#121521] border border-[#D82D53]/25 dark:border-[#f43f68]/40 p-0.5 shadow-xs"
+            className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-br from-[#f43f68]/30 via-[#D82D53]/10 to-[#121521] border border-[#f43f68]/40 p-0.5 shadow-xs"
           >
             <img
               src="/Symbol.jpg"
@@ -381,10 +380,10 @@ const SidebarContent = ({
                 transition={{ duration: 0.16 }}
                 className="min-w-0"
               >
-                <p className="font-bold text-sm text-slate-900 dark:text-[#F2F4F8] truncate tracking-tight">
+                <p className="font-bold text-sm text-white truncate tracking-tight">
                   Prem Electronics
                 </p>
-                <p className="text-[11px] font-medium text-[#D82D53] dark:text-[#ff6b8b] flex items-center gap-1">
+                <p className="text-[11px] font-medium text-[#ff6b8b] flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5" />
                   <span>Admin Workspace</span>
                 </p>
@@ -405,20 +404,20 @@ const SidebarContent = ({
             className="px-3 pt-3 pb-1 shrink-0 overflow-hidden"
           >
             <div className="relative flex items-center">
-              <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400 dark:text-[#7E869A] pointer-events-none" />
+              <Search className="absolute left-3 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filter menu..."
-                className="w-full h-8.5 pl-8.5 pr-7 rounded-lg text-xs bg-slate-100/80 dark:bg-[#1A1E2E]/90 border border-slate-200/80 dark:border-[#282E42] text-slate-900 dark:text-[#F2F4F8] placeholder:text-slate-400 dark:placeholder:text-[#7E869A] focus:outline-none focus:border-[#D82D53] dark:focus:border-[#f43f68] focus:bg-white dark:focus:bg-[#1E2336] focus:ring-2 focus:ring-[#D82D53]/20 transition-all"
+                className="w-full h-8.5 pl-8.5 pr-7 rounded-lg text-xs bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:border-[#D82D53] focus:bg-white/10 focus:ring-2 focus:ring-[#D82D53]/20 transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
                   aria-label="Clear filter"
-                  className="absolute right-2 text-slate-400 hover:text-[#D82D53] dark:hover:text-[#ff6b8b] transition-colors"
+                  className="absolute right-2 text-slate-400 hover:text-[#ff6b8b] transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -438,7 +437,7 @@ const SidebarContent = ({
       >
         {filteredGroups.length === 0 ? (
           <div className="py-8 px-3 text-center">
-            <p className="text-xs text-slate-400 dark:text-[#7E869A]">
+            <p className="text-xs text-slate-400">
               No modules matching &quot;{searchQuery}&quot;
             </p>
           </div>
@@ -447,12 +446,12 @@ const SidebarContent = ({
             <div key={group.label} className="space-y-1">
               {!collapsed ? (
                 <div className="px-3 mb-1.5 flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-[#687086]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     {group.label}
                   </p>
                 </div>
               ) : (
-                <div className="mx-auto my-2 w-6 h-[1px] bg-slate-200/80 dark:bg-[#232838]" />
+                <div className="mx-auto my-2 w-6 h-[1px] bg-white/10" />
               )}
 
               <div className="space-y-1">
@@ -481,8 +480,8 @@ const SidebarContent = ({
                               "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D82D53]",
                               collapsed && "justify-center px-2",
                               isActive
-                                ? "text-[#D82D53] dark:text-[#ff6b8b]"
-                                : "text-slate-600 dark:text-[#9BA3B5] hover:text-slate-900 dark:hover:text-[#F2F4F8] hover:bg-slate-100/70 dark:hover:bg-[#1B2030]",
+                                ? "text-[#ff6b8b]"
+                                : "text-slate-300 hover:text-white hover:bg-white/5",
                             )
                           }
                         >
@@ -496,15 +495,15 @@ const SidebarContent = ({
                                     stiffness: 380,
                                     damping: 30,
                                   }}
-                                  className="absolute inset-0 rounded-xl bg-[#D82D53]/10 dark:bg-gradient-to-r dark:from-[#D82D53]/25 dark:to-[#f43f68]/5 border border-[#D82D53]/25 dark:border-[#f43f68]/35 -z-10"
+                                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#D82D53]/25 to-[#f43f68]/5 border border-[#f43f68]/35 -z-10"
                                 />
                               )}
                               <Icon
                                 className={clsx(
                                   "w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-105",
                                   isActive
-                                    ? "text-[#D82D53] dark:text-[#ff6b8b]"
-                                    : "text-slate-500 dark:text-[#7E869A] group-hover:text-[#D82D53] dark:group-hover:text-[#ff6b8b]",
+                                    ? "text-[#ff6b8b]"
+                                    : "text-slate-400 group-hover:text-[#ff6b8b]",
                                 )}
                                 aria-hidden="true"
                               />
@@ -527,10 +526,10 @@ const SidebarContent = ({
                               initial="hidden"
                               animate="visible"
                               exit="exit"
-                              className="fixed left-16 ml-2.5 z-50 px-3 py-1.5 rounded-lg bg-white/95 dark:bg-[#161A29]/95 backdrop-blur-xl border border-[#D82D53]/25 dark:border-[#f43f68]/35 shadow-xl pointer-events-none whitespace-nowrap"
+                              className="fixed left-16 ml-2.5 z-50 px-3 py-1.5 rounded-lg bg-[#161A29]/95 backdrop-blur-xl border border-[#f43f68]/35 shadow-xl pointer-events-none whitespace-nowrap"
                               style={{ marginTop: "-36px" }}
                             >
-                              <span className="text-xs font-semibold text-slate-900 dark:text-[#F2F4F8]">
+                              <span className="text-xs font-semibold text-white">
                                 {item.label}
                               </span>
                             </motion.div>
@@ -559,16 +558,16 @@ const SidebarContent = ({
                           "group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D82D53]",
                           collapsed && "justify-center px-2",
                           isParentActive
-                            ? "text-[#D82D53] dark:text-[#ff6b8b] bg-[#D82D53]/8 dark:bg-[#D82D53]/15 border border-transparent dark:border-[#f43f68]/20"
-                            : "text-slate-700 dark:text-[#B4BCD0] hover:text-slate-900 dark:hover:text-[#F2F4F8] hover:bg-slate-100/70 dark:hover:bg-[#1B2030]",
+                            ? "text-[#ff6b8b] bg-[#D82D53]/15 border border-[#f43f68]/20"
+                            : "text-slate-300 hover:text-white hover:bg-white/5",
                         )}
                       >
                         <Icon
                           className={clsx(
                             "w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-105",
                             isParentActive
-                              ? "text-[#D82D53] dark:text-[#ff6b8b]"
-                              : "text-slate-500 dark:text-[#7E869A] group-hover:text-[#D82D53] dark:group-hover:text-[#ff6b8b]",
+                              ? "text-[#ff6b8b]"
+                              : "text-slate-400 group-hover:text-[#ff6b8b]",
                           )}
                           aria-hidden="true"
                         />
@@ -579,12 +578,12 @@ const SidebarContent = ({
                               {item.label}
                             </span>
                             {isParentActive && !isOpen && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#D82D53] dark:bg-[#ff6b8b]" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ff6b8b]" />
                             )}
                             <motion.span
                               animate={{ rotate: isOpen ? 180 : 0 }}
                               transition={{ duration: 0.2 }}
-                              className="text-slate-400 dark:text-[#7E869A] group-hover:text-slate-600 dark:group-hover:text-[#F2F4F8]"
+                              className="text-slate-400 group-hover:text-white"
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
                             </motion.span>
@@ -592,7 +591,7 @@ const SidebarContent = ({
                         )}
 
                         {collapsed && isParentActive && (
-                          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D82D53] dark:bg-[#ff6b8b]" />
+                          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#ff6b8b]" />
                         )}
                       </button>
 
@@ -606,7 +605,7 @@ const SidebarContent = ({
                             exit="hidden"
                             className="overflow-hidden"
                           >
-                            <div className="relative mt-1 ml-4.5 pl-3 border-l border-slate-200/80 dark:border-[#262C3F] space-y-1 py-0.5">
+                            <div className="relative mt-1 ml-4.5 pl-3 border-l border-white/10 space-y-1 py-0.5">
                               {item.subItems.map((sub) => {
                                 const SubIcon = sub.icon;
                                 return (
@@ -618,8 +617,8 @@ const SidebarContent = ({
                                       clsx(
                                         "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D82D53]",
                                         isActive
-                                          ? "text-[#D82D53] dark:text-[#ff6b8b] font-semibold"
-                                          : "text-slate-500 dark:text-[#9BA3B5] hover:text-slate-900 dark:hover:text-[#F2F4F8] hover:bg-slate-100/60 dark:hover:bg-[#1B2030]",
+                                          ? "text-[#ff6b8b] font-semibold"
+                                          : "text-slate-400 hover:text-white hover:bg-white/5",
                                       )
                                     }
                                   >
@@ -634,11 +633,11 @@ const SidebarContent = ({
                                                 stiffness: 380,
                                                 damping: 30,
                                               }}
-                                              className="absolute inset-0 rounded-lg bg-[#D82D53]/10 dark:bg-gradient-to-r dark:from-[#D82D53]/25 dark:to-[#f43f68]/5 border border-[#D82D53]/20 dark:border-[#f43f68]/35 -z-10"
+                                              className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#D82D53]/25 to-[#f43f68]/5 border border-[#f43f68]/35 -z-10"
                                             />
                                             <motion.span
                                               layoutId="admin-submenu-tree-indicator"
-                                              className="absolute -left-[13px] top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#D82D53] dark:bg-[#ff6b8b]"
+                                              className="absolute -left-[13px] top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#ff6b8b]"
                                             />
                                           </>
                                         )}
@@ -646,15 +645,15 @@ const SidebarContent = ({
                                           className={clsx(
                                             "w-3.5 h-3.5 shrink-0 transition-colors",
                                             isActive
-                                              ? "text-[#D82D53] dark:text-[#ff6b8b]"
-                                              : "text-slate-400 dark:text-[#7E869A] group-hover:text-[#D82D53] dark:group-hover:text-[#ff6b8b]",
+                                              ? "text-[#ff6b8b]"
+                                              : "text-slate-400 group-hover:text-[#ff6b8b]",
                                           )}
                                         />
                                         <span className="truncate flex-1">
                                           {sub.label}
                                         </span>
                                         {sub.badge && (
-                                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-[#D82D53]/10 dark:bg-[#f43f68]/20 text-[#D82D53] dark:text-[#ff85a1] border border-[#D82D53]/20 dark:border-[#f43f68]/35">
+                                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-[#f43f68]/20 text-[#ff85a1] border border-[#f43f68]/35">
                                             {sub.badge}
                                           </span>
                                         )}
@@ -679,10 +678,10 @@ const SidebarContent = ({
                             className="fixed left-16 pl-2 z-50"
                             style={{ marginTop: "-40px" }}
                           >
-                            <div className="w-52 rounded-xl bg-white/95 dark:bg-[#151928]/95 backdrop-blur-2xl backdrop-saturate-150 border border-[#D82D53]/25 dark:border-[#f43f68]/35 p-2 shadow-2xl">
-                              <div className="px-2.5 py-1.5 mb-1 border-b border-slate-200/60 dark:border-[#262C3F] flex items-center gap-2">
-                                <Icon className="w-3.5 h-3.5 text-[#D82D53] dark:text-[#ff6b8b]" />
-                                <span className="text-xs font-bold text-slate-900 dark:text-[#F2F4F8]">
+                            <div className="w-52 rounded-xl bg-[#151928]/98 backdrop-blur-2xl backdrop-saturate-150 border border-[#f43f68]/35 p-2 shadow-2xl text-white">
+                              <div className="px-2.5 py-1.5 mb-1 border-b border-white/10 flex items-center gap-2">
+                                <Icon className="w-3.5 h-3.5 text-[#ff6b8b]" />
+                                <span className="text-xs font-bold text-white">
                                   {item.label}
                                 </span>
                               </div>
@@ -701,8 +700,8 @@ const SidebarContent = ({
                                         clsx(
                                           "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
                                           isActive
-                                            ? "bg-[#D82D53]/12 dark:bg-[#D82D53]/25 text-[#D82D53] dark:text-[#ff6b8b] font-semibold"
-                                            : "text-slate-600 dark:text-[#B4BCD0] hover:bg-[#D82D53]/8 dark:hover:bg-[#1E2438] hover:text-[#D82D53] dark:hover:text-[#ff6b8b]",
+                                            ? "bg-[#D82D53]/25 text-[#ff6b8b] font-semibold"
+                                            : "text-slate-300 hover:bg-white/5 hover:text-[#ff6b8b]",
                                         )
                                       }
                                     >
@@ -711,7 +710,7 @@ const SidebarContent = ({
                                         {sub.label}
                                       </span>
                                       {sub.badge && (
-                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[#D82D53]/10 dark:bg-[#f43f68]/20 text-[#D82D53] dark:text-[#ff85a1]">
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[#f43f68]/20 text-[#ff85a1]">
                                           {sub.badge}
                                         </span>
                                       )}
@@ -733,16 +732,16 @@ const SidebarContent = ({
       </nav>
 
       {/* ── Bottom Utility Footer ── */}
-      <div className="p-2.5 border-t border-slate-200/70 dark:border-[#232838] space-y-2 shrink-0">
+      <div className="p-2.5 border-t border-white/10 space-y-2 shrink-0">
         <Link
           to="/"
           title={collapsed ? "View Live Storefront" : undefined}
           className={clsx(
-            "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 dark:text-[#B4BCD0] hover:text-[#D82D53] dark:hover:text-[#ff6b8b] bg-slate-100/70 dark:bg-[#181C2B] hover:bg-[#D82D53]/10 dark:hover:bg-[#D82D53]/20 border border-slate-200/70 dark:border-[#282E42] hover:border-[#D82D53]/30 dark:hover:border-[#f43f68]/40 transition-all",
+            "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:text-[#ff6b8b] bg-white/5 hover:bg-[#D82D53]/20 border border-white/10 hover:border-[#f43f68]/40 transition-all",
             collapsed && "justify-center px-2",
           )}
         >
-          <ExternalLink className="w-3.5 h-3.5 shrink-0 text-[#D82D53] dark:text-[#ff6b8b]" />
+          <ExternalLink className="w-3.5 h-3.5 shrink-0 text-[#ff6b8b]" />
           {!collapsed && (
             <span className="truncate flex-1">Live Storefront</span>
           )}
@@ -751,7 +750,7 @@ const SidebarContent = ({
         {user && (
           <div
             className={clsx(
-              "flex items-center gap-2.5 rounded-xl p-2 bg-gradient-to-r from-[#D82D53]/8 via-transparent to-transparent dark:from-[#D82D53]/20 dark:via-[#161A28] dark:to-[#121521] border border-[#D82D53]/15 dark:border-[#f43f68]/30",
+              "flex items-center gap-2.5 rounded-xl p-2 bg-gradient-to-r from-[#D82D53]/20 via-[#161A28] to-[#121521] border border-[#f43f68]/30",
               collapsed && "justify-center p-1.5",
             )}
           >
@@ -760,10 +759,10 @@ const SidebarContent = ({
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-900 dark:text-[#F2F4F8] truncate leading-tight">
+                <p className="text-xs font-semibold text-white truncate leading-tight">
                   {user.name}
                 </p>
-                <p className="text-[10px] font-medium text-[#D82D53] dark:text-[#ff6b8b] uppercase tracking-wider truncate">
+                <p className="text-[10px] font-medium text-[#ff6b8b] uppercase tracking-wider truncate">
                   {user.role || "Admin"}
                 </p>
               </div>
@@ -803,15 +802,15 @@ export const AdminSidebar = () => {
             ? { duration: 0 }
             : { type: "spring", stiffness: 340, damping: 32 }
         }
-        className="hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-slate-200/80 dark:border-[#232838] z-30 relative"
+        className="hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-white/10 bg-[#0f111a] text-slate-200 z-30 relative"
       >
-        {/* Layered Glass + Subtle Dark Crimson Ambient Glow */}
+        {/* Layered Dark Surface + Subtle Dark Crimson Ambient Glow */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-white/80 dark:bg-black/90 backdrop-blur-2xl backdrop-saturate-150 overflow-hidden"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[#0f111a] overflow-hidden"
         >
-          <div className="hidden dark:block absolute -top-24 -left-24 w-64 h-64 rounded-full bg-[#D82D53]/12 blur-3xl" />
-          <div className="hidden dark:block absolute bottom-0 right-0 w-48 h-48 rounded-full bg-[#f43f68]/8 blur-3xl" />
+          <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-[#D82D53]/10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-48 h-48 rounded-full bg-[#f43f68]/5 blur-3xl" />
         </div>
 
         <div className="flex-1 min-h-0">
@@ -826,8 +825,8 @@ export const AdminSidebar = () => {
               collapsed ? "Expand admin sidebar" : "Collapse admin sidebar"
             }
             aria-expanded={!collapsed}
-            title="Toggle Sidebar (⌘B)"
-            className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200/80 dark:border-[#282E42] bg-white/60 dark:bg-[#181C2B] hover:bg-[#D82D53]/10 dark:hover:bg-[#D82D53]/20 hover:border-[#D82D53]/30 dark:hover:border-[#f43f68]/40 p-2 text-slate-600 dark:text-[#B4BCD0] hover:text-[#D82D53] dark:hover:text-[#ff6b8b] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D82D53]"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-[#D82D53]/20 hover:border-[#f43f68]/40 p-2 text-slate-300 hover:text-[#ff6b8b] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D82D53]"
           >
             {collapsed ? (
               <ChevronRight className="w-4 h-4" />
@@ -837,9 +836,6 @@ export const AdminSidebar = () => {
                 <span className="text-xs font-semibold flex-1 text-left">
                   Collapse
                 </span>
-                <kbd className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-[#7E869A] bg-slate-100 dark:bg-[#111420] border border-slate-200/80 dark:border-[#262C3F] rounded">
-                  ⌘B
-                </kbd>
               </>
             )}
           </button>
@@ -879,14 +875,14 @@ export const AdminSidebar = () => {
                   animate={{ x: 0 }}
                   exit={{ x: "-100%" }}
                   transition={{ type: "spring", stiffness: 340, damping: 32 }}
-                  className="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,18.5rem)] flex-col border-r border-[#D82D53]/20 dark:border-[#f43f68]/30 bg-white/95 dark:bg-[#10131E]/95 backdrop-blur-2xl backdrop-saturate-150 shadow-2xl md:hidden"
+                  className="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,18.5rem)] flex-col border-r border-white/10 bg-[#0f111a] text-slate-200 shadow-2xl md:hidden"
                 >
                   <DialogPrimitive.Title className="sr-only">
                     Admin navigation
                   </DialogPrimitive.Title>
                   <DialogPrimitive.Close
                     aria-label="Close admin menu"
-                    className="absolute right-3 top-3.5 z-10 rounded-lg p-1.5 text-slate-500 dark:text-[#9BA3B5] hover:text-[#D82D53] dark:hover:text-[#ff6b8b] hover:bg-[#D82D53]/10 dark:hover:bg-[#D82D53]/20 focus-visible:ring-2 focus-visible:ring-[#D82D53] transition-colors"
+                    className="absolute right-3 top-3.5 z-10 rounded-lg p-1.5 text-slate-400 hover:text-[#ff6b8b] hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#D82D53] transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </DialogPrimitive.Close>

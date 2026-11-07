@@ -251,6 +251,16 @@ export const Navbar = () => {
     );
   };
 
+  const handleCartClick = () => {
+    if (user) {
+      setCartOpen(true);
+    } else {
+      navigate(
+        `/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+      );
+    }
+  };
+
   return (
     <>
       {/* ── ROW 1: Glassmorphic Top Header (Sticky on Mobile/Tablet, Scrolls away on Desktop) ── */}
@@ -490,12 +500,12 @@ export const Navbar = () => {
               {/* Cart */}
               <motion.button
                 id="cart-toggle-btn"
-                onClick={() => setCartOpen(true)}
+                onClick={handleCartClick}
                 whileHover={reduceMotion ? undefined : { scale: 1.06, y: -1 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.94 }}
                 className="relative h-9.5 w-9.5 rounded-xl flex items-center justify-center text-foreground/85 hover:text-primary hover:bg-accent border border-transparent hover:border-primary/20 transition-all duration-200"
-                aria-label="Open cart"
-                title="Shopping Cart"
+                aria-label={user ? "Open cart" : "Sign in to view cart"}
+                title={user ? "Shopping Cart" : "Sign In to View Cart"}
               >
                 <ShoppingCart className="w-[19px] h-[19px] text-current" />
                 <AnimatePresence mode="popLayout">

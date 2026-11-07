@@ -1,16 +1,27 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, ShoppingBag, Plus, Minus, ArrowRight } from "lucide-react";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cartDrawerOpenAtom } from "../../store/cartAtom";
+import { userAtom } from "../../store/userAtom";
 import { useCart } from "../../hooks/useCart";
 import { getProductThumbnailUrl } from "../../lib/image";
 
 export const CartDrawer = () => {
   const [open, setOpen] = useAtom(cartDrawerOpenAtom);
+  const user = useAtomValue(userAtom);
   const { cartItems, itemCount, subtotal, removeFromCart, updateQuantity } =
     useCart();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (open && !user) {
+      setOpen(false);
+    }
+  }, [open, user, setOpen]);
+
+  if (!user) return null;
 
   const formatPrice = (p: number) =>
     new Intl.NumberFormat("en-IN", {

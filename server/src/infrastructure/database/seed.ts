@@ -416,6 +416,119 @@ async function seed() {
     djiRonin: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800',
   };
 
+  const CATEGORY_ANGLES: Record<string, string[]> = {
+    'full-frame-mirrorless-cameras-sony': [
+      'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800',
+      'https://images.unsplash.com/photo-1500634245200-e5245c7574ef?w=800',
+      'https://images.unsplash.com/photo-1649496602809-f1399721920d?w=800',
+      'https://images.unsplash.com/photo-1547043884-975a4f9ea025?w=800',
+    ],
+    'full-frame-mirrorless-cameras-canon': [
+      'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800',
+      'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?w=800',
+      'https://images.unsplash.com/photo-1558185348-c1e6420f12d2?w=800',
+      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800',
+    ],
+    'aps-c-mirrorless-cameras': [
+      'https://images.unsplash.com/photo-1516724562728-afc824a36e84?w=800',
+      'https://images.unsplash.com/photo-1500634245200-e5245c7574ef?w=800',
+      'https://images.unsplash.com/photo-1649496602809-f1399721920d?w=800',
+      'https://images.unsplash.com/photo-1527935168229-c1cc0bdfa662?w=800',
+    ],
+    'cinema-broadcast-cameras': [
+      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800',
+      'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800',
+      'https://images.unsplash.com/photo-1589872765891-36e4b4e41a73?w=800',
+      'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800',
+    ],
+    'dslr-cameras': [
+      'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?w=800',
+      'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800',
+      'https://images.unsplash.com/photo-1558185348-c1e6420f12d2?w=800',
+      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800',
+    ],
+    'compact-vlog-cameras': [
+      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800',
+      'https://images.unsplash.com/photo-1500634245200-e5245c7574ef?w=800',
+      'https://images.unsplash.com/photo-1649496602809-f1399721920d?w=800',
+      'https://images.unsplash.com/photo-1516724562728-afc824a36e84?w=800',
+    ],
+    lenses: [
+      'https://images.unsplash.com/photo-1617005082133-548c4dd27f35?w=800',
+      'https://images.unsplash.com/photo-1453728013993-6d66e9c9123a?w=800',
+      'https://images.unsplash.com/photo-1682056598872-8c1804ae4bd7?w=800',
+      'https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?w=800',
+    ],
+    'batteries-chargers-grips': [
+      'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800',
+      'https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=800',
+      'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=800',
+      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=800',
+    ],
+    'camera-microphones': [
+      'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=800',
+      'https://images.unsplash.com/photo-1520523839898-50712411e84e?w=800',
+      'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800',
+      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800',
+    ],
+    'memory-cards-readers': [
+      'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800',
+      'https://images.unsplash.com/photo-1628191010210-a59de33e5941?w=800',
+      'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=800',
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800',
+    ],
+    'photo-printers-consumables': [
+      'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=800',
+      'https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=800',
+      'https://images.unsplash.com/photo-1588702547923-7093a6c3ba33?w=800',
+      'https://images.unsplash.com/photo-1563770660941-20978e870e26?w=800',
+    ],
+    'dji-pocket-series': [
+      'https://cdn.shopify.com/s/files/1/0708/1069/7961/files/OsmoPocket4P.png?v=1789885911',
+      'https://cdn.shopify.com/s/files/1/0708/1069/7961/files/OsmoPocket4P_PearlWhite.png?v=1789885942',
+      'https://cdn.shopify.com/s/files/1/0708/1069/7961/files/71HOu8NPblL._SX679.avif?v=1789544138',
+      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800',
+    ],
+    'dji-om-series': [
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800',
+      'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=800',
+      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=800',
+      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800',
+    ],
+    'dji-action-series': [
+      'https://images.unsplash.com/photo-1508614589041-895b88991e3e?w=800',
+      'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800',
+      'https://images.unsplash.com/photo-1500634245200-e5245c7574ef?w=800',
+      'https://images.unsplash.com/photo-1527935168229-c1cc0bdfa662?w=800',
+    ],
+    'dji-ronin-stabilizers': [
+      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800',
+      'https://images.unsplash.com/photo-1589872765891-36e4b4e41a73?w=800',
+      'https://images.unsplash.com/photo-1543238825-261809be9621?w=800',
+      'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800',
+    ],
+  };
+
+  const getFourImages = (categorySlug: string, brand: string, primaryImage: string): string[] => {
+    let key = categorySlug;
+    if (categorySlug === 'full-frame-mirrorless-cameras') {
+      key = brand === 'Canon' ? 'full-frame-mirrorless-cameras-canon' : 'full-frame-mirrorless-cameras-sony';
+    } else if (categorySlug.includes('lens') || categorySlug.includes('converters')) {
+      key = 'lenses';
+    }
+    const pool = CATEGORY_ANGLES[key] || CATEGORY_ANGLES['full-frame-mirrorless-cameras-sony'];
+    const result = [primaryImage];
+    for (const img of pool) {
+      if (result.length >= 4) break;
+      if (!result.includes(img)) result.push(img);
+    }
+    for (const img of CATEGORY_ANGLES.lenses) {
+      if (result.length >= 4) break;
+      if (!result.includes(img)) result.push(img);
+    }
+    return result.slice(0, 4);
+  };
+
   let barcodeSeq = 890202600001;
   const nextBarcode = () => String(barcodeSeq++);
 
@@ -427,6 +540,7 @@ async function seed() {
     brand: 'Sony' | 'Canon' | 'DJI';
     categorySlug: string;
     image: string;
+    images?: string[];
     description: string;
     attrs?: Record<string, string>;
     tags?: string[];
@@ -445,7 +559,7 @@ async function seed() {
     salePrice: opts.salePrice ?? null,
     stock: opts.stock ?? 15,
     lowStockThreshold: 3,
-    images: [opts.image],
+    images: opts.images && opts.images.length >= 4 ? opts.images.slice(0, 4) : getFourImages(opts.categorySlug, opts.brand, opts.image),
     tags: opts.tags ?? [opts.brand.toLowerCase(), opts.categorySlug, opts.sku.toLowerCase()],
     attributes: toAttrs({ Brand: opts.brand, SKU: opts.sku, ...(opts.attrs ?? {}) }),
     brand: opts.brand,

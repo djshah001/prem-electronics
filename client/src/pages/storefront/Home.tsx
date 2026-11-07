@@ -39,8 +39,8 @@ const FEATURES: FeatureItem[] = [
   },
   {
     icon: Truck,
-    title: "Free Delivery",
-    desc: "Free shipping on orders above ₹999",
+    title: "PAN India Delivery",
+    desc: "Fast, reliable shipping to all serviceable pin codes across India",
   },
   {
     icon: Headphones,
