@@ -40,7 +40,7 @@ axiosClient.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     const status = error.response?.status;
     const url = String(config?.url ?? '');
-    const isAuthAction = ['/auth/otp/', '/auth/admin/otp/', '/auth/onboarding', '/auth/refresh', '/auth/logout']
+    const isAuthAction = ['/auth/me', '/auth/otp/', '/auth/admin/otp/', '/auth/onboarding', '/auth/refresh', '/auth/logout']
       .some((path) => url.includes(path));
 
     if (status === 401 && config && !config._retry && !isAuthAction && !isLogoutInProgress()) {
@@ -50,8 +50,10 @@ axiosClient.interceptors.response.use(
         return axiosClient(config);
       } catch {
         clearLocalAuthState();
-        const publicPaths = ['/login', '/admin/login'];
-        if (!publicPaths.some((path) => window.location.pathname.startsWith(path))) {
+        const isProtectedRoute = ['/account', '/checkout', '/wishlist', '/admin'].some(
+          (path) => window.location.pathname.startsWith(path)
+        );
+        if (isProtectedRoute) {
           window.location.replace('/login?reason=expired');
         }
       }
