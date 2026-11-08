@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs/promises';
+import syncFs from 'fs';
 import sharp from 'sharp';
 import { env } from './config/env.js';
 import { errorHandler } from './core/middlewares/errorHandler.js';
@@ -147,6 +148,24 @@ app.use('/api/v1/navbar', navbarMasterRoutes);
 app.get('/favicon.jpg', (_req, res) => {
   res.status(204).end();
 });
+
+// ─── Serve Built Frontend in Production (SPA Fallback) ────────────────────────
+const candidateDistPaths = [
+  path.resolve(process.cwd(), '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve(import.meta.dirname, '../../client/dist'),
+];
+const clientDistPath = candidateDistPaths.find((p) => syncFs.existsSync(p));
+
+if (clientDistPath) {
+  app.use(express.static(clientDistPath, { maxAge: '1d' }));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, _res, next) => {
