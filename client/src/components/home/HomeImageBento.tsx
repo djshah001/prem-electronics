@@ -83,7 +83,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
     ],
     href: "/shop?search=360%20camera",
     position: "object-center",
-    layout: "md:col-span-2 lg:col-span-8 lg:row-span-1",
+    layout: "col-span-1 sm:col-span-2 lg:col-span-8 lg:row-span-1",
     isHero: true,
   },
   {
@@ -99,7 +99,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
     specs: ["4K/60fps HDR", "34-min Flight"],
     href: "/shop?search=drone",
     position: "object-center",
-    layout: "md:col-span-1 lg:col-span-4 lg:row-span-1",
+    layout: "col-span-1 sm:col-span-1 lg:col-span-4 lg:row-span-1",
   },
   {
     id: "wireless-audio",
@@ -114,7 +114,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
     specs: ["32-bit Float", "250m Range"],
     href: "/shop?search=wireless%20microphone",
     position: "object-center",
-    layout: "md:col-span-1 lg:col-span-4 lg:row-span-1",
+    layout: "col-span-1 sm:col-span-1 lg:col-span-4 lg:row-span-1",
   },
   {
     id: "mobile-gimbal",
@@ -129,7 +129,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
     specs: ["ActiveTrack 6.0", "Built-in Extension"],
     href: "/shop?search=gimbal",
     position: "object-center",
-    layout: "md:col-span-1 lg:col-span-4 lg:row-span-1",
+    layout: "col-span-1 sm:col-span-1 lg:col-span-4 lg:row-span-1",
   },
   {
     id: "camera-drones",
@@ -144,7 +144,7 @@ const SHOWCASE_IMAGES: BentoItem[] = [
     specs: ["Triple-Lens Array", "46-min Flight"],
     href: "/shop?search=camera%20drone",
     position: "object-[center_62%]",
-    layout: "md:col-span-2 lg:col-span-4 lg:row-span-1",
+    layout: "col-span-1 sm:col-span-2 lg:col-span-4 lg:row-span-1",
   },
 ];
 
@@ -210,7 +210,11 @@ function BentoCard({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "group relative flex h-full min-h-[300px] w-full flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-zinc-950 transition-colors duration-500 hover:border-white/25 lg:min-h-0",
+        "group relative flex w-full flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-zinc-950 transition-colors duration-500 hover:border-white/25",
+        item.isHero
+          ? "min-h-[340px] sm:min-h-[380px] lg:min-h-0"
+          : "min-h-[280px] sm:min-h-[320px] lg:min-h-0",
+        "h-full",
         item.layout,
       )}
     >
@@ -292,13 +296,18 @@ function BentoCard({
 
             {/* Prominent Action Button */}
             {item.isHero ? (
-              <div className="hidden sm:inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 group-hover:border-primary group-hover:bg-primary group-hover:shadow-[0_0_25px_rgba(216,45,83,0.5)]">
-                <span>Explore Gear</span>
-                <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </div>
+              <>
+                <div className="hidden sm:inline-flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 group-hover:border-primary group-hover:bg-primary group-hover:shadow-[0_0_25px_rgba(216,45,83,0.5)]">
+                  <span>Explore Gear</span>
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+                <div className="flex sm:hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition-all duration-300 group-hover:border-primary group-hover:bg-primary">
+                  <ArrowUpRight className="h-4 w-4" />
+                </div>
+              </>
             ) : (
-              <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition-all duration-300 group-hover:scale-105 group-hover:border-primary group-hover:bg-primary group-hover:shadow-[0_0_25px_rgba(216,45,83,0.5)]">
-                <ArrowUpRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <div className="flex h-11 w-11 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition-all duration-300 group-hover:scale-105 group-hover:border-primary group-hover:bg-primary group-hover:shadow-[0_0_25px_rgba(216,45,83,0.5)]">
+                <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </div>
             )}
           </div>
@@ -327,7 +336,7 @@ export function HomeImageBento() {
 
   return (
     <section
-      className="relative flex h-screen max-h-screen w-full flex-col justify-between overflow-hidden bg-background p-2.5 sm:p-4 lg:p-5"
+      className="relative flex w-full flex-col justify-between overflow-hidden bg-background py-8 px-3 sm:py-14 sm:px-6 lg:h-screen lg:max-h-[960px] lg:min-h-[720px] lg:p-6"
       aria-labelledby="image-bento-heading"
     >
       {/* Immersive Background Glows */}
@@ -335,7 +344,7 @@ export function HomeImageBento() {
       <div className="pointer-events-none absolute bottom-1/4 right-1/4 h-[450px] w-[600px] rounded-full bg-primary/5 blur-[150px]" />
 
       {/* Main Full-Bleed Flex Wrapper */}
-      <div className="flex h-full w-full flex-1 flex-col justify-between gap-3 min-h-0">
+      <div className="flex w-full flex-1 flex-col justify-between gap-3.5 min-h-0 lg:h-full">
         {/* Low-Profile Header to Maximize Card Real Estate */}
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: -10 }}
@@ -344,9 +353,9 @@ export function HomeImageBento() {
           transition={
             reduceMotion ? { duration: 0 } : { duration: 0.4, ease: "easeOut" }
           }
-          className="flex shrink-0 items-center justify-between gap-4 px-2 py-1"
+          className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-1 py-1 sm:px-2"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5" />
               <span>Creator Ecosystem</span>
@@ -365,7 +374,7 @@ export function HomeImageBento() {
 
           <Link
             to="/shop"
-            className="group hidden items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground transition-colors duration-300 hover:text-foreground sm:inline-flex"
+            className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground transition-colors duration-300 hover:text-foreground"
           >
             <span>Browse Full Catalog</span>
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -390,7 +399,7 @@ export function HomeImageBento() {
           initial={reduceMotion ? false : "hidden"}
           whileInView={reduceMotion ? undefined : "visible"}
           viewport={{ once: true }}
-          className="grid flex-1 min-h-0 w-full grid-cols-1 gap-2.5 sm:gap-3.5 lg:grid-cols-12 lg:grid-rows-1"
+          className="grid w-full flex-1 min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-12 lg:grid-rows-2 lg:gap-3.5"
         >
           {SHOWCASE_IMAGES.map((item) => (
             <BentoCard key={item.id} item={item} reduceMotion={reduceMotion} />
