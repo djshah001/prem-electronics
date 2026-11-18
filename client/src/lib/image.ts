@@ -27,11 +27,11 @@ export const IMAGE_SPECS = {
     aspectRatio: '1:1 (Square)',
     recommendedDimensions: '1000 × 1000 px',
     minDimensions: '500 × 500 px',
-    maxDimensions: '2500 × 2500 px',
+    maxDimensions: '1000 × 1000 px',
     formats: 'JPG, PNG, WebP',
     maxFileSize: '15 MB',
     thumbnail: 'Auto-generated 400 × 400 px WebP',
-    guidance: 'Square 1:1 image with clean or solid background. Sharp compresses to high-fidelity WebP without visual loss and auto-generates 400 × 400 px thumbnails.',
+    guidance: 'Automatically adjusted to 1:1 square ratio (min 500 × 500 px, max 1000 × 1000 px). Fills the square frame centered without adding colored borders or shrinking the product.',
   },
   bannerDesktop: {
     label: 'Desktop Banner Artwork',

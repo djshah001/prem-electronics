@@ -92,8 +92,8 @@ app.use(
           await fs.access(candidatePath);
           const thumbBuffer = await sharp(candidatePath, { limitInputPixels: 45_000_000 })
             .rotate()
-            .resize({ width: 400, height: 400, fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: 85, effort: 4, smartSubsample: true })
+            .resize({ width: 400, height: 400, fit: 'cover', position: 'centre' })
+            .webp({ quality: 85, effort: 4, smartSubsample: true, alphaQuality: 90 })
             .toBuffer();
 
           await fs.writeFile(requestedThumbPath, thumbBuffer).catch(() => undefined);

@@ -61,9 +61,10 @@ export default function CategoryManager() {
     if (!file) return;
     setUploading(true);
     const formData = new FormData();
+    formData.append('type', 'category');
     formData.append('images', file);
     try {
-      const res = await api.postForm<{ urls: string[] }>('/upload', formData);
+      const res = await api.postForm<{ urls: string[] }>('/upload?type=category', formData);
       const url = res.data?.urls?.[0];
       if (url) {
         setForm((f) => ({ ...f, bannerImage: url }));
