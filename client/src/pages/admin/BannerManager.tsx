@@ -7,9 +7,9 @@ import { BannerForm, type BannerMutationPayload } from '../../components/banner/
 import { DataTable } from '../../components/ui/DataTable';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { heroBannerQueryKey } from '../../hooks/useHeroBanners';
+import { showErrorToast, formatErrorMessage } from '../../lib/apiErrors';
 import type { AdminBanner, AdminHeroSettings } from '../../types/banner';
 
-const messageOf = (error: any) => error?.message ?? error?.errors?.formErrors?.[0] ?? 'The banner operation failed.';
 const badge: Record<AdminBanner['visibility'], string> = {
   visible: 'bg-emerald-500/10 text-emerald-600', scheduled: 'bg-blue-500/10 text-blue-600', inactive: 'bg-zinc-500/10 text-zinc-500',
   expired: 'bg-amber-500/10 text-amber-600', archived: 'bg-red-500/10 text-red-500',
@@ -40,23 +40,27 @@ export default function BannerManager() {
     mutationFn: (payload: BannerMutationPayload) => editing
       ? api.patch<AdminBanner>(`/admin/banners/${editing.id}`, payload)
       : api.post<AdminBanner>('/admin/banners', payload),
-    onSuccess: async () => { toast.success(editing ? 'Banner saved.' : 'Banner created.'); setEditing(undefined); await refresh(); },
-    onError: (error) => toast.error(messageOf(error)),
+    onSuccess: async () => {
+      toast.success(editing ? 'Banner saved.' : 'Banner created.');
+      setEditing(undefined);
+      await refresh();
+    },
+    onError: (error) => showErrorToast(error, editing ? 'Failed to save banner.' : 'Failed to create banner.'),
   });
   const toggle = useMutation({
     mutationFn: (banner: AdminBanner) => api.patch<AdminBanner>(`/admin/banners/${banner.id}`, { expectedVersion: banner.version, isActive: !banner.isActive }),
     onSuccess: async (result) => { toast.success(result.data.isActive ? 'Banner activated.' : 'Banner deactivated.'); await refresh(); },
-    onError: (error) => toast.error(messageOf(error)),
+    onError: (error) => showErrorToast(error, 'Failed to update banner visibility.'),
   });
   const archive = useMutation({
     mutationFn: (banner: AdminBanner) => api.delete(`/admin/banners/${banner.id}?expectedVersion=${banner.version}`),
     onSuccess: async () => { toast.success('Banner archived and removed from storefront eligibility.'); await refresh(); },
-    onError: (error) => toast.error(messageOf(error)),
+    onError: (error) => showErrorToast(error, 'Failed to archive banner.'),
   });
   const reorder = useMutation({
     mutationFn: () => api.patch<AdminBanner[]>('/admin/banners/reorder', { placement: 'home_hero', items: order.map((banner) => ({ id: banner.id, expectedVersion: banner.version })) }),
     onSuccess: async () => { toast.success('Banner order saved.'); await refresh(); setShowOrdering(false); },
-    onError: async (error) => { toast.error(messageOf(error)); await orderQuery.refetch(); },
+    onError: async (error) => { showErrorToast(error, 'Failed to save banner order.'); await orderQuery.refetch(); },
   });
 
   const rows = list.data?.data ?? [];
@@ -78,15 +82,15 @@ export default function BannerManager() {
     </section>}
 
     <HeroSettingsPanel settings={settingsQuery.data?.data} loading={settingsQuery.isPending} onSaved={refresh} />
-    <DataTable columns={columns} data={rows} isLoading={list.isPending} isFetching={list.isFetching} error={list.isError ? messageOf(list.error) : undefined} onRetry={() => void list.refetch()} emptyMessage="No banners match these filters." search={search} onSearchChange={setSearch} searchPlaceholder="Search internal banner name…" filters={[{ key: 'visibility', label: 'All visibility states', value: visibility === 'all' ? '' : visibility, onChange: (value) => { setVisibility(value || 'all'); setPage(1); }, options: ['visible','scheduled','inactive','expired','archived'].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) })) }]} page={page} totalPages={meta?.totalPages ?? 0} onPageChange={setPage} pageSize={limit} onPageSizeChange={(value) => { setLimit(value); setPage(1); }} />
+    <DataTable columns={columns} data={rows} isLoading={list.isPending} isFetching={list.isFetching} error={list.isError ? formatErrorMessage(list.error, 'Could not load banners.') : undefined} onRetry={() => void list.refetch()} emptyMessage="No banners match these filters." search={search} onSearchChange={setSearch} searchPlaceholder="Search internal banner name…" filters={[{ key: 'visibility', label: 'All visibility states', value: visibility === 'all' ? '' : visibility, onChange: (value) => { setVisibility(value || 'all'); setPage(1); }, options: ['visible','scheduled','inactive','expired','archived'].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) })) }]} page={page} totalPages={meta?.totalPages ?? 0} onPageChange={setPage} pageSize={limit} onPageSizeChange={(value) => { setLimit(value); setPage(1); }} />
 
-    <Dialog open={editing !== undefined} onOpenChange={(open) => { if (!open && window.confirm('Close the banner editor? Unsaved form changes will be discarded.')) setEditing(undefined); }}><DialogContent className="max-h-[94vh] max-w-6xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? `Edit ${editing.internalName}` : 'Add home hero banner'}</DialogTitle><DialogDescription>Upload assets first, preview the exact slide, then save. Uploading alone does not change the storefront.</DialogDescription></DialogHeader>{editing !== undefined && <BannerForm key={editing?.id ?? 'new'} banner={editing} saving={save.isPending} onSave={(payload) => save.mutate(payload)} onCancel={() => setEditing(undefined)} />}</DialogContent></Dialog>
+    <Dialog open={editing !== undefined} onOpenChange={(open) => { if (!open && window.confirm('Close the banner editor? Unsaved form changes will be discarded.')) { save.reset(); setEditing(undefined); } }}><DialogContent className="max-h-[94vh] max-w-6xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? `Edit ${editing.internalName}` : 'Add home hero banner'}</DialogTitle><DialogDescription>Upload assets first, preview the exact slide, then save. Uploading alone does not change the storefront.</DialogDescription></DialogHeader>{editing !== undefined && <BannerForm key={editing?.id ?? 'new'} banner={editing} saving={save.isPending} error={save.error} onSave={(payload) => save.mutate(payload)} onCancel={() => { save.reset(); setEditing(undefined); }} />}</DialogContent></Dialog>
   </div>;
 }
 
 function HeroSettingsPanel({ settings, loading, onSaved }: { settings?: AdminHeroSettings; loading: boolean; onSaved: () => Promise<void> }) {
   const [form, setForm] = useState({ autoplayEnabled: true, autoplayIntervalMs: 6000, showNavigation: true, showIndicators: true });
   useEffect(() => { if (settings) setForm({ autoplayEnabled: settings.autoplayEnabled, autoplayIntervalMs: settings.autoplayIntervalMs, showNavigation: settings.showNavigation, showIndicators: settings.showIndicators }); }, [settings]);
-  const mutation = useMutation({ mutationFn: () => api.patch('/admin/banners/settings/home_hero', { ...form, expectedVersion: settings!.version }), onSuccess: async () => { toast.success('Hero settings saved.'); await onSaved(); }, onError: (error) => toast.error(messageOf(error)) });
+  const mutation = useMutation({ mutationFn: () => api.patch('/admin/banners/settings/home_hero', { ...form, expectedVersion: settings!.version }), onSuccess: async () => { toast.success('Hero settings saved.'); await onSaved(); }, onError: (error) => showErrorToast(error, 'Failed to save hero settings.') });
   return <details className="rounded-xl border border-border bg-card p-4"><summary className="flex cursor-pointer list-none items-center gap-2 font-bold"><Settings2 className="h-4 w-4" />Carousel settings</summary>{loading ? <p className="mt-3 text-sm text-muted-foreground">Loading settings…</p> : settings && <div className="mt-4 flex flex-wrap items-end gap-5"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.autoplayEnabled} onChange={(e) => setForm((value) => ({ ...value, autoplayEnabled: e.target.checked }))} />Autoplay</label><label className="text-sm">Interval (3–15 seconds)<input type="number" min={3} max={15} value={form.autoplayIntervalMs / 1000} onChange={(e) => setForm((value) => ({ ...value, autoplayIntervalMs: Number(e.target.value) * 1000 }))} className="ml-2 w-20 rounded-lg border border-border bg-background px-2 py-1.5" /></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.showNavigation} onChange={(e) => setForm((value) => ({ ...value, showNavigation: e.target.checked }))} />Arrows</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.showIndicators} onChange={(e) => setForm((value) => ({ ...value, showIndicators: e.target.checked }))} />Indicators</label><button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate()} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold"><Save className="mr-2 inline h-4 w-4" />Save settings</button></div>}</details>;
 }

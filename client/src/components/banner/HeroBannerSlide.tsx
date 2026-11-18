@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import fallbackImage from "../../assets/hero.png";
 import type { BannerContentPosition, HeroBanner } from "../../types/banner";
 import { cn } from "../../lib/utils";
+import { getBannerFontClass } from "../../lib/bannerFonts";
 
 const positionClasses: Record<BannerContentPosition, string> = {
   top_left: "items-start justify-start",
@@ -180,7 +181,10 @@ function OverlayCopy({
       {banner.headline && (
         <motion.h2
           variants={reduceMotion ? reducedCopyItemVariants : copyItemVariants}
-          className="font-['Outfit'] text-3xl font-black leading-tight sm:text-5xl lg:text-6xl"
+          className={cn(
+            "text-3xl font-black leading-tight sm:text-5xl lg:text-6xl",
+            getBannerFontClass(banner.fontFamily)
+          )}
         >
           {banner.headline}
         </motion.h2>
@@ -254,9 +258,9 @@ export function HeroBannerSlide({
     >
       <motion.div
         className="absolute inset-0"
-        initial={preview || reduceMotion ? false : { opacity: 0.55, scale: 1.045 }}
-        animate={selected ? { opacity: 1, scale: 1 } : { opacity: 0.45, scale: reduceMotion ? 1 : 1.035 }}
-        transition={reduceMotion ? { duration: 0 } : { duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        initial={preview || reduceMotion ? false : { opacity: 0.85, scale: 1.02 }}
+        animate={selected ? { opacity: 1, scale: 1 } : { opacity: 0.85, scale: reduceMotion ? 1 : 1.01 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <BannerImage
           banner={banner}

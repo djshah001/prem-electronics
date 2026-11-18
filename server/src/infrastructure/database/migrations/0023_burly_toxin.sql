@@ -1,0 +1,1 @@
+ALTER TABLE "banners" ADD COLUMN "font_family" varchar(60) DEFAULT 'outfit' NOT NULL;
