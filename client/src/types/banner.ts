@@ -1,5 +1,14 @@
 export type BannerPlacement = 'home_hero';
 export type BannerContentMode = 'artwork' | 'overlay';
+export type BannerFontFamily =
+  | 'outfit'
+  | 'inter'
+  | 'poppins'
+  | 'montserrat'
+  | 'bebas_neue'
+  | 'space_grotesk'
+  | 'playfair'
+  | 'cinzel';
 export type BannerContentPosition =
   | 'top_left' | 'top_center' | 'top_right'
   | 'center_left' | 'center' | 'center_right'
@@ -33,6 +42,7 @@ export interface HeroBanner {
   desktopContentPosition: BannerContentPosition;
   mobileContentPosition: BannerContentPosition;
   textTheme: 'light' | 'dark';
+  fontFamily?: BannerFontFamily;
   overlayStrength: number;
   desktopFocalX: number;
   desktopFocalY: number;

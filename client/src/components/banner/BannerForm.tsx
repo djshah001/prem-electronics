@@ -6,7 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { ImagePlus, Loader2, UploadCloud, X } from "lucide-react";
+import { AlertCircle, ImagePlus, Loader2, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { axiosClient } from "../../api/axiosClient";
 import type {
@@ -14,8 +14,11 @@ import type {
   BannerAsset,
   BannerContentMode,
   BannerContentPosition,
+  BannerFontFamily,
   HeroBanner,
 } from "../../types/banner";
+import { BANNER_FONTS } from "../../lib/bannerFonts";
+import { parseApiError } from "../../lib/apiErrors";
 import { HeroBannerSlide } from "./HeroBannerSlide";
 import { cn } from "../../lib/utils";
 
@@ -39,6 +42,7 @@ export type BannerMutationPayload = {
   desktopContentPosition: BannerContentPosition;
   mobileContentPosition: BannerContentPosition;
   textTheme: "light" | "dark";
+  fontFamily?: BannerFontFamily;
   overlayStrength: number;
   desktopFocalX: number;
   desktopFocalY: number;
@@ -77,6 +81,7 @@ const empty = {
   desktopContentPosition: "center_left" as BannerContentPosition,
   mobileContentPosition: "bottom_left" as BannerContentPosition,
   textTheme: "light" as "light" | "dark",
+  fontFamily: "outfit" as BannerFontFamily,
   overlayStrength: 45,
   desktopFocalX: 50,
   desktopFocalY: 50,
@@ -109,6 +114,7 @@ const fromBanner = (banner?: AdminBanner | null): Draft =>
         desktopContentPosition: banner.desktopContentPosition,
         mobileContentPosition: banner.mobileContentPosition,
         textTheme: banner.textTheme,
+        fontFamily: (banner.fontFamily ?? "outfit") as BannerFontFamily,
         overlayStrength: banner.overlayStrength,
         desktopFocalX: banner.desktopFocalX,
         desktopFocalY: banner.desktopFocalY,
@@ -269,15 +275,22 @@ const Field = ({
   label,
   children,
   className,
+  error,
 }: {
   label: string;
   children: ReactNode;
   className?: string;
+  error?: string;
 }) => (
-  <label className={cn("block text-sm font-medium", className)}>
-    {label}
+  <div className={cn("block text-sm font-medium", className)}>
+    <label className="block mb-1">{label}</label>
     {children}
-  </label>
+    {error && (
+      <p className="mt-1.5 text-xs font-semibold text-destructive animate-in fade-in-50">
+        {error}
+      </p>
+    )}
+  </div>
 );
 const inputClass =
   "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -285,11 +298,13 @@ const inputClass =
 export function BannerForm({
   banner,
   saving,
+  error,
   onSave,
   onCancel,
 }: {
   banner?: AdminBanner | null;
   saving: boolean;
+  error?: unknown;
   onSave: (payload: BannerMutationPayload) => void;
   onCancel: () => void;
 }) {
@@ -299,6 +314,32 @@ export function BannerForm({
     "desktop",
   );
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+
+  const parsedError = useMemo(
+    () => (error ? parseApiError(error) : null),
+    [error],
+  );
+  const [clearedFields, setClearedFields] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setClearedFields({});
+  }, [error]);
+
+  const activeFieldErrors = useMemo(() => {
+    if (!parsedError?.fieldErrors) return {};
+    const active: Record<string, string> = {};
+    for (const [key, msg] of Object.entries(parsedError.fieldErrors)) {
+      if (!clearedFields[key]) active[key] = msg;
+    }
+    return active;
+  }, [parsedError, clearedFields]);
+
+  const clearFieldError = (key: string) => {
+    if (parsedError?.fieldErrors[key] && !clearedFields[key]) {
+      setClearedFields((prev) => ({ ...prev, [key]: true }));
+    }
+  };
+
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (dirty) event.preventDefault();
@@ -306,8 +347,12 @@ export function BannerForm({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
+    clearFieldError(key as string);
     setDraft((current) => ({ ...current, [key]: value }));
+  };
+
   const preview: HeroBanner = {
     id: banner?.id ?? "preview",
     contentMode: draft.contentMode,
@@ -327,16 +372,63 @@ export function BannerForm({
     desktopContentPosition: draft.desktopContentPosition,
     mobileContentPosition: draft.mobileContentPosition,
     textTheme: draft.textTheme,
+    fontFamily: draft.fontFamily,
     overlayStrength: draft.overlayStrength,
     desktopFocalX: draft.desktopFocalX,
     desktopFocalY: draft.desktopFocalY,
     mobileFocalX: draft.mobileFocalX,
     mobileFocalY: draft.mobileFocalY,
   };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!draft.desktopAsset?.id)
-      return toast.error("Upload a desktop banner image first.");
+    if (!draft.desktopAsset?.id) {
+      return toast.error("Validation failed", {
+        description: "Upload a desktop banner image first.",
+      });
+    }
+    if (draft.internalName.trim().length < 2) {
+      return toast.error("Validation failed", {
+        description: "Internal admin name must be at least 2 characters.",
+      });
+    }
+    if (
+      draft.contentMode === "artwork" &&
+      draft.desktopAltText.trim().length < 3
+    ) {
+      return toast.error("Validation failed", {
+        description:
+          "Artwork banners need a meaningful image description (at least 3 characters).",
+      });
+    }
+    if (
+      draft.contentMode === "artwork" &&
+      draft.bannerLinkUrl.trim() &&
+      draft.accessibleLinkLabel.trim().length < 3
+    ) {
+      return toast.error("Validation failed", {
+        description:
+          "Linked artwork needs an accessible link label (at least 3 characters).",
+      });
+    }
+    if (
+      (draft.primaryCtaLabel.trim().length > 0) !==
+      (draft.primaryCtaUrl.trim().length > 0)
+    ) {
+      return toast.error("Validation failed", {
+        description: "CTA button label and URL must be supplied together.",
+      });
+    }
+    if (
+      draft.startsAt &&
+      draft.endsAt &&
+      new Date(draft.endsAt) <= new Date(draft.startsAt)
+    ) {
+      return toast.error("Validation failed", {
+        description: "End date must be after start date.",
+      });
+    }
+
     onSave({
       internalName: draft.internalName.trim(),
       placement: "home_hero",
@@ -374,6 +466,7 @@ export function BannerForm({
       desktopContentPosition: draft.desktopContentPosition,
       mobileContentPosition: draft.mobileContentPosition,
       textTheme: draft.textTheme,
+      fontFamily: draft.fontFamily,
       overlayStrength: draft.overlayStrength,
       desktopFocalX: draft.desktopFocalX,
       desktopFocalY: draft.desktopFocalY,
@@ -385,6 +478,7 @@ export function BannerForm({
       ...(banner ? { expectedVersion: banner.version } : {}),
     });
   };
+
   const cancel = () => {
     if (!dirty || window.confirm("Discard your unsaved banner changes?"))
       onCancel();
@@ -392,15 +486,36 @@ export function BannerForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {parsedError && parsedError.errorList.length > 0 && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>Please correct the following before saving:</span>
+          </div>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-xs font-medium">
+            {parsedError.errorList.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2">
         <h3 className="font-bold md:col-span-2">Content mode</h3>
-        <Field label="Internal admin name *">
+        <Field
+          label="Internal admin name *"
+          error={activeFieldErrors.internalName}
+        >
           <input
             required
             maxLength={120}
             value={draft.internalName}
             onChange={(event) => set("internalName", event.target.value)}
-            className={inputClass}
+            className={cn(
+              inputClass,
+              activeFieldErrors.internalName &&
+                "border-destructive focus-visible:ring-destructive",
+            )}
           />
         </Field>
         <Field label="Mode">
@@ -439,23 +554,40 @@ export function BannerForm({
             onChange={(asset) => set("mobileAsset", asset)}
           />
         </div>
+        {activeFieldErrors.desktopAssetId && (
+          <p className="mt-2 text-xs font-semibold text-destructive animate-in fade-in-50">
+            {activeFieldErrors.desktopAssetId}
+          </p>
+        )}
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Field
             label={`Desktop alt text${draft.contentMode === "artwork" ? " *" : ""}`}
+            error={activeFieldErrors.desktopAltText}
           >
             <input
               value={draft.desktopAltText}
               onChange={(event) => set("desktopAltText", event.target.value)}
               maxLength={240}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.desktopAltText &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
-          <Field label="Mobile alt text (optional)">
+          <Field
+            label="Mobile alt text (optional)"
+            error={activeFieldErrors.mobileAltText}
+          >
             <input
               value={draft.mobileAltText}
               onChange={(event) => set("mobileAltText", event.target.value)}
               maxLength={240}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.mobileAltText &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
         </div>
@@ -463,44 +595,71 @@ export function BannerForm({
       {draft.contentMode === "overlay" ? (
         <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2">
           <h3 className="font-bold md:col-span-2">Overlay copy and CTA</h3>
-          <Field label="Eyebrow">
+          <Field label="Eyebrow" error={activeFieldErrors.eyebrow}>
             <input
               maxLength={80}
               value={draft.eyebrow}
               onChange={(e) => set("eyebrow", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.eyebrow &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
-          <Field label="Headline">
+          <Field label="Headline" error={activeFieldErrors.headline}>
             <input
               maxLength={160}
               value={draft.headline}
               onChange={(e) => set("headline", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.headline &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
-          <Field label="Description" className="md:col-span-2">
+          <Field
+            label="Description"
+            className="md:col-span-2"
+            error={activeFieldErrors.description}
+          >
             <textarea
               maxLength={400}
               rows={3}
               value={draft.description}
               onChange={(e) => set("description", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.description &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
-          <Field label="CTA label">
+          <Field label="CTA label" error={activeFieldErrors.primaryCtaLabel}>
             <input
               maxLength={80}
               value={draft.primaryCtaLabel}
               onChange={(e) => set("primaryCtaLabel", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.primaryCtaLabel &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
-          <Field label="CTA path or HTTPS URL">
+          <Field
+            label="CTA path or HTTPS URL"
+            error={activeFieldErrors.primaryCtaUrl}
+          >
             <input
               value={draft.primaryCtaUrl}
               onChange={(e) => set("primaryCtaUrl", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.primaryCtaUrl &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
               placeholder="/shop"
             />
           </Field>
@@ -508,26 +667,55 @@ export function BannerForm({
       ) : (
         <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2">
           <h3 className="font-bold md:col-span-2">Artwork link</h3>
-          <Field label="Optional banner path or HTTPS URL">
+          <Field
+            label="Optional banner path or HTTPS URL"
+            error={activeFieldErrors.bannerLinkUrl}
+          >
             <input
               value={draft.bannerLinkUrl}
               onChange={(e) => set("bannerLinkUrl", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.bannerLinkUrl &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
               placeholder="/shop"
             />
           </Field>
-          <Field label="Accessible link name">
+          <Field
+            label="Accessible link name"
+            error={activeFieldErrors.accessibleLinkLabel}
+          >
             <input
               maxLength={160}
               value={draft.accessibleLinkLabel}
               onChange={(e) => set("accessibleLinkLabel", e.target.value)}
-              className={inputClass}
+              className={cn(
+                inputClass,
+                activeFieldErrors.accessibleLinkLabel &&
+                  "border-destructive focus-visible:ring-destructive",
+              )}
             />
           </Field>
         </section>
       )}
       <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-3">
         <h3 className="font-bold md:col-span-3">Appearance and crop</h3>
+        <Field label="Typography font family">
+          <select
+            value={draft.fontFamily}
+            onChange={(e) =>
+              set("fontFamily", e.target.value as Draft["fontFamily"])
+            }
+            className={inputClass}
+          >
+            {BANNER_FONTS.map((font) => (
+              <option key={font.id} value={font.id}>
+                {font.name} — {font.category}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Text alignment">
           <select
             value={draft.textAlignment}
@@ -602,20 +790,34 @@ export function BannerForm({
       </section>
       <section className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2">
         <h3 className="font-bold md:col-span-2">Visibility schedule</h3>
-        <Field label="Starts at (Asia/Kolkata)">
+        <Field
+          label="Starts at (Asia/Kolkata)"
+          error={activeFieldErrors.startsAt}
+        >
           <input
             type="datetime-local"
             value={draft.startsAt}
             onChange={(e) => set("startsAt", e.target.value)}
-            className={inputClass}
+            className={cn(
+              inputClass,
+              activeFieldErrors.startsAt &&
+                "border-destructive focus-visible:ring-destructive",
+            )}
           />
         </Field>
-        <Field label="Ends at — exclusive (Asia/Kolkata)">
+        <Field
+          label="Ends at — exclusive (Asia/Kolkata)"
+          error={activeFieldErrors.endsAt}
+        >
           <input
             type="datetime-local"
             value={draft.endsAt}
             onChange={(e) => set("endsAt", e.target.value)}
-            className={inputClass}
+            className={cn(
+              inputClass,
+              activeFieldErrors.endsAt &&
+                "border-destructive focus-visible:ring-destructive",
+            )}
           />
         </Field>
         <label className="flex items-center gap-3 text-sm font-medium">

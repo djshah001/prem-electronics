@@ -98,13 +98,13 @@ export function HeroBannerCarousel() {
     () =>
       Autoplay({
         delay: settings.autoplayIntervalMs,
-        playOnInit: false,
-        stopOnInteraction: true,
+        playOnInit: true,
+        stopOnInteraction: false,
         stopOnFocusIn: false,
         stopOnMouseEnter: false,
-        jump: reduceMotion,
+        jump: false,
       }),
-    [settings.autoplayIntervalMs, reduceMotion],
+    [settings.autoplayIntervalMs],
   );
   const plugins = useMemo(() => [autoplay], [autoplay]);
   const multiple = banners.length > 1;
@@ -142,14 +142,10 @@ export function HeroBannerCarousel() {
       setSelected(index);
       selectedId.current = banners[index]?.id ?? null;
     };
-    const manualPause = () => setUserPaused(true);
     sync();
-    api.on("select", sync).on("reInit", sync).on("pointerDown", manualPause);
+    api.on("select", sync).on("reInit", sync);
     return () => {
-      api
-        .off("select", sync)
-        .off("reInit", sync)
-        .off("pointerDown", manualPause);
+      api.off("select", sync).off("reInit", sync);
     };
   }, [api, banners]);
   useEffect(() => {
@@ -158,27 +154,27 @@ export function HeroBannerCarousel() {
     const nextIndex = preserved
       ? banners.findIndex((banner) => banner.id === preserved)
       : -1;
-    api.scrollTo(
-      nextIndex >= 0 ? nextIndex : Math.min(selected, banners.length - 1),
-      true,
-    );
-  }, [api, banners, selected]);
+    if (nextIndex >= 0 && nextIndex !== api.selectedScrollSnap()) {
+      api.scrollTo(nextIndex, true);
+    }
+  }, [api, banners]);
   useEffect(() => {
     if (!api || !multiple) return;
     const syncAutoplay = () => {
-      // Always control the plugin instance initialized by the current Embla API.
-      // The memoized instance can briefly be newer than Embla during a settings reinit.
       const initializedAutoplay = api.plugins().autoplay;
       if (!initializedAutoplay) return;
-      if (shouldPlay) initializedAutoplay.play();
-      else initializedAutoplay.stop();
+      if (shouldPlay) {
+        if (!initializedAutoplay.isPlaying()) initializedAutoplay.play();
+      } else {
+        if (initializedAutoplay.isPlaying()) initializedAutoplay.stop();
+      }
     };
     syncAutoplay();
     api.on("reInit", syncAutoplay);
     return () => {
       api.off("reInit", syncAutoplay);
     };
-  }, [api, autoplay, multiple, shouldPlay]);
+  }, [api, multiple, shouldPlay]);
   useEffect(() => {
     if (!multiple) return;
     const next = banners[(selected + 1) % banners.length];
@@ -192,8 +188,8 @@ export function HeroBannerCarousel() {
   const navigate = useCallback(
     (index: number) => {
       if (!api) return;
-      setUserPaused(true);
       api.scrollTo(index);
+      api.plugins().autoplay?.reset();
       setAnnouncement(`Banner ${index + 1} of ${banners.length}`);
     },
     [api, banners.length],
@@ -226,8 +222,6 @@ export function HeroBannerCarousel() {
       ref={rootRef}
       aria-label="Featured promotions"
       className="w-full overflow-hidden"
-      onMouseEnter={() => setHoverPaused(true)}
-      onMouseLeave={() => setHoverPaused(false)}
       onFocusCapture={() => setFocusPaused(true)}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null))
@@ -242,11 +236,17 @@ export function HeroBannerCarousel() {
         onKeyDownCapture={(event) => {
           if (event.key === "ArrowLeft") {
             event.preventDefault();
-            navigate((selected - 1 + banners.length) % banners.length);
+            if (api) {
+              api.scrollPrev();
+              api.plugins().autoplay?.reset();
+            }
           }
           if (event.key === "ArrowRight") {
             event.preventDefault();
-            navigate((selected + 1) % banners.length);
+            if (api) {
+              api.scrollNext();
+              api.plugins().autoplay?.reset();
+            }
           }
         }}
       >
@@ -271,18 +271,30 @@ export function HeroBannerCarousel() {
         {settings.showNavigation && (
           <>
             <CarouselPrevious
-              onClick={() =>
-                navigate((selected - 1 + banners.length) % banners.length)
-              }
+              onClick={() => {
+                if (api) {
+                  api.scrollPrev();
+                  api.plugins().autoplay?.reset();
+                }
+              }}
               className="left-3 top-1/2 -translate-y-1/2 sm:left-5"
             />
             <CarouselNext
-              onClick={() => navigate((selected + 1) % banners.length)}
+              onClick={() => {
+                if (api) {
+                  api.scrollNext();
+                  api.plugins().autoplay?.reset();
+                }
+              }}
               className="right-3 top-1/2 -translate-y-1/2 sm:right-5"
             />
           </>
         )}
-        <div className="absolute bottom-3 left-1/2 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/45 px-3 backdrop-blur sm:bottom-5">
+        <div
+          onMouseEnter={() => setHoverPaused(true)}
+          onMouseLeave={() => setHoverPaused(false)}
+          className="absolute bottom-3 left-1/2 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full border border-white/25 bg-black/45 px-3 backdrop-blur sm:bottom-5 z-20"
+        >
           {settings.showIndicators &&
             banners.map((banner, index) => (
               <button

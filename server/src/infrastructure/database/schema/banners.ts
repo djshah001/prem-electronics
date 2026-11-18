@@ -62,6 +62,7 @@ export const banners = pgTable('banners', {
   desktopContentPosition: bannerContentPositionEnum('desktop_content_position').default('center_left').notNull(),
   mobileContentPosition: bannerContentPositionEnum('mobile_content_position').default('bottom_left').notNull(),
   textTheme: bannerTextThemeEnum('text_theme').default('light').notNull(),
+  fontFamily: varchar('font_family', { length: 60 }).default('outfit').notNull(),
   overlayStrength: integer('overlay_strength').default(45).notNull(),
   desktopFocalX: integer('desktop_focal_x').default(50).notNull(),
   desktopFocalY: integer('desktop_focal_y').default(50).notNull(),

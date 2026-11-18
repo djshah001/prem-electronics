@@ -1,25 +1,52 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+  type Variants,
+} from "framer-motion";
 import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
   Sparkles,
   LayoutGrid,
-} from 'lucide-react';
-import type { CategoryConfig } from '../../config/navigationCategories';
-import { getCategoryIconComponent } from '../../config/navigationCategories';
+} from "lucide-react";
+import type { CategoryConfig } from "../../config/navigationCategories";
+import { getCategoryIconComponent } from "../../config/navigationCategories";
+import { cn } from "../../lib/utils";
 
 interface AllCategoriesDropdownProps {
   categories: CategoryConfig[];
   onNavigate?: () => void;
   overlay?: boolean;
+  isHovered?: boolean;
+  onHoverStart?: () => void;
 }
+
+const megaMenuVariants: Variants = {
+  hidden: { opacity: 0, y: 10, scale: 0.97 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring", stiffness: 400, damping: 30 },
+  },
+  exit: {
+    opacity: 0,
+    y: 6,
+    scale: 0.98,
+    transition: { duration: 0.14, ease: "easeOut" },
+  },
+};
 
 export const AllCategoriesDropdown = ({
   categories,
   onNavigate,
+  overlay = false,
+  isHovered = false,
+  onHoverStart,
 }: AllCategoriesDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
@@ -27,27 +54,27 @@ export const AllCategoriesDropdown = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const reduceMotion = Boolean(useReducedMotion());
 
-  // Smart responsive alignment detection
   useEffect(() => {
     const updateAlignment = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        setAlignRight(viewportWidth - rect.left < 630);
+        setAlignRight(window.innerWidth - rect.left < 630);
       }
     };
 
     if (isOpen) {
       updateAlignment();
-      window.addEventListener('resize', updateAlignment);
-      return () => window.removeEventListener('resize', updateAlignment);
+      window.addEventListener("resize", updateAlignment);
+      return () => window.removeEventListener("resize", updateAlignment);
     }
   }, [isOpen]);
 
   const getSubcategories = (cat?: CategoryConfig | any) => {
     if (!cat) return [];
-    if (Array.isArray(cat.subcategories) && cat.subcategories.length > 0) return cat.subcategories;
+    if (Array.isArray(cat.subcategories) && cat.subcategories.length > 0)
+      return cat.subcategories;
     if (Array.isArray(cat.children) && cat.children.length > 0) {
       return cat.children
         .filter((sub: any) => sub && sub.isActive !== false)
@@ -69,7 +96,6 @@ export const AllCategoriesDropdown = ({
     ? getCategoryIconComponent(activeCategory.iconName)
     : LayoutGrid;
 
-  // Close on outside click
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (
@@ -79,11 +105,12 @@ export const AllCategoriesDropdown = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   const handleMouseEnter = () => {
+    onHoverStart?.();
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsOpen(true);
   };
@@ -95,24 +122,24 @@ export const AllCategoriesDropdown = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       setIsOpen((prev) => !prev);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsOpen(false);
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!isOpen) {
         setIsOpen(true);
       } else {
         setActiveCategoryIndex((prev) =>
-          prev < categories.length - 1 ? prev + 1 : 0
+          prev < categories.length - 1 ? prev + 1 : 0,
         );
       }
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveCategoryIndex((prev) =>
-        prev > 0 ? prev - 1 : categories.length - 1
+        prev > 0 ? prev - 1 : categories.length - 1,
       );
     }
   };
@@ -124,6 +151,8 @@ export const AllCategoriesDropdown = ({
       navigate(category.href);
     }
   };
+
+  const showPill = isHovered || isOpen;
 
   return (
     <div
@@ -140,36 +169,76 @@ export const AllCategoriesDropdown = ({
         aria-label="All Categories menu"
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={handleKeyDown}
-        className={`group flex items-center gap-1.5 sm:gap-2 text-xs sm:text-[13px] font-semibold transition-all duration-200 px-2.5 sm:px-3 lg:px-3.5 py-1 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 whitespace-nowrap ${
+        className={cn(
+          "relative group flex items-center gap-1.5 sm:gap-2 text-xs sm:text-[13px] font-semibold transition-colors duration-200 px-2.5 sm:px-3 lg:px-3.5 py-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 whitespace-nowrap select-none",
           isOpen
-            ? 'text-primary bg-primary/10 shadow-sm'
-            : 'text-slate-900 hover:text-slate-600 hover:bg-slate-100/80 dark:text-slate-900 dark:hover:text-slate-600'
-        }`}
+            ? overlay
+              ? "text-white"
+              : "text-primary"
+            : overlay
+              ? "text-white/90 hover:text-white"
+              : "text-foreground/90 hover:text-primary",
+        )}
       >
-        <LayoutGrid className="w-4 h-4 text-primary" />
-        <span>All Categories</span>
-        <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform duration-200 ${
-            isOpen
-              ? 'rotate-180 text-primary'
-              : 'text-slate-700 group-hover:text-slate-600'
-          }`}
+        {showPill && (
+          <motion.span
+            layoutId="navbar-unified-pill"
+            className={cn(
+              "absolute inset-0 -z-10 rounded-lg",
+              overlay
+                ? "bg-white/15 border border-white/25"
+                : isOpen
+                  ? "bg-primary/10 border border-primary/20 shadow-xs"
+                  : "bg-accent border border-primary/15",
+            )}
+            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+          />
+        )}
+        <LayoutGrid
+          className={cn(
+            "relative z-10 w-4 h-4 transition-transform duration-200",
+            isOpen && "rotate-90",
+            overlay && !isOpen ? "text-white" : "text-primary",
+          )}
         />
+        <span className="relative z-10">All Categories</span>
+        <motion.span
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          className="relative z-10 flex items-center"
+        >
+          <ChevronDown
+            className={cn(
+              "w-3.5 h-3.5 transition-colors duration-200",
+              isOpen
+                ? overlay
+                  ? "text-white"
+                  : "text-primary"
+                : overlay
+                  ? "text-white/70 group-hover:text-white"
+                  : "text-muted-foreground group-hover:text-foreground",
+            )}
+          />
+        </motion.span>
       </button>
 
       {/* Multilevel Cascading / Master-Detail Mega Dropdown */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            className={`absolute top-full mt-2 z-[110] w-[620px] max-w-[calc(100vw-2rem)] bg-card/95 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl overflow-hidden ${
-              alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
-            }`}
+            variants={reduceMotion ? undefined : megaMenuVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className={cn(
+              "absolute top-full mt-2 z-[110] w-[620px] max-w-[calc(100vw-2rem)] bg-card/98 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl overflow-hidden",
+              alignRight
+                ? "right-0 origin-top-right"
+                : "left-0 origin-top-left",
+            )}
           >
             {/* Top Bar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 bg-muted/20">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50 bg-muted/25">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -182,16 +251,16 @@ export const AllCategoriesDropdown = ({
                   setIsOpen(false);
                   onNavigate?.();
                 }}
-                className="text-xs font-semibold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                className="group/all text-xs font-semibold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
               >
                 <span>View All Products</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/all:translate-x-0.5" />
               </Link>
             </div>
 
             {/* Master-Detail Two-Panel Content */}
             <div className="grid grid-cols-12 min-h-[380px]">
-              {/* Left Master Column: 10 Main Categories */}
+              {/* Left Master Column */}
               <div className="col-span-5 border-r border-border/50 p-2 space-y-0.5 bg-background/40 max-h-[460px] overflow-y-auto">
                 {categories.map((cat, index) => {
                   const Icon = getCategoryIconComponent(cat.iconName);
@@ -204,21 +273,35 @@ export const AllCategoriesDropdown = ({
                       onMouseEnter={() => setActiveCategoryIndex(index)}
                       onFocus={() => setActiveCategoryIndex(index)}
                       onClick={() => handleCategoryClick(cat)}
-                      className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all ${
+                      className={cn(
+                        "relative group flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium cursor-pointer transition-colors",
                         isSelected
-                          ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-card/70'
-                      }`}
+                          ? "text-primary font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-card/70",
+                      )}
                       role="menuitem"
                       tabIndex={0}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      {isSelected && (
+                        <motion.span
+                          layoutId="mega-menu-active-category"
+                          className="absolute inset-0 rounded-xl bg-primary/10 border border-primary/15 shadow-xs -z-0"
+                          transition={{
+                            type: "spring",
+                            stiffness: 450,
+                            damping: 32,
+                          }}
+                        />
+                      )}
+
+                      <div className="relative z-10 flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          className={cn(
+                            "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors",
                             isSelected
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted/70 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
-                          }`}
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted/70 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary",
+                          )}
                         >
                           <Icon className="w-3.5 h-3.5" />
                         </div>
@@ -227,14 +310,15 @@ export const AllCategoriesDropdown = ({
 
                       {hasSub ? (
                         <ChevronRight
-                          className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                          className={cn(
+                            "relative z-10 w-3.5 h-3.5 shrink-0 transition-transform",
                             isSelected
-                              ? 'translate-x-0.5 text-primary'
-                              : 'text-muted-foreground/40 group-hover:text-foreground'
-                          }`}
+                              ? "translate-x-0.5 text-primary"
+                              : "text-muted-foreground/40 group-hover:text-foreground",
+                          )}
                         />
                       ) : (
-                        <span className="text-[10px] text-muted-foreground/60 shrink-0 uppercase tracking-tighter">
+                        <span className="relative z-10 text-[10px] text-muted-foreground/60 shrink-0 uppercase tracking-tighter">
                           All
                         </span>
                       )}
@@ -243,82 +327,95 @@ export const AllCategoriesDropdown = ({
                 })}
               </div>
 
-              {/* Right Detail Column: Nested Subcategories */}
+              {/* Right Detail Column with Smooth Crossfade */}
               <div className="col-span-7 p-5 flex flex-col justify-between bg-card/60">
-                {activeCategory ? (
-                  <div>
-                    {/* Active Category Header */}
-                    <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-border/50">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                          <ActiveIcon className="w-4 h-4" />
+                <AnimatePresence mode="wait">
+                  {activeCategory ? (
+                    <motion.div
+                      key={activeCategory.slug}
+                      initial={reduceMotion ? false : { opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, x: -6 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                    >
+                      {/* Active Category Header */}
+                      <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-border/50">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                            <ActiveIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">
+                              {activeCategory.name}
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              {activeSubcategories.length > 0
+                                ? `${activeSubcategories.length} subcategories available`
+                                : "Explore all products in this category"}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-foreground">
-                            {activeCategory.name}
-                          </h4>
-                          <p className="text-[11px] text-muted-foreground">
-                            {activeSubcategories.length > 0
-                              ? `${activeSubcategories.length} subcategories available`
-                              : 'Explore all products in this category'}
-                          </p>
-                        </div>
-                      </div>
 
-                      <Link
-                        to={activeCategory.href}
-                        onClick={() => {
-                          setIsOpen(false);
-                          onNavigate?.();
-                        }}
-                        className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-                      >
-                        <span>View all</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </Link>
-                    </div>
-
-                    {/* Subcategories Grid */}
-                    {activeSubcategories.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                        {activeSubcategories.map((sub: any) => (
-                          <Link
-                            key={sub.slug}
-                            to={sub.href || (sub.id ? `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}` : `/shop?categorySlug=${sub.slug}`)}
-                            onClick={() => {
-                              setIsOpen(false);
-                              onNavigate?.();
-                            }}
-                            className="group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-primary/10 transition-all text-xs font-medium text-foreground hover:text-primary"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary group-hover:scale-125 transition-all" />
-                              <span>{sub.name}</span>
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-10 text-center space-y-3">
-                        <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                          Browse all products under {activeCategory.name}.
-                        </p>
                         <Link
                           to={activeCategory.href}
                           onClick={() => {
                             setIsOpen(false);
                             onNavigate?.();
                           }}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                          className="group/view text-xs font-semibold text-primary hover:underline flex items-center gap-1"
                         >
-                          Browse {activeCategory.name}
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span>View all</span>
+                          <ArrowRight className="w-3 h-3 transition-transform group-hover/view:translate-x-0.5" />
                         </Link>
                       </div>
-                    )}
-                  </div>
-                ) : null}
+
+                      {/* Subcategories Grid */}
+                      {activeSubcategories.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+                          {activeSubcategories.map((sub: any) => (
+                            <Link
+                              key={sub.slug}
+                              to={
+                                sub.href ||
+                                (sub.id
+                                  ? `/shop?categoryId=${sub.id}&categorySlug=${sub.slug}`
+                                  : `/shop?categorySlug=${sub.slug}`)
+                              }
+                              onClick={() => {
+                                setIsOpen(false);
+                                onNavigate?.();
+                              }}
+                              className="group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-primary/10 transition-all text-xs font-medium text-foreground hover:text-primary"
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary group-hover:scale-125 transition-all" />
+                                <span>{sub.name}</span>
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-primary" />
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-10 text-center space-y-3">
+                          <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                            Browse all products under {activeCategory.name}.
+                          </p>
+                          <Link
+                            to={activeCategory.href}
+                            onClick={() => {
+                              setIsOpen(false);
+                              onNavigate?.();
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                          >
+                            Browse {activeCategory.name}
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
 
                 {/* Footer Hint */}
                 <div className="pt-3 border-t border-border/40 text-[11px] text-muted-foreground flex items-center justify-between">
