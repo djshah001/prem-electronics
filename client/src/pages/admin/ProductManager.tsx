@@ -235,12 +235,13 @@ export default function ProductManager() {
     if (!files || files.length === 0) return;
     setUploading(true);
     const formData = new FormData();
+    formData.append('type', 'product');
     Array.from(files).forEach((f) => formData.append('images', f));
     try {
-      const res = await api.postForm<{ urls: string[] }>('/upload', formData);
+      const res = await api.postForm<{ urls: string[] }>('/upload?type=product', formData);
       const urls = res.data?.urls ?? [];
       setForm((f) => ({ ...f, images: [...f.images.filter(Boolean), ...urls] }));
-      toast.success(`${urls.length} image(s) uploaded successfully`);
+      toast.success(`${urls.length} product image(s) uploaded (adjusted to 1:1)`);
     } catch (err: any) {
       toast.error(err?.message || 'Upload failed');
     } finally {
@@ -1493,11 +1494,11 @@ export default function ProductManager() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-muted-foreground text-[11px] mt-1 pt-1.5 border-t border-primary/10">
                     <div>
                       <span className="font-medium text-foreground block">Dimensions:</span>
-                      <span>Recommended: <strong className="text-foreground">{IMAGE_SPECS.product.recommendedDimensions}</strong> (Min: {IMAGE_SPECS.product.minDimensions})</span>
+                      <span>Min: <strong className="text-foreground">{IMAGE_SPECS.product.minDimensions}</strong> • Max: <strong className="text-foreground">{IMAGE_SPECS.product.maxDimensions}</strong></span>
                     </div>
                     <div>
                       <span className="font-medium text-foreground block">Aspect Ratio:</span>
-                      <span>{IMAGE_SPECS.product.aspectRatio}</span>
+                      <span>{IMAGE_SPECS.product.aspectRatio} (Auto 1:1, No Padding)</span>
                     </div>
                     <div>
                       <span className="font-medium text-foreground block">Optimization:</span>
