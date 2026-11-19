@@ -423,4 +423,36 @@ html.dark {
     border-color: rgba(216, 45, 83, 0.55);
     box-shadow: 0 14px 34px -4px rgba(216, 45, 83, 0.28);
   }
+
+  /* =========================================================
+     INFINITE BRAND LOGO MARQUEE ANIMATION
+     GPU-accelerated translate3d linear scrolling without pauses
+     ========================================================= */
+  @keyframes brand-marquee-scroll {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .animate-brand-marquee {
+    display: flex;
+    width: max-content;
+    animation: brand-marquee-scroll 42s linear infinite;
+    will-change: transform;
+  }
+
+  @media (max-width: 768px) {
+    .animate-brand-marquee {
+      animation-duration: 28s;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-brand-marquee {
+      animation: none !important;
+    }
+  }
 }

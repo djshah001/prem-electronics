@@ -22,6 +22,7 @@ import { api } from "../../api/axiosClient";
 import { ProductCard } from "../../components/shared/ProductCard";
 import type { Product } from "../../types";
 import { HeroBannerCarousel } from "../../components/banner/HeroBannerCarousel";
+import { BrandLogoMarquee } from "../../components/home/BrandLogoMarquee";
 import { HomeImageBento } from "../../components/home/HomeImageBento";
 import { SEO } from "../../components/shared/SEO";
 
@@ -200,23 +201,8 @@ export default function Home() {
       <h1 className="sr-only">Prem Electronics online electronics store</h1>
       <HeroBannerCarousel />
 
-      {/* ─── Features Section ───────────────────────────────────── */}
-      <section className="relative overflow-hidden py-20 border-y border-border/60 bg-gradient-to-b from-background via-card/20 to-background">
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[320px] bg-primary/5 blur-[120px] rounded-full" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-60px" }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-          >
-            {FEATURES.map((feature, i) => (
-              <FeatureCard key={feature.title} {...feature} index={i} />
-            ))}
-          </motion.div>
-        </div>
-      </section>
+      {/* ─── Brands We Deal In Marquee ──────────────────────────── */}
+      <BrandLogoMarquee />
 
       {/* ─── Bento Grid ─────────────────────────────────────────── */}
       <HomeImageBento />
@@ -286,6 +272,24 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ─── Features Section ───────────────────────────────────── */}
+      <section className="relative overflow-hidden py-20 border-y border-border/60 bg-gradient-to-b from-background via-card/20 to-background">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[320px] bg-primary/5 blur-[120px] rounded-full" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-60px" }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
+            {FEATURES.map((feature, i) => (
+              <FeatureCard key={feature.title} {...feature} index={i} />
+            ))}
+          </motion.div>
         </div>
       </section>
 
