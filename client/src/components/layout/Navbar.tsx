@@ -13,6 +13,7 @@ import {
   Loader2,
   Sparkles,
   ArrowRight,
+  Star,
 } from "lucide-react";
 import {
   motion,
@@ -93,6 +94,31 @@ const suggestionItemVariants: Variants = {
   },
 };
 
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query || !query.trim()) return <>{text}</>;
+  const trimmed = query.trim();
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark
+            key={i}
+            className="bg-primary/20 text-primary font-bold rounded-xs px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -121,7 +147,7 @@ export const Navbar = () => {
     damping: 30,
     restDelta: 0.001,
   });
-  const headerHeight = useTransform(scrollY, [0, 80], [64, 56]);
+  const headerHeight = useTransform(scrollY, [0, 80], [54, 46]);
 
   const {
     categories,
@@ -230,7 +256,12 @@ export const Navbar = () => {
   const isHome = location.pathname === "/" || location.pathname === "";
   const isTransparentOverHero = isHome && !isScrolled;
 
-  const renderAnimatedNavLink = (key: string, href: string, label: string) => {
+  const renderAnimatedNavLink = (
+    key: string,
+    href: string,
+    label: string,
+    isUtility = false,
+  ) => {
     const isActive = location.pathname === href;
     const isHovered = hoveredNavKey === key;
 
@@ -240,14 +271,19 @@ export const Navbar = () => {
         to={href}
         onMouseEnter={() => setHoveredNavKey(key)}
         className={cn(
-          "relative rounded-lg px-3 py-1.5 text-xs sm:text-[13px] font-semibold transition-colors duration-200 whitespace-nowrap select-none",
+          "relative rounded-lg px-2.5 py-1 text-xs transition-colors duration-200 whitespace-nowrap select-none",
+          isUtility ? "font-medium" : "font-semibold sm:text-[13px]",
           isActive
             ? isTransparentOverHero
               ? "text-white"
-              : "text-primary"
+              : "text-primary font-bold"
             : isTransparentOverHero
-              ? "text-white/90 hover:text-white"
-              : "text-foreground/90 hover:text-primary",
+              ? isUtility
+                ? "text-white/70 hover:text-white"
+                : "text-white/90 hover:text-white"
+              : isUtility
+                ? "text-zinc-600 hover:text-zinc-950"
+                : "text-zinc-800 hover:text-primary",
         )}
       >
         {(isHovered || (isActive && !hoveredNavKey)) && (
@@ -256,8 +292,8 @@ export const Navbar = () => {
             className={cn(
               "absolute inset-0 -z-10 rounded-lg",
               isTransparentOverHero
-                ? "bg-white/15 border border-white/25"
-                : "bg-accent border border-primary/15",
+                ? "bg-white/15 border border-white/20"
+                : "bg-zinc-100 border border-zinc-200/80 shadow-2xs",
             )}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
           />
@@ -290,23 +326,34 @@ export const Navbar = () => {
         className={cn(
           "w-full z-40 transition-all duration-300",
           isHome ? "fixed top-0 left-0 right-0" : "relative",
+          isTransparentOverHero
+            ? "bg-gradient-to-b from-black/75 via-black/45 to-transparent backdrop-blur-md text-white"
+            : "bg-white/65 backdrop-blur-xl backdrop-saturate-150 border-b border-zinc-200/80 text-zinc-900 shadow-[0_8px_30px_rgb(0,0,0,0.06)]",
         )}
       >
-        {/* ── ROW 1: Glassmorphic Top Header ── */}
+        {/* Smooth 80px gradient fade between navbar and hero to eliminate hard edge */}
+        {isTransparentOverHero && (
+          <div
+            className="pointer-events-none absolute -bottom-20 left-0 right-0 h-20 bg-gradient-to-b from-black/15 via-black/5 to-transparent"
+            aria-hidden="true"
+          />
+        )}
+
+        {/* ── ROW 1: Compact Glassmorphic Top Header ── */}
         <motion.header
           initial={reduceMotion ? false : { opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
-            "relative w-full z-40 transition-all duration-300",
+            "relative w-full z-40 transition-all duration-300 pt-0.5",
             !isHome && "max-[1100px]:sticky max-[1100px]:top-0",
             isTransparentOverHero
-              ? "bg-gradient-to-b from-black/60 via-black/35 to-transparent backdrop-blur-md border-b border-white/20 text-white"
-              : "glass bg-card/90 backdrop-blur-xl border-b border-border/70 text-foreground shadow-xs",
+              ? "bg-transparent border-b border-white/[0.08] text-white"
+              : "bg-transparent border-b border-zinc-200/70 text-zinc-900",
           )}
         >
           {/* Top Brand Line + Animated Scroll Progress Indicator */}
-          <div className="relative h-[2.5px] w-full bg-primary/15 overflow-hidden">
+          <div className="relative h-[2px] w-full bg-primary/15 overflow-hidden">
             <div className="absolute inset-0 gradient-primary opacity-45" />
             {!reduceMotion && (
               <motion.div
@@ -319,9 +366,9 @@ export const Navbar = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <motion.div
               style={reduceMotion ? undefined : { height: headerHeight }}
-              className="flex items-center justify-between h-15 gap-4 md:gap-6 lg:gap-8 mx-auto w-full"
+              className="flex items-center justify-between h-13 sm:h-14 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mx-auto w-full"
             >
-              {/* Left: Company Logo */}
+              {/* Left: Company Logo with adaptive contrast & scroll transform */}
               <div className="flex items-center justify-start shrink-0">
                 <motion.div
                   whileHover={reduceMotion ? undefined : { scale: 1.02 }}
@@ -331,28 +378,36 @@ export const Navbar = () => {
                 >
                   <Link
                     to="/"
-                    className="group flex items-center gap-2.5 rounded-xl py-1 pr-2 transition-all duration-300"
+                    className="group flex items-center gap-2 sm:gap-2.5 rounded-xl py-0.5 pr-2 transition-all duration-300"
                   >
                     <div className="relative flex items-center justify-center rounded-lg p-0.5 bg-gradient-to-br from-primary/25 to-transparent group-hover:from-primary/40 transition-colors">
                       <img
                         src="/Symbol.jpg"
                         alt="Prem Electronics Symbol"
-                        className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain rounded-md shadow-xs shrink-0 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105"
+                        className={cn(
+                          "w-7.5 h-7.5 sm:w-8 sm:h-8 object-contain rounded-md shadow-xs shrink-0 transition-all duration-300 group-hover:rotate-6 group-hover:scale-105",
+                          isScrolled && "w-6.5 h-6.5 sm:w-7 sm:h-7",
+                        )}
                       />
                     </div>
                     <img
                       src="/logo.png"
                       alt="Prem Electronics"
-                      className="h-7 sm:h-7.5 w-auto object-contain shrink-0 transition-opacity duration-200 group-hover:opacity-90"
+                      className={cn(
+                        "h-6.5 sm:h-7 w-auto object-contain shrink-0 transition-all duration-300 group-hover:opacity-90",
+                        isTransparentOverHero &&
+                          "brightness-0 invert drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]",
+                        isScrolled && "h-5.5 sm:h-6",
+                      )}
                     />
                   </Link>
                 </motion.div>
               </div>
 
-              {/* Center: Glassmorphic Search Bar with Smart Auto-Suggest */}
+              {/* Center: Slimmer Smoked-Glass Search Bar with Smart Auto-Suggest */}
               <motion.div
                 ref={searchContainerRef}
-                className="hidden min-[1101px]:flex flex-1 max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-auto justify-center relative"
+                className="hidden min-[1101px]:flex flex-1 max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg mx-auto justify-center relative"
                 animate={{
                   scale: searchFocused && !reduceMotion ? 1.015 : 1,
                 }}
@@ -369,11 +424,11 @@ export const Navbar = () => {
                         : { scale: 1 }
                     }
                     transition={{ duration: 0.25 }}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10"
                   >
                     <Search
                       className={cn(
-                        "h-4 w-4 transition-colors duration-200",
+                        "h-3.5 w-3.5 transition-colors duration-200",
                         searchFocused
                           ? "text-primary"
                           : isTransparentOverHero
@@ -392,17 +447,18 @@ export const Navbar = () => {
                     placeholder="Search cameras, lenses, gimbals, accessories..."
                     autoComplete="off"
                     className={cn(
-                      "h-10 w-full rounded-xl border backdrop-blur-md pl-10 pr-16 text-[13px] outline-none transition-all duration-250",
+                      "h-9 w-full rounded-xl border pl-9 pr-14 text-xs sm:text-[13px] outline-none transition-all duration-200",
                       isTransparentOverHero
-                        ? "bg-white/15 border-white/25 text-white placeholder:text-white/70 hover:border-white/40 focus:bg-card focus:text-foreground focus:placeholder:text-muted-foreground focus:border-primary"
-                        : "bg-secondary/65 dark:bg-secondary/50 text-foreground placeholder:text-muted-foreground border-border/80 hover:border-primary/40 hover:bg-card/80 focus:bg-card focus:border-primary",
-                      searchFocused && "ring-4 ring-primary/15 shadow-md",
+                        ? "bg-black/20 hover:bg-black/45 border-white/15 text-white placeholder:text-white/60 hover:border-white/30 focus:text-white/80 focus:placeholder:text-muted-foreground focus:border-primary/70 focus:ring-4 focus:ring-primary/20"
+                        : "bg-zinc-100/60 text-zinc-900 placeholder:text-zinc-500 border-zinc-200 hover:border-primary/40 hover:bg-white focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/15 shadow-2xs",
+                      searchFocused && "ring-4 ring-primary/20 shadow-md",
+                      isScrolled && "h-8.5 text-xs",
                     )}
                   />
 
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     {isSearching ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                     ) : search ? (
                       <motion.button
                         type="button"
@@ -416,31 +472,31 @@ export const Navbar = () => {
                           setSearchFocused(false);
                         }}
                         className={cn(
-                          "h-6 w-6 rounded-md flex items-center justify-center transition-colors",
+                          "h-5 w-5 rounded-md flex items-center justify-center transition-colors",
                           isTransparentOverHero && !searchFocused
                             ? "text-white/70 hover:text-white hover:bg-white/15"
-                            : "text-muted-foreground hover:text-primary hover:bg-accent",
+                            : "text-zinc-500 hover:text-primary hover:bg-zinc-100",
                         )}
                         aria-label="Clear search"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-3 h-3" />
                       </motion.button>
                     ) : (
                       <kbd
                         className={cn(
-                          "hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium border rounded-md pointer-events-none transition-colors",
+                          "hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold border rounded-md pointer-events-none transition-colors",
                           isTransparentOverHero && !searchFocused
                             ? "text-white/75 bg-white/15 border-white/20"
-                            : "text-muted-foreground bg-background/80 border-border",
+                            : "text-zinc-500 bg-white border-zinc-200",
                         )}
                       >
-                        ⌘K
+                        Ctrl+K
                       </kbd>
                     )}
                   </div>
                 </form>
 
-                {/* Glassmorphic Auto-Suggest Dropdown */}
+                {/* Glassmorphic Auto-Suggest Dropdown with Full Product Info */}
                 <AnimatePresence>
                   {showSuggestions && (
                     <motion.div
@@ -461,49 +517,118 @@ export const Navbar = () => {
                               ESC to close
                             </span>
                           </div>
-                          <div className="divide-y divide-border/40 max-h-80 overflow-y-auto">
-                            {suggestions.map((item) => (
-                              <motion.button
-                                variants={suggestionItemVariants}
-                                whileHover={reduceMotion ? undefined : { x: 3 }}
-                                key={item.id}
-                                type="button"
-                                onClick={() => handleSelectProduct(item.slug)}
-                                className="w-full px-3.5 py-2.5 flex items-center gap-3.5 hover:bg-accent/70 transition-colors text-left group"
-                              >
-                                <div className="w-11 h-11 rounded-xl bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center border border-border/60 group-hover:border-primary/40 transition-colors">
-                                  {item.images?.[0] ? (
-                                    <img
-                                      src={getProductThumbnailUrl(
-                                        item.images[0],
-                                      )}
-                                      alt={item.title}
-                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-108"
-                                    />
-                                  ) : (
-                                    <Package className="w-4 h-4 text-muted-foreground" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                    {item.title}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-xs font-bold text-primary">
-                                      {formatPrice(
-                                        item.salePrice ?? item.price,
-                                      )}
-                                    </span>
-                                    {item.brand && (
-                                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-secondary text-muted-foreground font-medium">
-                                        {item.brand}
-                                      </span>
+                          <div className="divide-y divide-border/40 max-h-96 overflow-y-auto">
+                            {suggestions.map((item) => {
+                              const saleNum = item.salePrice
+                                ? Number(item.salePrice)
+                                : null;
+                              const priceNum = Number(item.price);
+                              const hasDiscount =
+                                saleNum !== null &&
+                                saleNum < priceNum &&
+                                priceNum > 0;
+                              const ratingNum = item.avgRating
+                                ? Number(item.avgRating)
+                                : 0;
+
+                              return (
+                                <motion.button
+                                  variants={suggestionItemVariants}
+                                  whileHover={
+                                    reduceMotion ? undefined : { x: 3 }
+                                  }
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleSelectProduct(item.slug)}
+                                  className="w-full px-3.5 py-2.5 flex items-center gap-3 hover:bg-accent/70 transition-colors text-left group"
+                                >
+                                  {/* Product Thumbnail */}
+                                  <div className="w-12 h-12 rounded-xl bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center border border-border/60 group-hover:border-primary/40 transition-colors">
+                                    {item.images?.[0] ? (
+                                      <img
+                                        src={getProductThumbnailUrl(
+                                          item.images[0],
+                                        )}
+                                        alt={item.title}
+                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-108"
+                                      />
+                                    ) : (
+                                      <Package className="w-5 h-5 text-muted-foreground" />
                                     )}
                                   </div>
-                                </div>
-                                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-primary transition-all duration-200" />
-                              </motion.button>
-                            ))}
+
+                                  {/* Product Info */}
+                                  <div className="flex-1 min-w-0">
+                                    {/* Brand & Badges */}
+                                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                                      {item.brand && (
+                                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground bg-secondary/80 px-1.5 py-0.2 rounded">
+                                          <HighlightMatch
+                                            text={item.brand}
+                                            query={debouncedSearch}
+                                          />
+                                        </span>
+                                      )}
+                                      {item.stock <= 0 ? (
+                                        <span className="text-[9px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.2 rounded">
+                                          Out of Stock
+                                        </span>
+                                      ) : item.isBestSeller ? (
+                                        <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
+                                          Best Seller
+                                        </span>
+                                      ) : null}
+                                    </div>
+
+                                    {/* Title with matched text highlight */}
+                                    <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                      <HighlightMatch
+                                        text={item.title}
+                                        query={debouncedSearch}
+                                      />
+                                    </p>
+
+                                    {/* Pricing & Rating */}
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-xs font-bold text-primary">
+                                        {formatPrice(
+                                          item.salePrice ?? item.price,
+                                        )}
+                                      </span>
+                                      {hasDiscount && (
+                                        <span className="text-[11px] line-through text-muted-foreground/75">
+                                          {formatPrice(item.price)}
+                                        </span>
+                                      )}
+                                      {hasDiscount && (
+                                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded">
+                                          Save{" "}
+                                          {Math.round(
+                                            (1 - saleNum! / priceNum) * 100,
+                                          )}
+                                          %
+                                        </span>
+                                      )}
+
+                                      {/* Star Rating */}
+                                      {ratingNum > 0 && (
+                                        <span className="ml-auto inline-flex items-center gap-0.5 text-[11px] font-semibold text-amber-500 shrink-0">
+                                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                          <span>{ratingNum.toFixed(1)}</span>
+                                          {item.reviewCount > 0 && (
+                                            <span className="text-[10px] text-muted-foreground font-normal">
+                                              ({item.reviewCount})
+                                            </span>
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-primary transition-all duration-200 shrink-0" />
+                                </motion.button>
+                              );
+                            })}
                           </div>
                           <div className="p-2 border-t border-border/60 bg-secondary/40">
                             <button
@@ -542,7 +667,7 @@ export const Navbar = () => {
                 </AnimatePresence>
               </motion.div>
 
-              {/* Right: Actions */}
+              {/* Right: Actions with refined tactile circular icons & high-contrast CTA */}
               <div className="flex items-center justify-end shrink-0 gap-1.5 sm:gap-2">
                 {/* Wishlist */}
                 <motion.div
@@ -554,15 +679,15 @@ export const Navbar = () => {
                     to="/wishlist"
                     id="nav-wishlist-btn"
                     className={cn(
-                      "group relative h-9.5 w-9.5 rounded-xl flex items-center justify-center border transition-all duration-200",
+                      "group relative h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-full flex items-center justify-center border transition-all duration-200",
                       isTransparentOverHero
-                        ? "text-white hover:text-primary hover:bg-white/15 border-transparent hover:border-white/25"
-                        : "text-foreground/85 hover:text-primary hover:bg-accent border-transparent hover:border-primary/20",
+                        ? "bg-white/10 hover:bg-white/20 border-white/15 text-white shadow-xs"
+                        : "bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800 hover:text-primary shadow-2xs",
                     )}
                     aria-label="Wishlist"
                     title="My Wishlist"
                   >
-                    <Heart className="w-[19px] h-[19px] text-current transition-transform duration-200 group-hover:scale-110" />
+                    <Heart className="w-[17px] h-[17px] text-current transition-transform duration-200 group-hover:scale-110" />
                     <AnimatePresence mode="popLayout">
                       {wishlistCount > 0 && (
                         <motion.span
@@ -575,7 +700,7 @@ export const Navbar = () => {
                             stiffness: 550,
                             damping: 20,
                           }}
-                          className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full gradient-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center pointer-events-none shadow-xs border-2 border-background leading-none"
+                          className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full gradient-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center pointer-events-none shadow-xs border-2 border-background leading-none"
                         >
                           {wishlistCount > 99 ? "99+" : wishlistCount}
                         </motion.span>
@@ -592,15 +717,15 @@ export const Navbar = () => {
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   transition={{ type: "spring", stiffness: 450, damping: 20 }}
                   className={cn(
-                    "group relative h-9.5 w-9.5 rounded-xl flex items-center justify-center border transition-all duration-200",
+                    "group relative h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-full flex items-center justify-center border transition-all duration-200",
                     isTransparentOverHero
-                      ? "text-white hover:text-primary hover:bg-white/15 border-transparent hover:border-white/25"
-                      : "text-foreground/85 hover:text-primary hover:bg-accent border-transparent hover:border-primary/20",
+                      ? "bg-white/10 hover:bg-white/20 border-white/15 text-white shadow-xs"
+                      : "bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800 hover:text-primary shadow-2xs",
                   )}
                   aria-label={user ? "Open cart" : "Sign in to view cart"}
                   title={user ? "Shopping Cart" : "Sign In to View Cart"}
                 >
-                  <ShoppingCart className="w-[19px] h-[19px] text-current transition-transform duration-200 group-hover:-rotate-6" />
+                  <ShoppingCart className="w-[17px] h-[17px] text-current transition-transform duration-200 group-hover:-rotate-6" />
                   <AnimatePresence mode="popLayout">
                     {cartCount > 0 && (
                       <motion.span
@@ -613,7 +738,7 @@ export const Navbar = () => {
                           stiffness: 550,
                           damping: 20,
                         }}
-                        className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full gradient-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center pointer-events-none shadow-xs border-2 border-background leading-none"
+                        className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full gradient-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center pointer-events-none shadow-xs border-2 border-background leading-none"
                       >
                         {cartCount > 99 ? "99+" : cartCount}
                       </motion.span>
@@ -627,15 +752,15 @@ export const Navbar = () => {
                     <DropdownMenuTrigger
                       id="profile-menu-btn"
                       className={cn(
-                        "h-9.5 w-9.5 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        "h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                         isTransparentOverHero
                           ? "text-white hover:bg-white/15"
-                          : "text-foreground hover:bg-accent",
+                          : "text-zinc-800 hover:bg-zinc-100",
                       )}
                       aria-label="User profile menu"
                       title={user.name}
                     >
-                      <Avatar className="h-8 w-8 border-2 border-primary/35 hover:border-primary transition-colors">
+                      <Avatar className="h-7.5 w-7.5 sm:h-8 sm:w-8 border-2 border-primary/35 hover:border-primary transition-colors">
                         <AvatarImage
                           src={user.avatarUrl || ""}
                           alt={user.name}
@@ -721,30 +846,35 @@ export const Navbar = () => {
                       to="/login"
                       id="nav-account-btn"
                       className={cn(
-                        "relative h-9 rounded-xl px-3.5 border transition-all duration-200 flex items-center gap-1.5",
+                        "relative h-8.5 rounded-full px-3.5 sm:px-4 border transition-all duration-200 flex items-center gap-1.5 font-semibold text-xs shadow-xs",
                         isTransparentOverHero
-                          ? "text-white bg-white/15 hover:bg-white/25 border-white/25 hover:text-white"
-                          : "text-foreground hover:text-primary bg-secondary/80 hover:bg-accent border-border/80 hover:border-primary/30",
+                          ? "bg-white text-zinc-950 hover:bg-white/90 border-white/30 shadow-md"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90 border-transparent shadow-sm",
                       )}
                       aria-label="Account / Sign In"
                       title="Sign In / My Account"
                     >
-                      <User className="w-4 h-4 text-primary" />
-                      <span className="hidden xl:inline text-xs font-semibold">
-                        Sign In
-                      </span>
+                      <User
+                        className={cn(
+                          "w-3.5 h-3.5",
+                          isTransparentOverHero
+                            ? "text-zinc-950"
+                            : "text-primary-foreground",
+                        )}
+                      />
+                      <span className="hidden sm:inline">Sign In</span>
                     </Link>
                   </motion.div>
                 )}
 
                 {/* Mobile & Tablet menu toggle */}
                 <motion.button
-                  whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   className={cn(
-                    "h-9.5 w-9.5 rounded-xl flex items-center justify-center border transition-colors min-[1101px]:hidden",
+                    "h-8.5 w-8.5 sm:h-9 sm:w-9 rounded-full flex items-center justify-center border transition-colors min-[1101px]:hidden",
                     isTransparentOverHero
-                      ? "text-white hover:text-primary hover:bg-white/15 border-transparent hover:border-white/20"
-                      : "text-foreground hover:text-primary hover:bg-accent border-transparent hover:border-primary/20",
+                      ? "bg-white/10 hover:bg-white/20 border-white/15 text-white"
+                      : "bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800 hover:text-primary shadow-2xs",
                   )}
                   onClick={() => setMenuOpen(!menuOpen)}
                   aria-label="Toggle mobile menu"
@@ -767,9 +897,9 @@ export const Navbar = () => {
                       transition={{ duration: reduceMotion ? 0 : 0.18 }}
                     >
                       {menuOpen ? (
-                        <X className="h-5 w-5 text-primary" />
+                        <X className="h-4.5 w-4.5 text-primary" />
                       ) : (
-                        <Menu className="h-5 w-5" />
+                        <Menu className="h-4.5 w-4.5 text-current" />
                       )}
                     </motion.span>
                   </AnimatePresence>
@@ -779,16 +909,14 @@ export const Navbar = () => {
           </div>
         </motion.header>
 
-        {/* ── ROW 2: Sticky Glassmorphic Categories Bar (Desktop > 1100px) ── */}
+        {/* ── ROW 2: Slimmer Sticky Categories Bar (Desktop > 1100px) ── */}
         <div
           className={cn(
             "hidden min-[1101px]:block w-full transition-colors duration-300",
-            !isHome && "sticky top-0 z-30 glass shadow-sm",
+            !isHome && "sticky top-0 z-30 shadow-xs",
             isTransparentOverHero
-              ? "bg-gradient-to-b from-black/20 to-black/10 backdrop-blur-md text-white border-b border-white/20"
-              : isScrolled
-                ? "glass bg-card/95 backdrop-blur-xl border-b border-primary/20 shadow-sm text-foreground"
-                : "glass bg-card/85 backdrop-blur-md border-b border-border/70 text-foreground",
+              ? "bg-transparent text-white border-b border-white/[0.04]"
+              : "bg-transparent border-b border-zinc-200/60 text-zinc-800",
           )}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-visible">
@@ -797,92 +925,136 @@ export const Navbar = () => {
                 ref={categoriesNavRef}
                 onMouseLeave={() => setHoveredNavKey(null)}
                 aria-label="Categories Navigation"
-                className="flex items-center justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 h-10.5 w-full overflow-visible"
+                className="flex items-center h-9 w-full overflow-visible"
               >
                 {hasDbConfig ? (
-                  navbarConfigItems!.map((item) => {
-                    if (item.type === "all_categories") {
-                      return (
-                        <AllCategoriesDropdown
-                          key={item.id}
-                          categories={resolvedNavCategories}
-                          overlay={isTransparentOverHero}
-                          isHovered={hoveredNavKey === "all_categories"}
-                          onHoverStart={() =>
-                            setHoveredNavKey("all_categories")
+                  <>
+                    {/* Catalog Categories Group (Left) */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 overflow-visible">
+                      {navbarConfigItems!
+                        .filter(
+                          (item) =>
+                            item.type === "all_categories" ||
+                            item.type === "category",
+                        )
+                        .map((item) => {
+                          if (item.type === "all_categories") {
+                            return (
+                              <AllCategoriesDropdown
+                                key={item.id}
+                                categories={resolvedNavCategories}
+                                overlay={isTransparentOverHero}
+                                isHovered={hoveredNavKey === "all_categories"}
+                                onHoverStart={() =>
+                                  setHoveredNavKey("all_categories")
+                                }
+                              />
+                            );
                           }
-                        />
-                      );
-                    }
-                    if (item.type === "category") {
-                      const catConfig =
-                        (item.categoryId
-                          ? categoryConfigById.get(item.categoryId)
-                          : undefined) ||
-                        resolvedNavCategories.find(
-                          (c) =>
-                            (item.categoryId && c.id === item.categoryId) ||
-                            (item.label &&
-                              c.name.toLowerCase() ===
-                                item.label.toLowerCase()) ||
-                            (item.label &&
-                              c.slug.toLowerCase() ===
-                                item.label.toLowerCase().replace(/\s+/g, "-")),
-                        );
-                      if (!catConfig) return null;
-                      const navKey = `cat-${item.id}`;
-                      return (
-                        <NavCategoryDropdown
-                          key={item.id}
-                          category={{
-                            ...catConfig,
-                            name: item.label || catConfig.name,
-                          }}
-                          overlay={isTransparentOverHero}
-                          isHovered={hoveredNavKey === navKey}
-                          onHoverStart={() => setHoveredNavKey(navKey)}
-                        />
-                      );
-                    }
-                    if (item.type === "custom_link" && item.href) {
-                      return renderAnimatedNavLink(
-                        String(item.id),
-                        item.href,
-                        item.label || "Link",
-                      );
-                    }
-                    return null;
-                  })
+                          const catConfig =
+                            (item.categoryId
+                              ? categoryConfigById.get(item.categoryId)
+                              : undefined) ||
+                            resolvedNavCategories.find(
+                              (c) =>
+                                (item.categoryId && c.id === item.categoryId) ||
+                                (item.label &&
+                                  c.name.toLowerCase() ===
+                                    item.label.toLowerCase()) ||
+                                (item.label &&
+                                  c.slug.toLowerCase() ===
+                                    item.label
+                                      .toLowerCase()
+                                      .replace(/\s+/g, "-")),
+                            );
+                          if (!catConfig) return null;
+                          const navKey = `cat-${item.id}`;
+                          return (
+                            <NavCategoryDropdown
+                              key={item.id}
+                              category={{
+                                ...catConfig,
+                                name: item.label || catConfig.name,
+                              }}
+                              overlay={isTransparentOverHero}
+                              isHovered={hoveredNavKey === navKey}
+                              onHoverStart={() => setHoveredNavKey(navKey)}
+                            />
+                          );
+                        })}
+                    </div>
+
+                    {/* Utility Links Group (Custom Links on Right) */}
+                    <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+                      {navbarConfigItems!
+                        .filter(
+                          (item) => item.type === "custom_link" && item.href,
+                        )
+                        .map((item) =>
+                          renderAnimatedNavLink(
+                            String(item.id),
+                            item.href!,
+                            item.label || "Link",
+                            true,
+                          ),
+                        )}
+                    </div>
+                  </>
                 ) : (
                   <>
-                    <AllCategoriesDropdown
-                      categories={resolvedNavCategories}
-                      overlay={isTransparentOverHero}
-                      isHovered={hoveredNavKey === "all_categories"}
-                      onHoverStart={() => setHoveredNavKey("all_categories")}
-                    />
+                    {/* Catalog Categories Group (Left) */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 overflow-visible">
+                      <AllCategoriesDropdown
+                        categories={resolvedNavCategories}
+                        overlay={isTransparentOverHero}
+                        isHovered={hoveredNavKey === "all_categories"}
+                        onHoverStart={() => setHoveredNavKey("all_categories")}
+                      />
 
-                    {individualNavCategories.map((category) => {
-                      const navKey = `cat-${category.slug}`;
-                      return (
-                        <NavCategoryDropdown
-                          key={category.slug}
-                          category={category}
-                          overlay={isTransparentOverHero}
-                          isHovered={hoveredNavKey === navKey}
-                          onHoverStart={() => setHoveredNavKey(navKey)}
-                        />
-                      );
-                    })}
+                      {/* Subtle divider separating master menu from individual catalog categories */}
+                      <div
+                        className={cn(
+                          "h-3.5 w-px mx-1 shrink-0",
+                          isTransparentOverHero ? "bg-white/15" : "bg-zinc-300",
+                        )}
+                        aria-hidden="true"
+                      />
 
-                    {renderAnimatedNavLink("contact", "/contact", "Contact Us")}
-                    {renderAnimatedNavLink("blog", "/blog", "Blog")}
+                      {individualNavCategories.map((category) => {
+                        const navKey = `cat-${category.slug}`;
+                        return (
+                          <NavCategoryDropdown
+                            key={category.slug}
+                            category={category}
+                            overlay={isTransparentOverHero}
+                            isHovered={hoveredNavKey === navKey}
+                            onHoverStart={() => setHoveredNavKey(navKey)}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Utility Links Group (Contact Us & Blog on Right) */}
+                    <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+                      {renderAnimatedNavLink(
+                        "contact",
+                        "/contact",
+                        "Contact Us",
+                        true,
+                      )}
+                      {renderAnimatedNavLink("blog", "/blog", "Blog", true)}
+                    </div>
                   </>
                 )}
               </nav>
             </LayoutGroup>
           </div>
         </div>
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-full left-0 right-0 h-10 backdrop-blur-md bg-gradient-to-b from-black/15 via-black/0 to-transparent [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        />
       </div>
 
       {/* Dynamic Mobile Navigation Drawer */}
