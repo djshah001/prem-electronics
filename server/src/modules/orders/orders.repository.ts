@@ -364,6 +364,42 @@ export const ordersRepository = {
       .where(eq(orderItems.orderId, orderId));
   },
 
+  /** Returns items for multiple orders joined with product images and slug */
+  async getItemsWithProductForOrders(orderIds: string[]) {
+    if (orderIds.length === 0) return [];
+    return db
+      .select({
+        id: orderItems.id,
+        orderId: orderItems.orderId,
+        productId: orderItems.productId,
+        variantId: orderItems.variantId,
+        productTitle: orderItems.productTitle,
+        categoryIdSnapshot: orderItems.categoryIdSnapshot,
+        categoryNameSnapshot: orderItems.categoryNameSnapshot,
+        categorySnapshotSource: orderItems.categorySnapshotSource,
+        quantity: orderItems.quantity,
+        priceAtPurchase: orderItems.priceAtPurchase,
+        skuSnapshot: orderItems.skuSnapshot,
+        imageSnapshot: orderItems.imageSnapshot,
+        hsnCodeSnapshot: orderItems.hsnCodeSnapshot,
+        unitPriceMinor: orderItems.unitPriceMinor,
+        discountMinor: orderItems.discountMinor,
+        taxableMinor: orderItems.taxableMinor,
+        gstRateBps: orderItems.gstRateBps,
+        cgstMinor: orderItems.cgstMinor,
+        sgstMinor: orderItems.sgstMinor,
+        igstMinor: orderItems.igstMinor,
+        lineTotalMinor: orderItems.lineTotalMinor,
+        variantSnapshot: orderItems.variantSnapshot,
+        createdAt: orderItems.createdAt,
+        productImages: products.images,
+        productSlug: products.slug,
+      })
+      .from(orderItems)
+      .leftJoin(products, eq(products.id, orderItems.productId))
+      .where(inArray(orderItems.orderId, orderIds));
+  },
+
   async updateStatus(id: string, status: Order["status"]): Promise<Order> {
     const result = await db
       .update(orders)

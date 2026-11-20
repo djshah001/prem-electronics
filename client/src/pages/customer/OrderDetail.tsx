@@ -1,57 +1,73 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
   Package, ArrowLeft, Clock, CheckCircle2, Truck, MapPin,
   RotateCcw, X, Star, Receipt, CreditCard,
-  ShieldCheck, ChevronRight, Printer, Download,
+  ShieldCheck, Printer, Download,
+  Copy, Check, Building2, Phone, AlertCircle,
+  ExternalLink, HelpCircle
 } from 'lucide-react';
 import { api, axiosClient } from '../../api/axiosClient';
 import type { Order, OrderItem } from '../../types';
 import { clsx } from 'clsx';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 
-interface OrderDetail extends Order {
+interface OrderDetailData extends Order {
   items: (OrderItem & { productImages?: string[]; productSlug?: string })[];
-  merchant?: { name: string; gstin?: string | null; address?: string | null; phone?: string | null; email?: string | null };
+  merchant?: {
+    name: string;
+    gstin?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    cin?: string | null;
+  };
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  confirmed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  processing: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  shipped: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  delivered: 'bg-green-500/20 text-green-400 border-green-500/30',
-  cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
-  refunded: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string; dot: string; icon: typeof Package }> = {
+  pending: { label: 'Order Placed', bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/30', dot: 'bg-amber-500', icon: Clock },
+  confirmed: { label: 'Payment Confirmed', bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/30', dot: 'bg-blue-500', icon: CheckCircle2 },
+  processing: { label: 'Processing & Packed', bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500/30', dot: 'bg-purple-500', icon: Package },
+  shipped: { label: 'Out for Delivery / In Transit', bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'border-cyan-500/30', dot: 'bg-cyan-500', icon: Truck },
+  delivered: { label: 'Delivered', bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/30', dot: 'bg-emerald-500', icon: ShieldCheck },
+  cancelled: { label: 'Cancelled', bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/30', dot: 'bg-rose-500', icon: X },
+  refunded: { label: 'Refunded', bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', dot: 'bg-slate-400', icon: RotateCcw },
 };
 
-const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-
-const STATUS_ICONS: Record<string, typeof Package> = {
-  pending: Clock,
-  confirmed: CheckCircle2,
-  processing: Package,
-  shipped: Truck,
-  delivered: ShieldCheck,
-  cancelled: X,
-  refunded: RotateCcw,
-};
+const STEP_DEFINITIONS = [
+  { key: 'pending', label: 'Order Placed', desc: 'Received & logged' },
+  { key: 'confirmed', label: 'Confirmed', desc: 'Payment verified' },
+  { key: 'processing', label: 'Packed', desc: 'Quality checked' },
+  { key: 'shipped', label: 'In Transit', desc: 'Dispatched with courier' },
+  { key: 'delivered', label: 'Delivered', desc: 'Delivered safely' },
+];
 
 const formatPrice = (p: string | number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(p));
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(p));
 
 const formatDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  new Date(d).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ['my-order', id],
-    queryFn: () => api.get<OrderDetail>(`/orders/my/${id}`),
-    enabled: !!id,
+    queryFn: () => api.get<OrderDetailData>(`/orders/my/${id}`),
+    enabled: Boolean(id),
   });
 
   const cancelMutation = useMutation({
@@ -65,21 +81,54 @@ export default function OrderDetail() {
   });
 
   const order = data?.data;
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success('Copied to clipboard');
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   const downloadPdf = async () => {
+    if (!order) return;
     try {
+      setIsDownloading(true);
+      toast.loading('Generating tax invoice PDF...', { id: 'pdf-dl' });
       const response = await axiosClient.get(`/invoice-master/orders/${id}/pdf`, { responseType: 'blob' });
-      const url = URL.createObjectURL(response.data); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${order?.invoiceNumber ?? order?.orderNumber ?? 'invoice'}.pdf`; anchor.click(); URL.revokeObjectURL(url);
-    } catch (error: any) { toast.error(error?.message ?? 'Invoice PDF is not available yet.'); }
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${order.invoiceNumber ?? order.orderNumber ?? 'invoice'}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success('Tax invoice downloaded successfully', { id: 'pdf-dl' });
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Invoice PDF is not available yet.', { id: 'pdf-dl' });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 animate-pulse">
-        <div className="h-8 bg-muted rounded w-48 mb-6" />
-        <div className="bg-card rounded-2xl border border-border p-6 mb-4">
-          <div className="h-5 bg-muted rounded w-1/3 mb-4" />
-          <div className="h-4 bg-muted rounded w-full mb-2" />
-          <div className="h-4 bg-muted rounded w-3/4" />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 animate-pulse space-y-6">
+        <div className="h-6 bg-muted rounded w-32" />
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <div className="h-8 bg-muted rounded w-60" />
+            <div className="h-4 bg-muted rounded w-40" />
+          </div>
+          <div className="h-10 bg-muted rounded-xl w-36" />
+        </div>
+        <div className="h-32 bg-card rounded-2xl border border-border p-6" />
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-64 bg-card rounded-2xl border border-border" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-48 bg-card rounded-2xl border border-border" />
+            <div className="h-48 bg-card rounded-2xl border border-border" />
+          </div>
         </div>
       </div>
     );
@@ -88,288 +137,631 @@ export default function OrderDetail() {
   if (!order) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-24 text-center">
-        <Package className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-        <h1 className="text-xl font-bold font-['Outfit'] mb-2">Order not found</h1>
-        <Link to="/account/orders" className="text-primary hover:underline text-sm">Back to orders</Link>
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+          <Package className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold font-['Outfit'] mb-2">Order Not Found</h1>
+        <p className="text-sm text-muted-foreground mb-6">
+          We could not locate the details for this order reference.
+        </p>
+        <Link
+          to="/account/orders"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl gradient-primary text-white font-semibold text-sm"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to My Orders
+        </Link>
       </div>
     );
   }
 
-  const currentStep = STATUS_STEPS.indexOf(order.status);
+  const currentStepIndex = STEP_DEFINITIONS.findIndex((s) => s.key === order.status);
   const isCancelled = ['cancelled', 'refunded'].includes(order.status);
   const canCancel = ['pending', 'confirmed'].includes(order.status);
-  const StatusIcon = STATUS_ICONS[order.status] ?? Package;
+  const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+  const StatusIcon = statusCfg.icon;
+  const isPaid = order.paymentStatus === 'paid';
+  const taxSnapshot = (order.taxSnapshot as any) ?? {};
+  const isCompany = order.purchaseType === 'company';
+  const buyerBusiness = (order.buyerBusinessSnapshot as any) ?? null;
+
+  // Calculate progress percentage
+  const progressPercent = currentStepIndex >= 0
+    ? (currentStepIndex / (STEP_DEFINITIONS.length - 1)) * 100
+    : 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 print:p-0 print:m-0 print:max-w-none">
-      {/* Print-only Invoice Header */}
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 print:p-0 print:m-0 print:max-w-none">
+      {/* ─────────────────────────────────────────────────────────────
+          PRINT-ONLY INVOICE HEADER
+      ───────────────────────────────────────────────────────────── */}
       <div className="hidden print:block mb-8 pb-6 border-b-2 border-foreground/20">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-black font-['Outfit'] tracking-tight">{order.merchant?.name ?? 'Prem Electronics'}</h1>
+            <h1 className="text-2xl font-black font-['Outfit'] tracking-tight">
+              {order.merchant?.name ?? 'Prem Electronics'}
+            </h1>
             {order.merchant?.gstin && <p className="text-xs text-muted-foreground">GSTIN: {order.merchant.gstin}</p>}
             {order.merchant?.address && <p className="text-xs text-muted-foreground">{order.merchant.address}</p>}
-            {(order.merchant?.email || order.merchant?.phone) && <p className="text-xs text-muted-foreground">{[order.merchant.email, order.merchant.phone].filter(Boolean).join(' | ')}</p>}
+            {(order.merchant?.email || order.merchant?.phone) && (
+              <p className="text-xs text-muted-foreground">
+                {[order.merchant.email, order.merchant.phone].filter(Boolean).join(' | ')}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <h2 className="text-lg font-bold font-['Outfit']">TAX INVOICE</h2>
-            <p className="text-xs text-muted-foreground font-mono mt-1">Invoice #: {order.invoiceNumber ?? 'Issued after payment capture'}</p>
+            <p className="text-xs text-muted-foreground font-mono mt-1">
+              Invoice #: {order.invoiceNumber ?? 'INV-' + order.orderNumber}
+            </p>
             <p className="text-xs text-muted-foreground">Date: {formatDate(order.invoiceIssuedAt ?? order.createdAt)}</p>
-            <p className="text-xs text-muted-foreground">Payment: {order.paymentMethod?.toUpperCase() ?? 'ONLINE'} ({order.paymentStatus.toUpperCase()})</p>
+            <p className="text-xs text-muted-foreground">
+              Payment: {order.paymentMethod?.toUpperCase() ?? 'ONLINE'} ({order.paymentStatus.toUpperCase()})
+            </p>
             {order.razorpayPaymentId && (
-              <p className="text-[11px] font-mono text-muted-foreground">Txn: {order.razorpayPaymentId}</p>
+              <p className="text-[11px] font-mono text-muted-foreground">Txn ID: {order.razorpayPaymentId}</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Back Button (Hidden when printing) */}
-      <button
-        onClick={() => navigate('/account/orders')}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors print:hidden"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to orders
-      </button>
+      {/* ─────────────────────────────────────────────────────────────
+          SCREEN HEADER & NAVIGATION
+      ───────────────────────────────────────────────────────────── */}
+      <div className="print:hidden mb-6">
+        <button
+          onClick={() => navigate('/account/orders')}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4 group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to My Orders
+        </button>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-black font-['Outfit']">Order #{order.orderNumber}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{formatDate(order.createdAt)}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={clsx('text-sm px-3 py-1 rounded-full font-semibold capitalize border', STATUS_COLORS[order.status] ?? 'bg-muted text-muted-foreground')}>
-            <StatusIcon className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
-            {order.status}
-          </span>
-          <button
-            onClick={() => window.print()}
-            id="print-invoice-btn"
-            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium print:hidden"
-          >
-            <Printer className="w-3.5 h-3.5 text-primary" /> Print Invoice
-          </button>
-          {['paid', 'refunded'].includes(order.paymentStatus) && <button onClick={downloadPdf} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium print:hidden"><Download className="w-3.5 h-3.5 text-primary" /> PDF</button>}
-          {canCancel && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-black font-['Outfit'] tracking-tight">
+                Order #{order.orderNumber}
+              </h1>
+              <button
+                onClick={() => handleCopy(order.orderNumber, 'order-num')}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Copy Order Number"
+              >
+                {copiedKey === 'order-num' ? (
+                  <Check className="w-4 h-4 text-emerald-500" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+              {isCompany && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                  <Building2 className="w-3.5 h-3.5" /> B2B Company Order
+                </span>
+              )}
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              Placed on {formatDate(order.createdAt)} · {order.items?.length ?? 0} item{(order.items?.length ?? 0) === 1 ? '' : 's'}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className={clsx(
+              'inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-semibold border capitalize',
+              statusCfg.bg, statusCfg.text, statusCfg.border
+            )}>
+              <span className={clsx('w-2 h-2 rounded-full', statusCfg.dot, {
+                'animate-ping': ['pending', 'shipped'].includes(order.status)
+              })} />
+              <StatusIcon className="w-3.5 h-3.5" />
+              <span>{statusCfg.label}</span>
+            </span>
+
             <button
-              disabled={cancelMutation.isPending}
-              onClick={() => { if (window.confirm('Are you sure you want to cancel this order?')) cancelMutation.mutate(); }}
-              className="text-sm text-destructive font-medium hover:underline disabled:opacity-50 print:hidden"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors"
             >
-              Cancel Order
+              <Printer className="w-3.5 h-3.5 text-primary" /> Print
             </button>
-          )}
+
+            {isPaid && (
+              <button
+                onClick={downloadPdf}
+                disabled={isDownloading}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl gradient-primary text-white shadow-xs hover:opacity-95 transition-opacity disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{isDownloading ? 'Generating PDF…' : 'Tax Invoice (PDF)'}</span>
+              </button>
+            )}
+
+            {canCancel && (
+              <button
+                disabled={cancelMutation.isPending}
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to cancel this order? Inventory will be released.')) {
+                    cancelMutation.mutate();
+                  }
+                }}
+                className="text-xs text-destructive hover:bg-destructive/10 border border-destructive/20 font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancel Order
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Read-only status for refunds performed outside this website and confirmed by the provider. */}
-      {order.refundStatus !== 'none' && (
-        <div className={clsx('rounded-xl p-4 mb-5 text-sm flex items-start gap-3 border print:hidden', {
-          'bg-amber-500/10 border-amber-500/20 text-amber-400': order.refundStatus === 'pending' || order.refundStatus === 'partial',
-          'bg-green-500/10 border-green-500/20 text-green-400': order.refundStatus === 'processed',
-        })}>
-          <CreditCard className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <p>
-            {order.refundStatus === 'pending' && 'A historical refund record is pending reconciliation. Please contact the store for assistance.'}
-            {order.refundStatus === 'partial' && 'A partial refund processed outside this website was confirmed by the payment provider.'}
-            {order.refundStatus === 'processed' && 'A full refund processed outside this website was confirmed by the payment provider.'}
-          </p>
-        </div>
+      {/* ─────────────────────────────────────────────────────────────
+          CANCELLED / REFUND BANNER (IF APPLICABLE)
+      ───────────────────────────────────────────────────────────── */}
+      {isCancelled && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={clsx(
+            'rounded-2xl p-5 mb-6 border print:hidden flex items-start gap-3.5',
+            order.status === 'cancelled'
+              ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+              : 'bg-slate-500/10 border-slate-500/20 text-slate-400'
+          )}
+        >
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <h4 className="font-bold">
+              {order.status === 'cancelled' ? 'Order Cancelled' : 'Order Refunded'}
+            </h4>
+            <p className="text-xs opacity-90 mt-1">
+              {order.status === 'cancelled' && isPaid
+                ? 'This order was cancelled after payment. Your refund has been initiated and will credit back to your original payment method in 3–5 working days.'
+                : order.status === 'cancelled'
+                ? 'This order has been cancelled and will not be processed or delivered.'
+                : 'A full refund has been settled for this purchase.'}
+            </p>
+          </div>
+        </motion.div>
       )}
 
-      {/* Order progress tracker (Hidden when printing) */}
+      {/* ─────────────────────────────────────────────────────────────
+          INTERACTIVE ORDER PROGRESS TRACKER
+      ───────────────────────────────────────────────────────────── */}
       {!isCancelled && (
-        <div className="bg-card rounded-2xl border border-border p-6 mb-5 print:hidden">
-          <h2 className="font-bold font-['Outfit'] mb-5">Order Progress</h2>
-          <div className="relative">
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-border" />
-            <div
-              className="absolute top-4 left-4 h-0.5 bg-primary transition-all duration-500"
-              style={{ width: currentStep < 0 ? '0%' : `${(currentStep / (STATUS_STEPS.length - 1)) * 100}%` }}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-card rounded-2xl border border-border p-6 mb-6 print:hidden shadow-xs"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Truck className="w-5 h-5 text-primary" />
+              <h2 className="font-bold font-['Outfit'] text-base">Fulfillment & Tracking</h2>
+            </div>
+            <span className="text-xs text-muted-foreground font-medium">
+              Estimated Delivery: 2–4 Business Days
+            </span>
+          </div>
+
+          <div className="relative pt-2 pb-4">
+            {/* Background Line */}
+            <div className="absolute top-6 left-6 right-6 h-1 bg-muted rounded-full" />
+            {/* Animated Active Line */}
+            <motion.div
+              className="absolute top-6 left-6 h-1 bg-gradient-to-r from-primary via-primary to-cyan-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
             />
+
+            {/* Stepper Nodes */}
             <div className="relative flex justify-between">
-              {STATUS_STEPS.map((step, i) => {
-                const StepIcon = STATUS_ICONS[step] ?? Package;
-                const done = currentStep >= i;
-                const active = currentStep === i;
+              {STEP_DEFINITIONS.map((step, idx) => {
+                const isPassed = currentStepIndex >= idx;
+                const isCurrent = currentStepIndex === idx;
+
                 return (
-                  <div key={step} className="flex flex-col items-center gap-2">
-                    <div className={clsx(
-                      'w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all',
-                      done ? 'bg-primary border-primary text-white' : 'bg-background border-border text-muted-foreground',
-                      active && 'ring-2 ring-primary/30 ring-offset-2 ring-offset-background'
-                    )}>
-                      <StepIcon className="w-3.5 h-3.5" />
+                  <div key={step.key} className="flex flex-col items-center text-center max-w-[100px]">
+                    <div
+                      className={clsx(
+                        'w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 relative',
+                        isPassed
+                          ? 'bg-primary text-white shadow-md shadow-primary/25'
+                          : 'bg-card border-2 border-border text-muted-foreground'
+                      )}
+                    >
+                      {isPassed ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : (
+                        <span>{idx + 1}</span>
+                      )}
+
+                      {/* Pulsing Ring on Active Node */}
+                      {isCurrent && (
+                        <span className="absolute -inset-1.5 rounded-full border-2 border-primary/40 animate-ping pointer-events-none" />
+                      )}
                     </div>
-                    <span className={clsx('text-xs font-medium capitalize hidden sm:block', done ? 'text-foreground' : 'text-muted-foreground')}>
-                      {step}
-                    </span>
+
+                    <p className={clsx('text-xs font-bold mt-2.5', isPassed ? 'text-foreground' : 'text-muted-foreground')}>
+                      {step.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 hidden sm:block mt-0.5">
+                      {step.desc}
+                    </p>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-5 print:grid-cols-1">
-        {/* Order Items */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
-            <h2 className="font-bold font-['Outfit'] mb-4">Items Ordered</h2>
-            <div className="space-y-4">
-              {(order.items ?? []).map((item) => (
-                <div key={item.id} className="flex gap-4 py-3 border-b border-border last:border-0 last:pb-0">
-                  <div className="w-16 h-16 rounded-xl bg-muted flex-shrink-0 overflow-hidden print:hidden">
-                    {item.productImages?.[0] ? (
-                      <img src={item.productImages[0]} alt={item.productTitle ?? ''} className="w-full h-full object-cover" />
-                    ) : (
-                      <Package className="w-6 h-6 m-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm line-clamp-2">{item.productTitle}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      {item.variantSnapshot && typeof item.variantSnapshot === 'object' && (
-                        <>
-                          {(item.variantSnapshot as any).sku && (
-                            <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              SKU: {(item.variantSnapshot as any).sku}
-                            </span>
-                          )}
-                          {(item.variantSnapshot as any).brand && (
-                            <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              {(item.variantSnapshot as any).brand}
-                            </span>
-                          )}
-                        </>
+      {/* ─────────────────────────────────────────────────────────────
+          MAIN CONTENT GRID: ITEMS + SUMMARY
+      ───────────────────────────────────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-6 print:grid-cols-1">
+        {/* Left Column: Items List + Addresses */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Order Items Card */}
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-xs print:shadow-none print:border-foreground/15">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold font-['Outfit'] text-base flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" /> Items in this Order ({order.items?.length ?? 0})
+              </h2>
+              {order.invoiceNumber && (
+                <span className="font-mono text-xs text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-md">
+                  INV: {order.invoiceNumber}
+                </span>
+              )}
+            </div>
+
+            <div className="divide-y divide-border/60">
+              {(order.items ?? []).map((item) => {
+                const imgSrc = item.productImages?.[0] || item.imageSnapshot;
+                const variant = (item.variantSnapshot as any) ?? {};
+                const lineTotal = Number(item.priceAtPurchase) * item.quantity;
+
+                return (
+                  <div key={item.id} className="py-4.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row gap-4 items-start">
+                    {/* Thumbnail */}
+                    <div className="w-20 h-20 rounded-xl bg-muted/40 border border-border/80 overflow-hidden flex-shrink-0 flex items-center justify-center print:hidden">
+                      {imgSrc ? (
+                        <img
+                          src={imgSrc}
+                          alt={item.productTitle ?? ''}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <Package className="w-8 h-8 text-muted-foreground/40" />
                       )}
                     </div>
-                    {item.productSlug && (
-                      <Link to={`/products/${item.productSlug}`} className="text-xs text-primary hover:underline inline-flex items-center gap-0.5 mt-1 print:hidden">
-                        View product <ChevronRight className="w-3 h-3" />
-                      </Link>
-                    )}
+
+                    {/* Item Information */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-foreground line-clamp-2">
+                        {item.productTitle}
+                      </h3>
+
+                      {/* Snapshots & Badges */}
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                          Qty: {item.quantity}
+                        </span>
+
+                        {(item.skuSnapshot || variant.sku) && (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-muted/80 text-muted-foreground border border-border/60">
+                            SKU: {item.skuSnapshot || variant.sku}
+                          </span>
+                        )}
+
+                        {item.hsnCodeSnapshot && (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-muted/80 text-muted-foreground border border-border/60">
+                            HSN: {item.hsnCodeSnapshot}
+                          </span>
+                        )}
+
+                        {variant.brand && (
+                          <span className="text-[11px] px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                            {variant.brand}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Rate and Tax Details per Item */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                        <span>Unit Rate: {formatPrice(item.priceAtPurchase)}</span>
+                        {item.gstRateBps && (
+                          <span>· GST @ {item.gstRateBps / 100}%</span>
+                        )}
+                      </div>
+
+                      {/* Quick Links */}
+                      {item.productSlug && (
+                        <div className="mt-3 flex items-center gap-3 print:hidden">
+                          <Link
+                            to={`/products/${item.productSlug}`}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                          >
+                            <span>View Product</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+
+                          {order.status === 'delivered' && (
+                            <Link
+                              to={`/products/${item.productSlug}#reviews`}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500 hover:underline"
+                            >
+                              <Star className="w-3 h-3 fill-amber-500" /> Write Review
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Price column */}
+                    <div className="text-left sm:text-right flex-shrink-0 self-end sm:self-start">
+                      <p className="font-bold text-base text-foreground font-mono">
+                        {formatPrice(lineTotal)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatPrice(item.priceAtPurchase)} each
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-sm">{formatPrice(Number(item.priceAtPurchase) * item.quantity)}</p>
-                    <p className="text-xs text-muted-foreground">{formatPrice(item.priceAtPurchase)} each</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          {/* Shipping Address */}
-          {order.shippingAddress && (
-            <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
-              <h2 className="font-bold font-['Outfit'] mb-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-primary" /> Delivery Address
-              </h2>
-              <div className="text-sm text-muted-foreground space-y-0.5">
-                <p className="font-medium text-foreground">{order.shippingAddress.fullName}</p>
-                <p>{order.shippingAddress.street}</p>
-                <p>{order.shippingAddress.city}, {order.shippingAddress.state} – {order.shippingAddress.pincode}</p>
-                <p>{order.shippingAddress.country}</p>
-                <p className="mt-1">📞 {order.shippingAddress.phone}</p>
+          {/* Delivery & Billing Address Cards (2-column layout) */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Delivery Address */}
+            {order.shippingAddress && (
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs print:border-foreground/15">
+                <h3 className="font-bold font-['Outfit'] text-sm mb-3 flex items-center gap-2 text-foreground">
+                  <MapPin className="w-4 h-4 text-primary" /> Delivery Address
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-1 leading-relaxed">
+                  <p className="font-bold text-sm text-foreground">{order.shippingAddress.fullName}</p>
+                  <p>{order.shippingAddress.street}</p>
+                  <p>{order.shippingAddress.city}, {order.shippingAddress.state} – {order.shippingAddress.pincode}</p>
+                  <p>{order.shippingAddress.country}</p>
+                  <p className="pt-1.5 flex items-center gap-1.5 text-foreground font-medium">
+                    <Phone className="w-3 h-3 text-primary" /> {order.shippingAddress.phone}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
-          {order.purchaseType === 'company' && order.buyerBusinessSnapshot && (() => {
-            const buyer = order.buyerBusinessSnapshot as any;
-            const billing = buyer.billingAddress ?? order.billingAddress;
-            return <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
-              <h2 className="font-bold font-['Outfit'] mb-3 flex items-center gap-2"><Receipt className="w-4 h-4 text-primary" /> Billed to</h2>
-              <div className="text-sm text-muted-foreground space-y-0.5"><p className="font-medium text-foreground">{buyer.legalName}</p>{buyer.tradeName && <p>{buyer.tradeName}</p>}<p className="font-mono">GSTIN: {buyer.gstin}</p>{billing && <><p>{[billing.building, billing.street, billing.locality].filter(Boolean).join(', ')}</p><p>{billing.city}, {billing.state} – {billing.pincode}</p></>}<p className="text-xs mt-2">Verified identity snapshot · Profile version {buyer.profileVersion}</p></div>
-            </div>;
-          })()}
+            )}
+
+            {/* B2B Company Billing Block (if company purchase) */}
+            {isCompany && buyerBusiness ? (
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs print:border-foreground/15">
+                <h3 className="font-bold font-['Outfit'] text-sm mb-3 flex items-center gap-2 text-foreground">
+                  <Building2 className="w-4 h-4 text-blue-500" /> B2B Billing (Tax Invoice)
+                </h3>
+                <div className="text-xs text-muted-foreground space-y-1 leading-relaxed">
+                  <p className="font-bold text-sm text-foreground">{buyerBusiness.legalName}</p>
+                  {buyerBusiness.tradeName && <p>{buyerBusiness.tradeName}</p>}
+                  <p className="font-mono text-foreground font-semibold">
+                    GSTIN: {buyerBusiness.gstin}
+                  </p>
+                  {buyerBusiness.billingAddress && (
+                    <p>
+                      {[buyerBusiness.billingAddress.building, buyerBusiness.billingAddress.street, buyerBusiness.billingAddress.locality].filter(Boolean).join(', ')}, {buyerBusiness.billingAddress.city}, {buyerBusiness.billingAddress.state} – {buyerBusiness.billingAddress.pincode}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/80 pt-1">
+                    Verified Snapshot · v{buyerBusiness.profileVersion ?? 1}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Fallback: Help & Support Card */
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs flex flex-col justify-between print:hidden">
+                <div>
+                  <h3 className="font-bold font-['Outfit'] text-sm mb-2 flex items-center gap-2 text-foreground">
+                    <HelpCircle className="w-4 h-4 text-primary" /> Need Help With Your Order?
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Have questions about delivery, warranty registration, or tax invoices? Our support team is here to assist you.
+                  </p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-border flex items-center gap-4 text-xs">
+                  <a href="mailto:support@premelectronics.com" className="font-semibold text-primary hover:underline">
+                    Email Support
+                  </a>
+                  <span className="text-border">|</span>
+                  <a href="tel:+919876543210" className="font-semibold text-primary hover:underline">
+                    Call Store
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Order Summary */}
-        <div className="space-y-4">
-          <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
-            <h2 className="font-bold font-['Outfit'] mb-4 flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-primary" /> Payment Summary
+        {/* Right Column: Payment Details & Detailed GST Breakdown */}
+        <div className="space-y-6">
+          {/* Payment & GST Summary Card */}
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-xs print:shadow-none print:border-foreground/15">
+            <h2 className="font-bold font-['Outfit'] text-base mb-4 flex items-center gap-2 text-foreground">
+              <Receipt className="w-4 h-4 text-primary" /> Price & Tax Summary
             </h2>
-            <div className="space-y-2.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatPrice(order.subtotal)}</span>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Items Subtotal</span>
+                <span className="font-mono text-foreground">{formatPrice(order.subtotal)}</span>
               </div>
+
               {Number(order.discount) > 0 && (
-                <div className="flex justify-between text-green-400">
-                  <span>Discount {order.couponCode && <span className="font-mono text-xs">({order.couponCode})</span>}</span>
-                  <span>-{formatPrice(order.discount)}</span>
+                <div className="flex justify-between items-center text-emerald-500 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    Discount
+                    {order.couponCode && (
+                      <span className="font-mono text-[11px] bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        {order.couponCode}
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono">-{formatPrice(order.discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span>{Number(order.shipping) === 0 ? <span className="text-green-400">Free</span> : formatPrice(order.shipping)}</span>
+
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Shipping</span>
+                <span>
+                  {Number(order.shipping) === 0 ? (
+                    <span className="text-emerald-500 font-semibold text-xs bg-emerald-500/10 px-2 py-0.5 rounded">
+                      FREE DELIVERY
+                    </span>
+                  ) : (
+                    <span className="font-mono text-foreground">{formatPrice(order.shipping)}</span>
+                  )}
+                </span>
               </div>
-              <div className="flex justify-between"><span className="text-muted-foreground">GST</span><span>{formatPrice(order.tax)}</span></div>
-              {Number((order.taxSnapshot as any)?.cgstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>CGST</span><span>{formatPrice(Number((order.taxSnapshot as any).cgstMinor) / 100)}</span></div>}
-              {Number((order.taxSnapshot as any)?.sgstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>SGST / UTGST</span><span>{formatPrice(Number((order.taxSnapshot as any).sgstMinor) / 100)}</span></div>}
-              {Number((order.taxSnapshot as any)?.igstMinor ?? 0) > 0 && <div className="flex justify-between text-xs text-muted-foreground"><span>IGST</span><span>{formatPrice(Number((order.taxSnapshot as any).igstMinor) / 100)}</span></div>}
-              {(order.taxSnapshot as any)?.placeOfSupplyState && <div className="flex justify-between text-xs text-muted-foreground"><span>Place of supply</span><span>{(order.taxSnapshot as any).placeOfSupplyState} ({(order.taxSnapshot as any).placeOfSupplyStateCode})</span></div>}
-              <div className="flex justify-between font-bold text-base pt-2 border-t border-border">
-                <span>Total</span>
-                <span className="text-primary">{formatPrice(order.total)}</span>
+
+              {/* Detailed GST Section */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <div className="flex justify-between items-center text-xs text-muted-foreground font-semibold">
+                  <span>GST Breakdown</span>
+                  <span className="capitalize text-[11px]">
+                    {taxSnapshot.jurisdiction === 'inter_state' ? 'Inter-state (IGST)' : 'Intra-state (CGST+SGST)'}
+                  </span>
+                </div>
+
+                {Number(taxSnapshot.cgstMinor ?? 0) > 0 && (
+                  <div className="flex justify-between items-center text-xs text-muted-foreground pl-2">
+                    <span>Central GST (CGST)</span>
+                    <span className="font-mono text-foreground">{formatPrice(Number(taxSnapshot.cgstMinor) / 100)}</span>
+                  </div>
+                )}
+
+                {Number(taxSnapshot.sgstMinor ?? 0) > 0 && (
+                  <div className="flex justify-between items-center text-xs text-muted-foreground pl-2">
+                    <span>State GST (SGST / UTGST)</span>
+                    <span className="font-mono text-foreground">{formatPrice(Number(taxSnapshot.sgstMinor) / 100)}</span>
+                  </div>
+                )}
+
+                {Number(taxSnapshot.igstMinor ?? 0) > 0 && (
+                  <div className="flex justify-between items-center text-xs text-muted-foreground pl-2">
+                    <span>Integrated GST (IGST)</span>
+                    <span className="font-mono text-foreground">{formatPrice(Number(taxSnapshot.igstMinor) / 100)}</span>
+                  </div>
+                )}
+
+                {taxSnapshot.placeOfSupplyState && (
+                  <div className="flex justify-between items-center text-[11px] text-muted-foreground/70 pl-2">
+                    <span>Place of Supply</span>
+                    <span>{taxSnapshot.placeOfSupplyState} ({taxSnapshot.placeOfSupplyStateCode ?? ''})</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-xs text-muted-foreground font-medium pt-1">
+                  <span>Total Tax</span>
+                  <span className="font-mono text-foreground">{formatPrice(order.tax)}</span>
+                </div>
+              </div>
+
+              {/* Grand Total */}
+              <div className="flex justify-between items-center font-black text-lg pt-3 border-t border-border text-foreground">
+                <div>
+                  <span>Grand Total</span>
+                  <p className="text-[11px] font-normal text-muted-foreground">Inclusive of all taxes</p>
+                </div>
+                <span className="text-primary font-mono text-xl">{formatPrice(order.total)}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-6 print:border-foreground/10 print:shadow-none">
-            <h2 className="font-bold font-['Outfit'] mb-3 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-primary" /> Payment Details
+          {/* Payment Information Card */}
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-xs print:shadow-none print:border-foreground/15 space-y-4">
+            <h2 className="font-bold font-['Outfit'] text-base flex items-center gap-2 text-foreground">
+              <CreditCard className="w-4 h-4 text-primary" /> Payment & Transaction
             </h2>
-            <div className="space-y-1.5 text-sm text-muted-foreground">
-              <p>Method: <span className="text-foreground capitalize">{order.paymentMethod ?? 'Razorpay'}</span></p>
-              <p>Status: <span className={clsx('font-semibold capitalize', order.paymentStatus === 'paid' ? 'text-green-400' : 'text-amber-400')}>{order.paymentStatus}</span></p>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Method:</span>
+                <span className="font-semibold text-foreground uppercase tracking-wider">
+                  {order.paymentMethod ?? 'Razorpay Gateway'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Payment Status:</span>
+                <span className={clsx(
+                  'font-bold px-2 py-0.5 rounded-full capitalize',
+                  isPaid ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                )}>
+                  {order.paymentStatus}
+                </span>
+              </div>
+
               {order.razorpayPaymentId && (
-                <p className="font-mono text-xs break-all">ID: {order.razorpayPaymentId}</p>
+                <div className="space-y-1 pt-1 border-t border-border/50">
+                  <span className="text-muted-foreground">Transaction Reference:</span>
+                  <div className="flex items-center justify-between font-mono text-[11px] bg-muted/50 p-2 rounded-lg break-all">
+                    <span>{order.razorpayPaymentId}</span>
+                    <button
+                      onClick={() => handleCopy(order.razorpayPaymentId!, 'txn-id')}
+                      className="p-1 hover:text-primary transition-colors flex-shrink-0 ml-1"
+                      title="Copy Transaction ID"
+                    >
+                      {copiedKey === 'txn-id' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {order.invoiceNumber && (
+                <div className="space-y-1 pt-1">
+                  <span className="text-muted-foreground">Official Invoice No:</span>
+                  <div className="flex items-center justify-between font-mono text-[11px] bg-muted/50 p-2 rounded-lg">
+                    <span>{order.invoiceNumber}</span>
+                    <button
+                      onClick={() => handleCopy(order.invoiceNumber!, 'inv-no')}
+                      className="p-1 hover:text-primary transition-colors flex-shrink-0 ml-1"
+                      title="Copy Invoice Number"
+                    >
+                      {copiedKey === 'inv-no' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
+
+            {/* Tax Invoice PDF button */}
+            {isPaid && (
+              <div className="pt-2 print:hidden">
+                <button
+                  onClick={downloadPdf}
+                  disabled={isDownloading}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl gradient-primary text-white font-semibold text-xs shadow-xs hover:opacity-95 transition-opacity disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{isDownloading ? 'Generating PDF…' : 'Download Tax Invoice (PDF)'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* Notes Card (if present) */}
           {order.notes && (
-            <div className="bg-card rounded-2xl border border-border p-5 print:border-foreground/10 print:shadow-none">
-              <h2 className="font-bold font-['Outfit'] text-sm mb-2">Order Notes</h2>
-              <p className="text-sm text-muted-foreground">{order.notes}</p>
+            <div className="bg-card rounded-2xl border border-border p-5 text-xs">
+              <h4 className="font-bold font-['Outfit'] mb-1 text-foreground">Order Notes</h4>
+              <p className="text-muted-foreground">{order.notes}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Print-only Invoice Footer */}
+      {/* ─────────────────────────────────────────────────────────────
+          PRINT-ONLY INVOICE FOOTER
+      ───────────────────────────────────────────────────────────── */}
       <div className="hidden print:block mt-8 pt-6 border-t border-foreground/20 text-center text-xs text-muted-foreground">
-        <p>This is a computer-generated invoice. It is not an IRP-registered e-invoice.</p>
-        <p className="mt-1">Thank you for shopping with Prem Electronics!</p>
+        <p>This is a computer-generated tax invoice. Registered with Prem Electronics.</p>
+        <p className="mt-1">Thank you for your business!</p>
       </div>
-
-      {/* Write Review CTA for delivered orders */}
-      {order.status === 'delivered' && (order.items ?? []).length > 0 && (
-        <div className="mt-5 rounded-2xl border border-border bg-card p-5 flex items-center justify-between gap-4 print:hidden">
-          <div className="flex items-center gap-3">
-            <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-            <div>
-              <p className="font-semibold text-sm">How was your order?</p>
-              <p className="text-xs text-muted-foreground">Share your experience to help other buyers.</p>
-            </div>
-          </div>
-          {(order.items ?? []).map((item) =>
-            item.productSlug ? (
-              <Link
-                key={item.id}
-                to={`/products/${item.productSlug}#reviews`}
-                className="flex-shrink-0 px-4 py-2 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 font-medium text-sm hover:bg-amber-400/20 transition-colors"
-              >
-                Write Review
-              </Link>
-            ) : null
-          )}
-        </div>
-      )}
     </div>
   );
 }
