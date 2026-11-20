@@ -7,7 +7,7 @@ import { paymentLimiter } from '../../core/middlewares/rateLimiter.js';
 const router = Router();
 export const paymentsWebhookRouter = Router();
 
-paymentsWebhookRouter.post('/', paymentLimiter, asyncHandler(paymentsController.handleWebhook));
+paymentsWebhookRouter.post('/', asyncHandler(paymentsController.handleWebhook));
 
 router.post('/verify', authenticate, paymentLimiter, asyncHandler(paymentsController.verifyPayment));
 

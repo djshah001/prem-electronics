@@ -8,8 +8,8 @@ export function useHeroBanners() {
   return useQuery({
     queryKey: heroBannerQueryKey,
     queryFn: () => api.get<PublicBannerResponse>('/banners', { placement: 'home_hero' }),
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: false,
     retry: 1,
     refetchOnWindowFocus: true,
   });

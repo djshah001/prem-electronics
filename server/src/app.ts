@@ -38,6 +38,9 @@ import { seoRouter } from './modules/seo/seo.routes.js';
 
 const app = express();
 
+// Trust reverse proxies (Nginx, Cloudflare, etc.) so express-rate-limit tracks actual client IPs
+app.set('trust proxy', 1);
+
 // ─── Security Middlewares ────────────────────────────────────────────────────
 app.use(
   helmet({
@@ -56,9 +59,8 @@ app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json', limi
 app.use(originGuard);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(publicLimiter);
 
-// ─── Static Uploads & On-Demand Thumbnail Generator ────────────────────────
+// ─── Static Uploads & On-Demand Thumbnail Generator (Excluded from API Rate Limits) ──
 app.use(
   '/uploads',
   (_req, res, next) => {
@@ -109,6 +111,9 @@ app.use(
   },
   express.static(serverUploadRoot, { maxAge: '30d' })
 );
+
+// ─── Public API Rate Limiter ─────────────────────────────────────────────────
+app.use('/api', publicLimiter);
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (_req, res) => {
