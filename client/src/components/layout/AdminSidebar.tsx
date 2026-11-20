@@ -23,7 +23,6 @@ import {
   Tag,
   Users,
   X,
-  ReceiptText,
   Mail,
   Megaphone,
   ScrollText,
@@ -36,7 +35,6 @@ import {
   Sparkles,
   FolderKanban,
   Wallet,
-  Settings2,
   type LucideIcon,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -201,23 +199,6 @@ const navGroups: NavGroup[] = [
             icon: ScrollText,
             label: "Email Logs",
             href: "/admin/email-logs",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
-      {
-        id: "settings-docs",
-        icon: Settings2,
-        label: "Documents & Setup",
-        subItems: [
-          {
-            icon: ReceiptText,
-            label: "Invoice Master",
-            href: "/admin/invoice-master",
           },
         ],
       },

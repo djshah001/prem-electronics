@@ -64,7 +64,6 @@ const CustomerDetail = lazy(() => import('./pages/admin/CustomerDetail'));
 const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail'));
 const BlogManager = lazy(() => import('./pages/admin/BlogManager'));
 const BlogEditor = lazy(() => import('./pages/admin/BlogEditor'));
-const InvoiceMaster = lazy(() => import('./pages/admin/InvoiceMaster'));
 const EmailMaster = lazy(() => import('./pages/admin/EmailMaster'));
 const CampaignManager = lazy(() => import('./pages/admin/CampaignManager'));
 const EmailLogs = lazy(() => import('./pages/admin/EmailLogs'));
@@ -231,7 +230,6 @@ const router = createBrowserRouter([
           { path: '/admin/blogs', element: <BlogManager /> },
           { path: '/admin/blogs/new', element: <BlogEditor /> },
           { path: '/admin/blogs/:id/edit', element: <BlogEditor /> },
-          { path: '/admin/invoice-master', element: <InvoiceMaster /> },
           { path: '/admin/email-master', element: <EmailMaster /> },
           { path: '/admin/campaigns', element: <CampaignManager /> },
           { path: '/admin/email-logs', element: <EmailLogs /> },

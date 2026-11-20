@@ -15,31 +15,10 @@ import {
 import { orders } from './orders.js';
 import { users } from './users.js';
 import { messageDeliveryJobs } from './messageDelivery.js';
-import { sql } from 'drizzle-orm';
 
 export type StructuredContent = {
   type: 'doc';
   content?: Array<Record<string, unknown>>;
-};
-
-export type InvoiceTemplateConfig = {
-  page: { size: 'A4'; marginMm: number; repeatTableHeader: boolean; showPageNumbers: boolean };
-  labels: Record<string, string>;
-  sections: Array<{ key: string; visible: boolean; order: number }>;
-  merchant: {
-    name: string;
-    gstin?: string;
-    pan?: string;
-    address?: string;
-    state?: string;
-    stateCode?: string;
-    phone?: string;
-    email?: string;
-    bankDetails?: string;
-    declaration?: string;
-    signatureLabel?: string;
-  };
-  terms?: string;
 };
 
 const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
@@ -56,44 +35,15 @@ export const campaignRecipientStatusEnum = pgEnum('campaign_recipient_status', [
   'pending', 'suppressed', 'queued', 'smtp_accepted', 'provider_accepted', 'failed', 'cancelled',
 ]);
 
-export const invoiceTemplates = pgTable('invoice_templates', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 120 }).notNull(),
-  documentType: varchar('document_type', { length: 40 }).default('tax_invoice').notNull(),
-  status: masterStatusEnum('status').default('draft').notNull(),
-  isDefault: boolean('is_default').default(false).notNull(),
-  draftConfig: jsonb('draft_config').$type<InvoiceTemplateConfig>().notNull(),
-  draftRevision: integer('draft_revision').default(1).notNull(),
-  activeVersionId: uuid('active_version_id'),
-  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
-  archivedAt: timestamp('archived_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index('invoice_templates_status_idx').on(table.status),
-  uniqueIndex('invoice_templates_default_type_uidx').on(table.documentType).where(sql`${table.isDefault} = true`),
-]);
-
-export const invoiceTemplateVersions = pgTable('invoice_template_versions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  templateId: uuid('template_id').notNull().references(() => invoiceTemplates.id, { onDelete: 'restrict' }),
-  version: integer('version').notNull(),
-  config: jsonb('config').$type<InvoiceTemplateConfig>().notNull(),
-  changeNote: varchar('change_note', { length: 500 }),
-  publishedBy: uuid('published_by').references(() => users.id, { onDelete: 'set null' }),
-  publishedAt: timestamp('published_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex('invoice_template_versions_number_uidx').on(table.templateId, table.version)]);
-
 export const issuedInvoices = pgTable('issued_invoices', {
   id: uuid('id').primaryKey().defaultRandom(),
   orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'restrict' }),
-  templateVersionId: uuid('template_version_id').references(() => invoiceTemplateVersions.id, { onDelete: 'restrict' }),
+  templateVersionId: uuid('template_version_id'),
   invoiceNumber: varchar('invoice_number', { length: 40 }).notNull(),
   orderSnapshot: jsonb('order_snapshot').$type<Record<string, unknown>>().notNull(),
   sellerSnapshot: jsonb('seller_snapshot').$type<Record<string, unknown>>().notNull(),
   buyerSnapshot: jsonb('buyer_snapshot').$type<Record<string, unknown>>().notNull(),
-  templateSnapshot: jsonb('template_snapshot').$type<InvoiceTemplateConfig>().notNull(),
+  templateSnapshot: jsonb('template_snapshot').$type<Record<string, unknown>>().notNull(),
   rendererVersion: varchar('renderer_version', { length: 30 }).default('pdfkit-a4-v1').notNull(),
   pdfSha256: varchar('pdf_sha256', { length: 64 }).notNull(),
   pdfBytes: bytea('pdf_bytes').notNull(),

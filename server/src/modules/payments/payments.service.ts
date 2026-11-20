@@ -26,7 +26,7 @@ import { AppError, ForbiddenError, NotFoundError } from '../../core/errors/appEr
 import logger from '../../core/logger/logger.js';
 import { env } from '../../config/env.js';
 import { emailMasterService } from '../communications/email.service.js';
-import { invoiceMasterService } from '../invoiceMaster/invoice.service.js';
+import { invoiceService } from '../invoiceMaster/invoice.service.js';
 import { createAdminNotification } from '../notifications/notifications.service.js';
 
 type PaymentInput = {
@@ -282,7 +282,7 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
   });
 
   try {
-    await invoiceMasterService.issueForOrder(result.order.id);
+    await invoiceService.issueForOrder(result.order.id);
   } catch (error) {
     logger.error('Invoice issuance will be retried on customer download.', { orderId: result.order.id, error });
   }

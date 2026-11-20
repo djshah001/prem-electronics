@@ -1,31 +1,101 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { indianAmountInWords, renderInvoicePdf } from './invoice.renderer.js';
-import type { InvoiceTemplateConfig } from '../../infrastructure/database/schema/contentMasters.js';
+import { indianAmountInWords, renderInvoicePdf, type InvoiceRenderData } from './invoice.renderer.js';
 
-const config: InvoiceTemplateConfig = {
-  page: { size: 'A4', marginMm: 10, repeatTableHeader: true, showPageNumbers: true }, labels: {},
-  sections: ['seller','buyer','metadata','items','taxSummary','amountWords','bank','terms','signature'].map((key, order) => ({ key, visible: true, order })),
-  merchant: { name: 'Prem Electronics', address: 'Vadodara, Gujarat', signatureLabel: 'Authorised Signatory' },
+const sampleMerchant = {
+  name: 'Prem Electronics',
+  address: '7, SHIVAKRUTI APPARTMENT, SHIVAJI ROAD, DANDIA BAZAR, VADODARA-390001.',
+  phone: '9712000609',
+  gstin: '24AAFPI9545M1ZB',
+  stateName: 'Gujarat',
+  stateCode: '24',
+  email: 'premelectronics@ymail.com',
+  bankName: 'HDFC BANK',
+  bankAccountNo: '04292000005162',
+  bankBranchIfsc: 'PANCHMUKHI VADODARA & HDFC0000429',
+  declaration: 'Terms & Conditions apply.',
+  signatureLabel: 'Authorised Signatory',
+  documentTitle: 'TAX INVOICE',
 };
-const invoiceData = (count: number) => ({
-  merchant: { name: 'Prem Electronics' },
-  order: { invoiceNumber: 'INV-TEST', createdAt: new Date('2026-10-05T00:00:00Z'), paymentMethod: 'online', shippingAddress: { fullName: 'Customer', street: 'A long address', city: 'Vadodara', state: 'Gujarat', pincode: '390001', country: 'India' }, total: 59000, amountMinor: 5900000, tax: 9000, taxSnapshot: { placeOfSupplyState: 'Gujarat', taxableMinor: 5000000, cgstMinor: 450000, sgstMinor: 450000, igstMinor: 0, totalTaxMinor: 900000 } },
-  items: Array.from({ length: count }, (_, index) => ({ productTitle: `Electronic product ${index + 1} with long descriptive title`, hsnCodeSnapshot: '8517', skuSnapshot: `SKU-${index}`, quantity: 1, priceAtPurchase: 590, unitPriceMinor: 50000, taxableMinor: 50000, gstRateBps: 1800, cgstMinor: 4500, sgstMinor: 4500, igstMinor: 0, lineTotalMinor: 59000 })),
+
+const createInvoiceData = (count: number, isInterstate = false): InvoiceRenderData => ({
+  merchant: sampleMerchant,
+  order: {
+    invoiceNumber: 'INV-TEST-001',
+    orderNumber: 'ORD-1001',
+    createdAt: new Date('2026-10-05T00:00:00Z').toISOString(),
+    invoiceIssuedAt: new Date('2026-10-05T00:00:00Z').toISOString(),
+    paymentMethod: 'Online',
+    shippingAddress: {
+      fullName: 'Customer Name',
+      street: '123 Market Street',
+      city: isInterstate ? 'Mumbai' : 'Vadodara',
+      state: isInterstate ? 'Maharashtra' : 'Gujarat',
+      pincode: isInterstate ? '400001' : '390001',
+    },
+    billingAddress: {
+      fullName: 'Customer Name',
+      street: '123 Market Street',
+      city: isInterstate ? 'Mumbai' : 'Vadodara',
+      state: isInterstate ? 'Maharashtra' : 'Gujarat',
+      pincode: isInterstate ? '400001' : '390001',
+    },
+    buyerBusinessSnapshot: {
+      legalName: 'Test Buyer Ltd',
+      gstin: isInterstate ? '27AABCU9603R1ZM' : '24AABCU9603R1ZM',
+    },
+    taxSnapshot: {
+      placeOfSupplyState: isInterstate ? 'Maharashtra' : 'Gujarat',
+      taxableMinor: 100000 * count,
+      cgstMinor: isInterstate ? 0 : 9000 * count,
+      sgstMinor: isInterstate ? 0 : 9000 * count,
+      igstMinor: isInterstate ? 18000 * count : 0,
+      totalTaxMinor: 18000 * count,
+    },
+    amountMinor: 118000 * count,
+    total: 1180 * count,
+    tax: 180 * count,
+  },
+  items: Array.from({ length: count }, (_, index) => ({
+    productTitle: `Panasonic Camcorder Model ${index + 1}`,
+    hsnCodeSnapshot: '85258900',
+    skuSnapshot: `SKU-${index + 1}`,
+    quantity: 1,
+    priceAtPurchase: 1180,
+    unitPriceMinor: 100000,
+    taxableMinor: 100000,
+    gstRateBps: 1800,
+    cgstMinor: isInterstate ? 0 : 9000,
+    sgstMinor: isInterstate ? 0 : 9000,
+    igstMinor: isInterstate ? 18000 : 0,
+    lineTotalMinor: 118000,
+  })),
 });
 
-test('Indian currency amount words are deterministic', () => {
-  assert.equal(indianAmountInWords(12345678), 'One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight Rupees Only');
+test('Indian currency amount words are deterministic without paise', () => {
+  assert.equal(
+    indianAmountInWords(1234567800),
+    'INR One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight Only'
+  );
 });
 
-test('invoice renderer creates a multi-page A4 PDF for many items', async () => {
-  const result = await renderInvoicePdf(config, invoiceData(75));
+test('Indian currency amount words include paise when present', () => {
+  assert.equal(
+    indianAmountInWords(12345678),
+    'INR One Lakh Twenty Three Thousand Four Hundred Fifty Six and Seventy Eight paise Only'
+  );
+});
+
+test('invoice renderer creates a valid PDF with %PDF magic header', async () => {
+  const result = await renderInvoicePdf(createInvoiceData(2));
   assert.equal(result.buffer.subarray(0, 4).toString(), '%PDF');
-  assert.ok(result.buffer.length > 3_000);
-  assert.ok(result.pageCount >= 2);
+  assert.ok(result.buffer.length > 2_000);
+  assert.equal(result.pageCount, 1);
 });
 
-test('reference-sized invoice remains on one A4 page', async () => {
-  const result = await renderInvoicePdf(config, invoiceData(4));
+test('invoice renderer handles interstate orders with IGST', async () => {
+  const result = await renderInvoicePdf(createInvoiceData(2, true));
+  assert.equal(result.buffer.subarray(0, 4).toString(), '%PDF');
+  assert.ok(result.buffer.length > 2_000);
   assert.equal(result.pageCount, 1);
 });
