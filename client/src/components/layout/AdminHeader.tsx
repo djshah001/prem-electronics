@@ -63,7 +63,6 @@ const routeMeta: Record<string, { title: string; section: string }> = {
   "email-master": { title: "Email Master", section: "Communications" },
   campaigns: { title: "Campaigns", section: "Communications" },
   "email-logs": { title: "Email Logs", section: "Communications" },
-  "invoice-master": { title: "Invoice Master", section: "Administration" },
 };
 
 const quickLinks = [
