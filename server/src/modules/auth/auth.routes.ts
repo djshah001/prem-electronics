@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../core/middlewares/asyncHandler.js';
 import { authenticate } from '../../core/middlewares/authGuard.js';
-import { authLimiter } from '../../core/middlewares/rateLimiter.js';
+import { authLimiter, refreshLimiter } from '../../core/middlewares/rateLimiter.js';
 import { authController } from './auth.controller.js';
 
 const router = Router();
@@ -15,7 +15,7 @@ router.post('/admin/otp/resend', authLimiter, asyncHandler(authController.resend
 router.post('/admin/otp/verify', authLimiter, asyncHandler(authController.verifyAdminOtp));
 router.post('/admin/otp/cancel', authLimiter, asyncHandler(authController.cancelAdminOtp));
 router.patch('/onboarding', authLimiter, asyncHandler(authController.onboarding));
-router.post('/refresh', authLimiter, asyncHandler(authController.refresh));
+router.post('/refresh', refreshLimiter, asyncHandler(authController.refresh));
 
 router.get('/me', authenticate, asyncHandler(authController.getMe));
 router.post('/phone-change/request', authenticate, authLimiter, asyncHandler(authController.phoneChangeRequest));
