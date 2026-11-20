@@ -214,8 +214,22 @@ export const ordersService = {
 
   async getMyOrders(userId: string, query: OrderQuery) {
     const { data, total } = await ordersRepository.findByUserId(userId, query);
+    const orderIds = data.map((o) => o.id);
+    let itemsByOrderId: Record<string, any[]> = {};
+    if (orderIds.length > 0) {
+      const items = await ordersRepository.getItemsWithProductForOrders(orderIds);
+      itemsByOrderId = items.reduce((acc, item) => {
+        if (!acc[item.orderId]) acc[item.orderId] = [];
+        acc[item.orderId].push(item);
+        return acc;
+      }, {} as Record<string, any[]>);
+    }
+    const ordersWithItems = data.map((order) => ({
+      ...order,
+      items: itemsByOrderId[order.id] ?? [],
+    }));
     const meta = buildPaginationMeta(query.page, query.limit, total);
-    return { data, meta };
+    return { data: ordersWithItems, meta };
   },
 
   async getMyOrderById(userId: string, orderId: string) {
