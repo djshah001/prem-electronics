@@ -27,7 +27,7 @@ const MAX_SIZE_MB = 15;
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024, files: 10 },
+  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024, files: 30 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME.includes(file.mimetype)) {
       cb(null, true);
@@ -196,7 +196,7 @@ router.post(
 router.post(
   ["/", "/products"],
   ...adminOnly,
-  upload.array("images", 10),
+  upload.array("images", 30),
   asyncHandler(async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0)
