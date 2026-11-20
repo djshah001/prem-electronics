@@ -17,6 +17,7 @@ const envSchema = z.object({
   OTP_PROVIDER: z.enum(['msg91', 'fake']).default('fake'),
   MSG91_AUTHKEY: z.string().min(1).optional(),
   MSG91_WIDGET_ID: z.string().min(1).optional(),
+  MSG91_TOKEN_AUTH: z.string().min(1).optional(),
   OTP_BINDING_SECRET: z.string().min(32).optional(),
   OTP_FAKE_CODE: z.string().regex(/^\d{6}$/).default('654321'),
   OTP_LIFETIME_SECONDS: z.string().transform(Number).default('300').pipe(z.number().int().min(60).max(900)),
@@ -99,8 +100,8 @@ if (env.NODE_ENV === 'production' && env.OTP_PROVIDER === 'fake') {
   process.exit(1);
 }
 
-if (env.OTP_AUTH_ENABLED && env.OTP_PROVIDER === 'msg91' && (!env.MSG91_AUTHKEY || !env.MSG91_WIDGET_ID)) {
-  console.error('MSG91_AUTHKEY and MSG91_WIDGET_ID are required when OTP_PROVIDER=msg91.');
+if (env.OTP_AUTH_ENABLED && env.OTP_PROVIDER === 'msg91' && (!env.MSG91_WIDGET_ID || (!env.MSG91_AUTHKEY && !env.MSG91_TOKEN_AUTH))) {
+  console.error('MSG91_WIDGET_ID and at least one of MSG91_AUTHKEY or MSG91_TOKEN_AUTH are required when OTP_PROVIDER=msg91.');
   process.exit(1);
 }
 
