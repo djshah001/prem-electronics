@@ -7,7 +7,7 @@ export interface FilterState {
   maxPrice: number | null;
   brand: string | null;
   inStock: boolean;
-  sortBy: 'price_asc' | 'price_desc' | 'newest' | 'rating' | 'popular';
+  sortBy: 'featured' | 'price_asc' | 'price_desc' | 'newest' | 'rating' | 'popular';
 }
 
 export const defaultFilters: FilterState = {
@@ -17,7 +17,7 @@ export const defaultFilters: FilterState = {
   maxPrice: null,
   brand: null,
   inStock: false,
-  sortBy: 'newest',
+  sortBy: 'featured',
 };
 
 export const filterAtom = atom<FilterState>(defaultFilters);

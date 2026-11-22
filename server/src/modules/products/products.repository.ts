@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, ilike, or, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, ilike, or, sql, desc, asc, inArray, getTableColumns } from 'drizzle-orm';
 import { db } from '../../infrastructure/database/db.js';
 import {
   products,
@@ -89,17 +89,67 @@ export const productsRepository = {
 
     const whereClause = and(...conditions);
 
-    let orderClause;
+    const categoryPriority = sql<number>`
+      CASE
+        WHEN ${categories.slug} = 'full-frame-mirrorless-cameras' THEN 1
+        WHEN ${categories.slug} IN ('aps-c-mirrorless-cameras', 'cinema-broadcast-cameras') THEN 2
+        WHEN ${categories.slug} IN ('sony-fe-lenses', 'canon-rf-lenses', 'cinema-prime-lenses') THEN 3
+        WHEN ${categories.slug} IN ('sony-aps-c-lenses', 'canon-rf-s-lenses') THEN 4
+        WHEN ${categories.slug} = 'dslr-cameras' THEN 5
+        WHEN ${categories.slug} = 'canon-ef-lenses' THEN 6
+        WHEN ${categories.slug} = 'compact-vlog-cameras' THEN 7
+        WHEN ${categories.slug} IN ('dji-action-series', 'dji-pocket-series', 'action-pocket-cameras') THEN 8
+        WHEN ${categories.slug} IN ('dji-om-series', 'dji-ronin-stabilizers', 'gimbals-stabilizers') THEN 9
+        WHEN ${categories.slug} IN (
+          'batteries-chargers-grips',
+          'memory-cards-readers',
+          'camera-microphones',
+          'photo-printers-consumables',
+          'lens-converters-adapters',
+          'pro-audio-microphones',
+          'camera-accessories-media'
+        ) THEN 10
+        ELSE 11
+      END
+    `;
+
+    let orderClauses;
     switch (sortBy) {
-      case 'price_asc': orderClause = asc(products.price); break;
-      case 'price_desc': orderClause = desc(products.price); break;
-      case 'rating': orderClause = desc(products.avgRating); break;
-      case 'popular': orderClause = desc(products.reviewCount); break;
-      default: orderClause = desc(products.createdAt);
+      case 'price_asc':
+        orderClauses = [asc(products.price), desc(products.id)];
+        break;
+      case 'price_desc':
+        orderClauses = [desc(products.price), desc(products.id)];
+        break;
+      case 'rating':
+        orderClauses = [desc(products.avgRating), desc(products.id)];
+        break;
+      case 'popular':
+        orderClauses = [desc(products.reviewCount), desc(products.id)];
+        break;
+      case 'newest':
+        orderClauses = [desc(products.createdAt), desc(products.id)];
+        break;
+      case 'featured':
+      default:
+        orderClauses = [
+          asc(categoryPriority),
+          desc(products.isFeatured),
+          desc(products.createdAt),
+          desc(products.id),
+        ];
+        break;
     }
 
     const [data, countResult] = await Promise.all([
-      db.select().from(products).where(whereClause).orderBy(orderClause, desc(products.id)).limit(limit).offset(offset),
+      db
+        .select(getTableColumns(products))
+        .from(products)
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .where(whereClause)
+        .orderBy(...orderClauses)
+        .limit(limit)
+        .offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(products).where(whereClause),
     ]);
 

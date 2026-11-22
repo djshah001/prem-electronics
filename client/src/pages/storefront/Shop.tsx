@@ -13,11 +13,58 @@ import { clsx } from 'clsx';
 import { SEO } from '../../components/shared/SEO';
 
 const SORT_OPTIONS = [
+  { value: 'featured', label: 'Featured / Recommended' },
   { value: 'newest', label: 'Newest First' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'rating', label: 'Top Rated' },
   { value: 'popular', label: 'Most Popular' },
+];
+
+export const PARENT_CATEGORY_ORDER: Record<string, number> = {
+  'cameras': 1,
+  'camera-lenses': 2,
+  'action-pocket-cameras': 3,
+  'gimbals-stabilizers': 4,
+  'camera-accessories-media': 5,
+  'pro-audio-microphones': 6,
+};
+
+export const SUB_CATEGORY_ORDER: Record<string, number> = {
+  'full-frame-mirrorless-cameras': 1,
+  'aps-c-mirrorless-cameras': 2,
+  'cinema-broadcast-cameras': 2.5,
+  'sony-fe-lenses': 3,
+  'canon-rf-lenses': 3.1,
+  'cinema-prime-lenses': 3.2,
+  'sony-aps-c-lenses': 4,
+  'canon-rf-s-lenses': 4.1,
+  'dslr-cameras': 5,
+  'canon-ef-lenses': 6,
+  'compact-vlog-cameras': 7,
+  'dji-action-series': 8,
+  'dji-pocket-series': 8.1,
+  'dji-ronin-stabilizers': 9,
+  'dji-om-series': 9.1,
+  'batteries-chargers-grips': 10,
+  'memory-cards-readers': 10.1,
+  'camera-microphones': 10.2,
+  'lens-converters-adapters': 10.3,
+  'photo-printers-consumables': 10.4,
+};
+
+export const QUICK_CATEGORY_ITEMS = [
+  { label: 'All Products', slugs: [] },
+  { label: 'Full-Frame Mirrorless', slugs: ['full-frame-mirrorless-cameras'] },
+  { label: 'APSC Mirrorless', slugs: ['aps-c-mirrorless-cameras', 'cinema-broadcast-cameras'] },
+  { label: 'Full-Frame Lenses', slugs: ['sony-fe-lenses', 'canon-rf-lenses', 'cinema-prime-lenses'] },
+  { label: 'APSC Lenses', slugs: ['sony-aps-c-lenses', 'canon-rf-s-lenses'] },
+  { label: 'DSLR Cameras', slugs: ['dslr-cameras'] },
+  { label: 'DSLR Lenses', slugs: ['canon-ef-lenses'] },
+  { label: 'Compact Cameras', slugs: ['compact-vlog-cameras'] },
+  { label: 'Action Cameras', slugs: ['action-pocket-cameras', 'dji-action-series', 'dji-pocket-series'] },
+  { label: 'DJI Gimbals', slugs: ['gimbals-stabilizers', 'dji-om-series', 'dji-ronin-stabilizers'] },
+  { label: 'Accessories', slugs: ['camera-accessories-media', 'batteries-chargers-grips', 'memory-cards-readers', 'camera-microphones', 'photo-printers-consumables', 'lens-converters-adapters', 'pro-audio-microphones'] },
 ];
 
 export const POPULAR_BRANDS = ['Apple', 'Samsung', 'Sony', 'ASUS', 'LG', 'OnePlus', 'Dell', 'HP', 'Boat'];
@@ -63,7 +110,7 @@ export default function Shop() {
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '');
   const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') ?? '');
   const [minRating, setMinRating] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') ?? 'featured');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sliderMax, setSliderMax] = useState(500000);
@@ -187,9 +234,11 @@ export default function Shop() {
       setCategoryId('');
     }
 
-    if (urlSearch !== null) setSearch(urlSearch);
-    if (urlBrand !== null) setSelectedBrand(urlBrand);
-    if (urlFeatured !== null) setIsFeatured(urlFeatured === 'true');
+    setSearch(urlSearch ?? '');
+    setSelectedBrand(urlBrand ?? '');
+    setIsFeatured(urlFeatured === 'true');
+    const urlSort = searchParams.get('sortBy');
+    setSortBy(urlSort ?? 'featured');
   }, [searchParams, categories]);
 
   // Find active category or subcategory
@@ -203,6 +252,27 @@ export default function Shop() {
     }
     return undefined;
   };
+
+  const findCategoryBySlug = (slug: string, list: Category[]): Category | undefined => {
+    for (const c of list) {
+      if (c.slug === slug) return c;
+      if (c.children?.length) {
+        const found = findCategoryBySlug(slug, c.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+
+  const isPillSelected = (item: (typeof QUICK_CATEGORY_ITEMS)[number]) => {
+    if (item.slugs.length === 0) return !categoryId;
+    if (!activeCategory) return false;
+    if (item.slugs.includes(activeCategory.slug)) return true;
+    const parentCat = categories.find((c) => c.id === activeCategory.parentId);
+    if (parentCat && item.slugs.includes(parentCat.slug)) return true;
+    return false;
+  };
+
   const activeCategory = categoryId ? findCategory(categoryId, categories) : undefined;
 
   const handleSelectCategory = (cat: Category | null) => {
@@ -230,7 +300,7 @@ export default function Shop() {
     setCategoryId('');
     setSelectedBrand('');
     setMinRating(null);
-    setSortBy('newest');
+    setSortBy('featured');
     setMinPrice('');
     setMaxPrice('');
     setSliderMax(500000);
@@ -251,7 +321,8 @@ export default function Shop() {
     inStock ||
     isFeatured ||
     isNewArrival ||
-    isBestSeller;
+    isBestSeller ||
+    sortBy !== 'featured';
 
   const FilterPanel = () => (
     <div className="space-y-6">
@@ -281,9 +352,12 @@ export default function Shop() {
                 !TEMPORARILY_DISABLED_CATEGORIES.includes(normSlug)
               );
             })
+            .sort((a, b) => (PARENT_CATEGORY_ORDER[a.slug] ?? 99) - (PARENT_CATEGORY_ORDER[b.slug] ?? 99))
             .map((cat) => {
               const isCatSelected = categoryId === cat.id;
-              const subcategories = (cat.children ?? []).filter((s) => s.isActive !== false);
+              const subcategories = (cat.children ?? [])
+                .filter((s) => s.isActive !== false)
+                .sort((a, b) => (SUB_CATEGORY_ORDER[a.slug] ?? 99) - (SUB_CATEGORY_ORDER[b.slug] ?? 99));
               return (
                 <div key={cat.id} className="space-y-0.5">
                   <button
@@ -582,6 +656,37 @@ export default function Shop() {
         </div>
       </div>
 
+      {/* Category Quick Pills */}
+      <div className="mb-6 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 pb-1 min-w-max">
+          {QUICK_CATEGORY_ITEMS.map((item) => {
+            const isSelected = isPillSelected(item);
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  if (item.slugs.length === 0) {
+                    handleSelectCategory(null);
+                  } else {
+                    const match = findCategoryBySlug(item.slugs[0], categories);
+                    if (match) handleSelectCategory(match);
+                  }
+                }}
+                className={clsx(
+                  'px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap border',
+                  isSelected
+                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-border/80 hover:bg-muted/50'
+                )}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Active Filter Chips */}
       {hasFilters && (
         <div className="flex items-center gap-2 flex-wrap mb-6">
@@ -598,10 +703,29 @@ export default function Shop() {
               </button>
             </span>
           )}
+          {sortBy !== 'featured' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+              Sort: {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? sortBy}
+              <button onClick={() => setSortBy('featured')}><X className="w-3 h-3" /></button>
+            </span>
+          )}
           {selectedBrand && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
               Brand: {selectedBrand}
-              <button onClick={() => setSelectedBrand('')}><X className="w-3 h-3" /></button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBrand('');
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.delete('brand');
+                    return next;
+                  });
+                }}
+                aria-label={`Remove brand filter ${selectedBrand}`}
+              >
+                <X className="w-3 h-3" />
+              </button>
             </span>
           )}
           {minRating && (

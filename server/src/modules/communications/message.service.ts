@@ -8,9 +8,11 @@ import {
   messageDeliveryJobs,
   mobileMarketingPreferences,
   whatsappMarketingSuppressions,
+  users,
   type MessageDeliveryJob,
 } from '../../infrastructure/database/schema/index.js';
 import { messagingProvider } from '../../infrastructure/messaging/msg91MessagingProvider.js';
+import { getInvoicePublicUrl } from '../invoiceMaster/invoice.service.js';
 
 const stringRecord = (value: Record<string, unknown>): Record<string, string> =>
   Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, String(entry)]));
@@ -26,11 +28,16 @@ async function submit(job: MessageDeliveryJob) {
       variables: stringRecord(job.variables),
     });
   }
+  const vars = job.variables as Record<string, unknown>;
   return messagingProvider.sendWhatsapp({
     recipient: job.recipient,
     templateName: job.templateKey,
     language: job.language ?? env.MSG91_WHATSAPP_LANGUAGE,
-    bodyValues: bodyValues(job.variables),
+    namespace: (vars?.namespace as string) || (job.templateKey === env.MSG91_WHATSAPP_ORDER_CONFIRMED_TEMPLATE_NAME ? env.MSG91_WHATSAPP_ORDER_CONFIRMED_NAMESPACE : undefined),
+    bodyValues: bodyValues(vars),
+    header: vars?.header as any,
+    button: vars?.button as any,
+    components: vars?.components as any,
   });
 }
 
@@ -87,6 +94,83 @@ export const messageService = {
     for (const job of jobs) {
       if (job.status === 'queued' || job.status === 'failed') await this.processJob(job.id);
     }
+  },
+
+  async enqueueOrderConfirmedWhatsapp(
+    order: {
+      id: string;
+      orderNumber: string;
+      total: string | number;
+      invoiceNumber?: string | null;
+      shippingAddress?: { fullName?: string; phone?: string } | null;
+      userId?: string | null;
+    },
+    overridePhone?: string | null,
+    overrideCustomerName?: string | null
+  ) {
+    if (!env.TRANSACTIONAL_MESSAGING_ENABLED) return null;
+
+    let recipientPhone = overridePhone?.trim() || null;
+    let customerName = overrideCustomerName?.trim() || null;
+
+    if ((!recipientPhone || !customerName) && order.userId) {
+      const [user] = await db.select().from(users).where(eq(users.id, order.userId)).limit(1);
+      if (user) {
+        if (!recipientPhone) recipientPhone = user.authPhoneE164;
+        if (!customerName) customerName = user.name;
+      }
+    }
+
+    if (!recipientPhone && order.shippingAddress?.phone) {
+      recipientPhone = order.shippingAddress.phone;
+    }
+
+    if (!customerName && order.shippingAddress?.fullName) {
+      customerName = order.shippingAddress.fullName;
+    }
+
+    if (!recipientPhone) {
+      logger.warn('Order confirmation WhatsApp message could not find a recipient phone number.', { orderId: order.id });
+      return null;
+    }
+
+    let cleanPhone = recipientPhone.replace(/\D/g, '');
+    if (cleanPhone.length === 10) cleanPhone = `91${cleanPhone}`;
+
+    const formattedTotal = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(order.total));
+    const finalCustomerName = customerName || 'Valued Customer';
+    const mediaUrl = getInvoicePublicUrl(order.id);
+    const invoiceFilename = `${order.invoiceNumber ?? order.orderNumber}.pdf`;
+
+    const job = await this.enqueue({
+      channel: 'whatsapp',
+      purpose: 'transactional',
+      eventKey: 'order_confirmed',
+      recipient: cleanPhone,
+      templateKey: env.MSG91_WHATSAPP_ORDER_CONFIRMED_TEMPLATE_NAME,
+      language: env.MSG91_WHATSAPP_LANGUAGE,
+      dedupeKey: `order-confirmed:whatsapp:${order.id}`,
+      variables: {
+        namespace: env.MSG91_WHATSAPP_ORDER_CONFIRMED_NAMESPACE,
+        header: {
+          type: 'document',
+          filename: invoiceFilename,
+          value: mediaUrl,
+        },
+        bodyValues: [finalCustomerName, order.orderNumber, formattedTotal],
+        button: {
+          subtype: 'url',
+          type: 'text',
+          value: order.id,
+        },
+      },
+    });
+
+    if (job && (job.status === 'queued' || job.status === 'failed')) {
+      await this.processJob(job.id);
+    }
+
+    return job;
   },
 
   async processJob(id: string, workerId = `message-worker-${process.pid}`) {

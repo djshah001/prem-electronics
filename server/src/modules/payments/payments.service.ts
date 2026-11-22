@@ -27,6 +27,7 @@ import logger from '../../core/logger/logger.js';
 import { env } from '../../config/env.js';
 import { emailMasterService } from '../communications/email.service.js';
 import { invoiceService } from '../invoiceMaster/invoice.service.js';
+import { messageService } from '../communications/message.service.js';
 import { createAdminNotification } from '../notifications/notifications.service.js';
 
 type PaymentInput = {
@@ -290,6 +291,8 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
     void emailMasterService.enqueueAndAttempt('order_confirmed', result.emailRequest.recipient, result.emailRequest.variables, `order-confirmed:${result.order.id}`, { orderId: result.order.id, priority: 20 })
       .catch((error) => logger.error('Order confirmation email queued for retry.', { orderId: result.order.id, error }));
   }
+  void messageService.enqueueOrderConfirmedWhatsapp(result.order, null, result.emailRequest?.variables?.customerName as string | undefined)
+    .catch((error) => logger.error('Order confirmation WhatsApp message could not be sent.', { orderId: result.order.id, error }));
   return {
     orderId: result.order.id,
     orderNumber: result.order.orderNumber,
