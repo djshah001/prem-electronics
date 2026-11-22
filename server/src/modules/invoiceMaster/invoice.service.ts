@@ -103,6 +103,20 @@ export const sampleInvoice = (): InvoiceRenderData => ({
   ],
 });
 
+export const getInvoicePublicToken = (orderId: string): string => {
+  return createHash('sha256')
+    .update(`${orderId}:${env.JWT_SECRET}:invoice-public`)
+    .digest('hex')
+    .slice(0, 32);
+};
+
+export const getInvoicePublicUrl = (orderId: string): string => {
+  const base = env.SERVER_URL || env.CLIENT_URL.replace(/:5173\/?$/, ':5000');
+  const cleanBase = base.replace(/\/+$/, '');
+  const token = getInvoicePublicToken(orderId);
+  return `${cleanBase}/api/v1/invoice-master/public/${orderId}/pdf?token=${token}`;
+};
+
 export const invoiceService = {
   preview: () => renderInvoicePdf(sampleInvoice()),
 

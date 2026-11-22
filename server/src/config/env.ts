@@ -13,6 +13,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_DAYS: z.string().transform(Number).default('30'),
   AUTH_TOKEN_VERSION: z.string().min(1).default('otp-v1'),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  SERVER_URL: z.string().url().optional(),
   OTP_AUTH_ENABLED: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
   OTP_PROVIDER: z.enum(['msg91', 'fake']).default('fake'),
   MSG91_AUTHKEY: z.string().min(1).optional(),
@@ -34,9 +35,12 @@ const envSchema = z.object({
   TRANSACTIONAL_MESSAGING_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   WHATSAPP_CAMPAIGN_DELIVERY_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   MSG91_SMS_WELCOME_TEMPLATE_ID: z.string().min(1).optional(),
-  MSG91_WHATSAPP_INTEGRATED_NUMBER: z.string().regex(/^\d{8,15}$/).optional(),
+  MSG91_WHATSAPP_INTEGRATED_NUMBER: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().regex(/^\d{8,15}$/).optional()),
   MSG91_WHATSAPP_WELCOME_TEMPLATE_NAME: z.string().min(1).optional(),
   MSG91_WHATSAPP_LANGUAGE: z.string().min(2).max(20).default('en'),
+  MSG91_BASE_URL: z.string().url().default('https://api.msg91.com'),
+  MSG91_WHATSAPP_ORDER_CONFIRMED_TEMPLATE_NAME: z.string().min(1).default('order_confirmed_pdf'),
+  MSG91_WHATSAPP_ORDER_CONFIRMED_NAMESPACE: z.string().min(1).default('dc61b116_c9a1_4df9_bdc1_5c2d888bfddb'),
   MSG91_MESSAGE_TIMEOUT_MS: z.string().transform(Number).default('8000').pipe(z.number().int().min(1000).max(30000)),
   RAZORPAY_KEY_ID: z.string().min(1),
   RAZORPAY_KEY_SECRET: z.string().min(1),
@@ -46,7 +50,11 @@ const envSchema = z.object({
   SMTP_PORT: z.string().transform(Number),
   SMTP_USER: z.string(),
   SMTP_PASS: z.string(),
-  SMTP_FROM: z.string().email(),
+  SMTP_FROM: z.string().refine((val) => {
+    const match = val.match(/<([^>]+)>/);
+    const email = match ? match[1] : val.replace(/^["']|["']$/g, '').trim();
+    return z.string().email().safeParse(email).success;
+  }, 'SMTP_FROM must be a valid email or "Name <email@domain>" format'),
   /** Default product tax rate as a decimal. Configure from the merchant's tax catalogue. */
   TAX_RATE: z.string().default('0.18').transform(Number).refine((value) => Number.isFinite(value) && value >= 0 && value <= 1, 'TAX_RATE must be between 0 and 1.'),
   /** Flat shipping charge in INR minor units (paise)/100 display units. Engineering default: 99 */
@@ -115,7 +123,7 @@ if (env.MESSAGE_PROVIDER === 'msg91' && (env.TRANSACTIONAL_MESSAGING_ENABLED || 
   process.exit(1);
 }
 
-if (env.TRANSACTIONAL_MESSAGING_ENABLED && (!env.MSG91_SMS_WELCOME_TEMPLATE_ID || !env.MSG91_WHATSAPP_WELCOME_TEMPLATE_NAME)) {
-  console.error('MSG91 SMS and WhatsApp welcome templates are required when transactional messaging is enabled.');
+if (env.TRANSACTIONAL_MESSAGING_ENABLED && !env.MSG91_SMS_WELCOME_TEMPLATE_ID && !env.MSG91_WHATSAPP_WELCOME_TEMPLATE_NAME && !env.MSG91_WHATSAPP_ORDER_CONFIRMED_TEMPLATE_NAME) {
+  console.error('At least one transactional messaging template must be configured when transactional messaging is enabled.');
   process.exit(1);
 }

@@ -1,9 +1,30 @@
 import { Router } from "express";
 import { adminOnly, authenticate } from "../../core/middlewares/authGuard.js";
 import { asyncHandler } from "../../core/middlewares/asyncHandler.js";
-import { invoiceService } from "./invoice.service.js";
+import { AppError } from "../../core/errors/appError.js";
+import { invoiceService, getInvoicePublicToken } from "./invoice.service.js";
 
 const router = Router();
+
+router.get(
+  "/public/:orderId/pdf",
+  asyncHandler(async (req, res) => {
+    const orderId = String(req.params.orderId);
+    const token = String(req.query.token || "");
+    const expectedToken = getInvoicePublicToken(orderId);
+    if (!token || token !== expectedToken) {
+      throw new AppError("Invalid or expired invoice link.", 403);
+    }
+    const invoice = await invoiceService.issueForOrder(orderId);
+    res
+      .type("application/pdf")
+      .setHeader(
+        "Content-Disposition",
+        `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+      );
+    res.send(invoice.pdfBytes);
+  }),
+);
 
 router.get(
   "/preview",

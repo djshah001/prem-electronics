@@ -105,7 +105,7 @@ export const productQuerySchema = z.object({
   isFeatured: queryBoolean,
   isNewArrival: queryBoolean,
   isBestSeller: queryBoolean,
-  sortBy: z.preprocess(singleQuery, z.enum(['price_asc', 'price_desc', 'newest', 'rating', 'popular']).default('newest')),
+  sortBy: z.preprocess(singleQuery, z.enum(['price_asc', 'price_desc', 'newest', 'rating', 'popular', 'featured']).default('featured')),
 }).strict().superRefine((value, ctx) => {
   if (value.minPrice !== undefined && value.maxPrice !== undefined && value.minPrice > value.maxPrice) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['minPrice'], message: 'Minimum price cannot exceed maximum price.' });
