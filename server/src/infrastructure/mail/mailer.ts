@@ -16,7 +16,7 @@ export const sendRenderedEmail = async (input: {
   attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
   unsubscribeUrl?: string;
 }) => transporter.sendMail({
-  from: `"Prem Electronics" <${env.SMTP_FROM}>`,
+  from: env.SMTP_FROM.includes('<') ? env.SMTP_FROM : `"Prem Electronics" <${env.SMTP_FROM}>`,
   to: input.to,
   subject: input.subject,
   html: input.html,

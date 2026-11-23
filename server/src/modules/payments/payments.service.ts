@@ -95,6 +95,7 @@ const deliverOrderEmail = async (outboxId: string) => {
     const delivery = await emailMasterService.enqueueAndAttempt('order_confirmed', entry.recipient, {
       customerName: payload.customerName ?? 'Customer', orderNumber: payload.orderNumber ?? 'Order',
       orderTotal: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payload.total ?? 0)),
+      orderUrl: entry.orderId ? `${env.CLIENT_URL}/account/orders/${entry.orderId}` : `${env.CLIENT_URL}/account/orders`,
     }, `legacy-order-confirmed:${entry.orderId ?? entry.id}`, { orderId: entry.orderId ?? undefined, priority: 20 });
     if (!delivery || !['smtp_accepted', 'unknown'].includes(delivery.status)) throw new Error(delivery?.lastError ?? 'Versioned email delivery remains queued for retry.');
     await db.update(emailOutbox).set({
@@ -274,6 +275,7 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
             orderNumber: order.orderNumber,
             customerName: user.name,
             orderTotal: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(order.total)),
+            orderUrl: `${env.CLIENT_URL}/account/orders/${order.id}`,
           },
         };
       }
@@ -290,6 +292,18 @@ const finalizePayment = async (input: PaymentInput, options: FinalizeOptions) =>
   if (result.emailRequest) {
     void emailMasterService.enqueueAndAttempt('order_confirmed', result.emailRequest.recipient, result.emailRequest.variables, `order-confirmed:${result.order.id}`, { orderId: result.order.id, priority: 20 })
       .catch((error) => logger.error('Order confirmation email queued for retry.', { orderId: result.order.id, error }));
+  }
+  if (env.ADMIN_EMAIL) {
+    const customerName = (result.emailRequest?.variables?.customerName as string) || (result.order.shippingAddress as any)?.fullName || 'Customer';
+    const orderTotal = (result.emailRequest?.variables?.orderTotal as string) || new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(result.order.total));
+    const adminVariables = {
+      orderNumber: result.order.orderNumber,
+      customerName,
+      orderTotal,
+      adminOrderUrl: `${env.CLIENT_URL}/admin/orders/${result.order.id}`,
+    };
+    void emailMasterService.enqueueAndAttempt('admin_order_notification', env.ADMIN_EMAIL, adminVariables, `admin-order-notification:${result.order.id}`, { orderId: result.order.id, priority: 20 })
+      .catch((error) => logger.error('Admin order notification email queued for retry.', { orderId: result.order.id, error }));
   }
   void messageService.enqueueOrderConfirmedWhatsapp(result.order, null, result.emailRequest?.variables?.customerName as string | undefined)
     .catch((error) => logger.error('Order confirmation WhatsApp message could not be sent.', { orderId: result.order.id, error }));

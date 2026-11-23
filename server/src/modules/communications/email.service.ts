@@ -25,7 +25,7 @@ const renderVersion = (version: typeof emailTemplateVersions.$inferSelect, varia
 
 const safeSamples: Record<string, unknown> = {
   customerName: 'Sample Customer',
-  orderNumber: 'PE-PREVIEW-001', orderTotal: 'INR 2,358.82',
+  orderNumber: 'PE-PREVIEW-001', orderTotal: 'INR 2,358.82', orderUrl: `${env.CLIENT_URL}/account/orders/sample-order-id`, adminOrderUrl: `${env.CLIENT_URL}/admin/orders/sample-order-id`,
   campaignSubject: 'A sample Prem Electronics update', campaignMessage: 'Preview content is generated with safe example data.',
   unsubscribeUrl: `${env.CLIENT_URL}/unsubscribe?token=preview-token`,
 };
@@ -165,7 +165,7 @@ export const emailMasterService = {
     try {
       if (job.expiresAt && job.expiresAt <= new Date()) throw new Error('Email job expired before submission.');
       const attachments: Array<{ filename: string; content: Buffer; contentType: string }> = [];
-      if (job.eventKey === 'order_confirmed' && job.orderId) {
+      if ((job.eventKey === 'order_confirmed' || job.eventKey === 'admin_order_notification') && job.orderId) {
         const [invoice] = await db.select().from(issuedInvoices).where(eq(issuedInvoices.orderId, job.orderId)).limit(1);
         if (invoice) attachments.push({ filename: `${invoice.invoiceNumber}.pdf`, content: invoice.pdfBytes, contentType: 'application/pdf' });
       }
