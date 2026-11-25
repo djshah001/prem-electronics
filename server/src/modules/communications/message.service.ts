@@ -340,6 +340,7 @@ export const messageService = {
         await markCampaignComplete(job.campaignRecipientId);
       }
     } catch (error) {
+      logger.error("Mobile message submission failed.", error);
       const message = String(
         error instanceof Error ? error.message : error,
       ).slice(0, 1000);
